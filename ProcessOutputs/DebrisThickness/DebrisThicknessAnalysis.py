@@ -2,21 +2,26 @@
 """
 Created on Tue Feb 15 10:34:32 2022
 
+the purpose of this script is to covert .TIF data to a numpy array
+for converting Rounce et al. (2020) debris thickness data 
+for the Kaskawulsh to a useable data type
+
 @author: katierobinson
 """
-#the purpose of this script is to covert .TIF data to a numpy array
-# for converting Rounce et al. (2020) debris thickness data for the Kaskawulsh to a useable data type
 
 import numpy as np
 import PIL
 from PIL import Image
 import matplotlib.pyplot as plt
 import os
-#from Model_functions_ver4 import regridXY_something
+import sys
+sys.path.insert(1,'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\RunModel')
+from Model_functions_ver4 import regridXY_something
 
-Path2files = 'F:/Mass Balance Model/DebrisThickness'
+Path2files = 'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\ProcessOutputs\DebrisThickness'
 
-debristhickness = Image.open('F:/Mass Balance Model/DebrisThickness/HMA_DTE_1.16201_hdts_m.tif')
+thicknessmap = os.path.join(Path2files,'HMA_DTE_1.16201_hdts_m.tif')
+debristhickness = Image.open(thicknessmap)
 #debristhickness.show()
 debristhickness_array = np.array(debristhickness)
 debristhickness_array.shape
@@ -33,7 +38,7 @@ legend = plt.colorbar()
 legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
 plt.tight_layout()
 plt.title('Kaskawulsh Debris Thickness Estimate',fontsize=14)
-plt.savefig(os.path.join(Path2files,'KW_debristhickness.png'),bbox_inches = 'tight')
+#plt.savefig(os.path.join(Path2files,'KW_debristhickness.png'),bbox_inches = 'tight')
 
 
 plt.figure(figsize=(8,5))
@@ -42,12 +47,13 @@ legend = plt.colorbar()
 legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
 plt.tight_layout()
 plt.title('Kaskawulsh Debris Thickness Estimate',fontsize=14)
-plt.savefig(os.path.join(Path2files,'KW_debristhickness_zoomed.png'),bbox_inches = 'tight')
+#plt.savefig(os.path.join(Path2files,'KW_debristhickness_zoomed.png'),bbox_inches = 'tight')
 
 #max thickness = 3m, min thickness = 0m, mean thickness = 0.18 m
 
 #now do the same thing with the melt factors
-meltfactors = Image.open('F:/Mass Balance Model/DebrisThickness/HMA_DTE_1.16201_meltfactor.tif')
+mf_map = os.path.join(Path2files,'HMA_DTE_1.16201_meltfactor.tif')
+meltfactors = Image.open(mf_map)
 #meltfactors.show()
 MF_array = np.array(meltfactors)
 MF_array.shape
@@ -62,7 +68,7 @@ legend = plt.colorbar()
 legend.ax.set_ylabel('Sub-Debris Melt Factor', rotation=270,fontsize=14,labelpad=20)
 plt.tight_layout()
 plt.title('Kaskawulsh Sub-Debris Melt Enhancement Factors',fontsize=14)
-plt.savefig(os.path.join(Path2files,'KW_meltfactors.png'),bbox_inches = 'tight')
+#plt.savefig(os.path.join(Path2files,'KW_meltfactors.png'),bbox_inches = 'tight')
 
 ####Plot debris mask from the original model
 File_glacier_in = os.path.join(Path2files,'Kaskonly_deb.txt')
@@ -115,11 +121,112 @@ plt.axvline(x=0.13,color='k',linestyle='--')
 #plt.axvline(x=0.03,color='k',linestyle='--')
 plt.title('Transition thickness = 13 cm',fontsize=14)
 plt.xlim(0,0.45)
-plt.savefig(os.path.join(Path2files,'debristhickness_vs_MF_Ostrem.pdf'),bbox_inches = 'tight')
+#plt.savefig(os.path.join(Path2files,'debristhickness_vs_MF_Ostrem.pdf'),bbox_inches = 'tight')
 
-transitionMF = np.where(MF_array > 0.99 and MF_array < 0.101)
-transitionh = debristhickness_array[transitionMF]
+#transitionMF = np.where(MF_array > 0.99 and MF_array < 0.101)
+#transitionh = debristhickness_array[transitionMF]
+#transition_thickness = np.nanmean(transitionh)
 
-transition_thickness = np.nanmean(transitionh)
+###############################################################################
+# MAP DR KW THICKNESS MAP (100m resolution) TO MODEL DOMAIN (200m resolution)
+###############################################################################
+
+print('Model shape = ' + str(debris_m.shape))
+print('Debris map shape = ' + str(debristhickness_array.shape))
+
+# test of melt-debris equation (eq 1 from Rounce et al. (2021))
+M2cm = 6.62306028549649 # from hdopt_params.csv (melt_mwea_2cm)
+bo = 11.0349260206858 #from hdopt_params.csv (b0)
+k = 1.98717418666925 # from hdopt_params.csv
+
+cleaniceM = 2.9200183038347
+
+# reproduces curves that DR emailed:
+SubdebrisMelt = M2cm/(1+(k*M2cm*debristhickness_array))
+Meltenhancement = SubdebrisMelt/cleaniceM
+
+# plot melt vs debris thickness, then use the "clean ice melt" or "melt_2cm" to derive the melt enhancement factors!
+melt = []
+debthickness = []
+MEF = []
+for x in range(len(SubdebrisMelt)):
+    for y in range(len(SubdebrisMelt[0])):
+        h =  debristhickness_array[x][y]
+        MF = SubdebrisMelt[x][y]
+        mef =  Meltenhancement[x][y]
+        melt.append(MF)
+        debthickness.append(h)
+        MEF.append(mef)
+
+# estimate melt at 3cm
+h = 0.03
+hMelt = M2cm/(1+(k*M2cm*h))
+
+hMEF = SubdebrisMelt/hMelt
+
+h_MEF = []
+for x in range(len(SubdebrisMelt)):
+    for y in range(len(SubdebrisMelt[0])):
+        hmef =  hMEF[x][y]
+        h_MEF.append(hmef)
+        
+plt.figure(figsize=(8,6))
+plt.scatter(debthickness,melt)
+plt.xlabel('Debris Thickness (m)',fontsize=14)
+plt.ylabel('Melt (m w.e. a$^{-1}$)',fontsize=14)
+#plt.axhline(y=1,color='k',linestyle='--')
+#plt.axvline(x=0.13,color='k',linestyle='--')
+#plt.axvline(x=0.03,color='k',linestyle='--')
+plt.title('KW Melt vs Debris Thickness \n M0',fontsize=14)
+plt.xlim(0,2)
+
+plt.figure(figsize=(8,6))
+plt.scatter(debthickness,h_MEF)
+plt.xlabel('Debris Thickness (m)',fontsize=14)
+plt.ylabel('Melt Enhancement Factor (m w.e. a$^{-1}$)',fontsize=14)
+plt.axhline(y=1,color='k',linestyle='--')
+plt.axvline(x=0.03,color='k',linestyle='--')
+#plt.axvline(x=0.03,color='k',linestyle='--')
+plt.title('Transition Thickness = 3cm \n M$_0$ = 6.62 \n M$_{clean ice}$ = M$_{(h=3cm)}$ = 4.74',fontsize=14)
+plt.xlim(0,0.5)
+plt.savefig(os.path.join(Path2files,'Meltcurve_tt3cm.png'),bbox_inches = 'tight')
+
+# reproduces the original melt curves from the debris thickness .tif files, with transition thickness at 
+SubdebrisMelt = bo/(1+(k*bo*debristhickness_array))
+Meltenhancement = SubdebrisMelt/M2cm
+
+# plot melt vs debris thickness, then use the "clean ice melt" or "melt_2cm" to derive the melt enhancement factors!
+melt = []
+debthickness = []
+MEF = []
+for x in range(len(SubdebrisMelt)):
+    for y in range(len(SubdebrisMelt[0])):
+        h =  debristhickness_array[x][y]
+        MF = SubdebrisMelt[x][y]
+        mef =  Meltenhancement[x][y]
+        melt.append(MF)
+        debthickness.append(h)
+        MEF.append(mef)
+
+        
+plt.figure(figsize=(8,6))
+plt.scatter(debthickness,melt)
+plt.xlabel('Debris Thickness (m)',fontsize=14)
+plt.ylabel('Melt (m w.e. a$^{-1}$)',fontsize=14)
+#plt.axhline(y=1,color='k',linestyle='--')
+#plt.axvline(x=0.13,color='k',linestyle='--')
+#plt.axvline(x=0.03,color='k',linestyle='--')
+plt.title('KW Melt vs Debris Thickness',fontsize=14)
+plt.xlim(0,2)
+        
+plt.figure(figsize=(8,6))
+plt.scatter(debthickness,MEF)
+plt.xlabel('Debris Thickness (m)',fontsize=14)
+plt.ylabel('Melt Enhancement Factor (m w.e. a$^{-1}$)',fontsize=14)
+plt.axhline(y=1,color='k',linestyle='--')
+plt.axvline(x=0.03,color='k',linestyle='--')
+#plt.axvline(x=0.03,color='k',linestyle='--')
+plt.title('Transition Thickness = 3cm \n M$_0$ = 11.03 \n M$_{clean ice}$ = M$_{(h=2cm)}$ = = 6.62 ',fontsize=14)
+plt.xlim(-0.01,2)
 
 
