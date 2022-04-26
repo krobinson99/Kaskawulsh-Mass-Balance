@@ -138,7 +138,6 @@ print('Debris map shape = ' + str(debristhickness_array.shape))
 M2cm = 6.62306028549649 # from hdopt_params.csv (melt_mwea_2cm)
 bo = 11.0349260206858 #from hdopt_params.csv (b0)
 k = 1.98717418666925 # from hdopt_params.csv
-
 cleaniceM = 2.9200183038347
 
 # reproduces curves that DR emailed:
@@ -189,7 +188,7 @@ plt.axvline(x=0.03,color='k',linestyle='--')
 #plt.axvline(x=0.03,color='k',linestyle='--')
 plt.title('Transition Thickness = 3cm \n M$_0$ = 6.62 \n M$_{clean ice}$ = M$_{(h=3cm)}$ = 4.74',fontsize=14)
 plt.xlim(0,0.5)
-plt.savefig(os.path.join(Path2files,'Meltcurve_tt3cm.png'),bbox_inches = 'tight')
+#plt.savefig(os.path.join(Path2files,'Meltcurve_tt3cm.png'),bbox_inches = 'tight')
 
 # reproduces the original melt curves from the debris thickness .tif files, with transition thickness at 
 SubdebrisMelt = bo/(1+(k*bo*debristhickness_array))
@@ -229,4 +228,5 @@ plt.axvline(x=0.03,color='k',linestyle='--')
 plt.title('Transition Thickness = 3cm \n M$_0$ = 11.03 \n M$_{clean ice}$ = M$_{(h=2cm)}$ = = 6.62 ',fontsize=14)
 plt.xlim(-0.01,2)
 
+###############################################################################
 
