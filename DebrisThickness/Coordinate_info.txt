@@ -1,0 +1,56 @@
+[mii] loading StdEnv/2020 intel/2020.1.217 gdal/3.0.4 ...
+Driver: GTiff/GeoTIFF
+Files: HMA_DTE_1.16201_hdts_m.tif
+Size is 678, 463
+Coordinate System is:
+PROJCRS["unnamed",
+    BASEGEOGCRS["WGS 84",
+        DATUM["World Geodetic System 1984",
+            ELLIPSOID["WGS 84",6378137,298.257223563,
+                LENGTHUNIT["metre",1]]],
+        PRIMEM["Greenwich",0,
+            ANGLEUNIT["degree",0.0174532925199433]],
+        ID["EPSG",4326]],
+    CONVERSION["Transverse Mercator",
+        METHOD["Transverse Mercator",
+            ID["EPSG",9807]],
+        PARAMETER["Latitude of natural origin",0,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8801]],
+        PARAMETER["Longitude of natural origin",-139.114,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8802]],
+        PARAMETER["Scale factor at natural origin",0.9996,
+            SCALEUNIT["unity",1],
+            ID["EPSG",8805]],
+        PARAMETER["False easting",0,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8806]],
+        PARAMETER["False northing",0,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8807]]],
+    CS[Cartesian,2],
+        AXIS["easting",east,
+            ORDER[1],
+            LENGTHUNIT["metre",1,
+                ID["EPSG",9001]]],
+        AXIS["northing",north,
+            ORDER[2],
+            LENGTHUNIT["metre",1,
+                ID["EPSG",9001]]]]
+Data axis to CRS axis mapping: 1,2
+Origin = (-36277.306393868762825,6746116.429295515641570)
+Pixel Size = (100.000000000000000,-100.000000000000000)
+Metadata:
+  AREA_OR_POINT=Area
+Image Structure Metadata:
+  COMPRESSION=LZW
+  INTERLEAVE=BAND
+Corner Coordinates:
+Upper Left  (  -36277.306, 6746116.429) (139d46'53.65"W, 60d50'55.22"N)
+Lower Left  (  -36277.306, 6699816.429) (139d46'22.91"W, 60d25'58.80"N)
+Upper Right (   31522.694, 6746116.429) (138d32' 2.10"W, 60d50'56.68"N)
+Lower Right (   31522.694, 6699816.429) (138d32'28.82"W, 60d26' 0.24"N)
+Center      (   -2377.306, 6722966.429) (139d 9'26.88"W, 60d38'32.91"N)
+Band 1 Block=256x256 Type=Float32, ColorInterp=Gray
+  NoData Value=1e+20
