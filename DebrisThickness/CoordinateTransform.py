@@ -26,7 +26,7 @@ from Model_functions_ver4 import regridXY_something
 import utm
 import matplotlib.pyplot as plt
 
-# READ IN COORDINATE TABLE (coords for Rounce et al. (2021) debris map)
+# READ IN COORDINATE TABLE (coords for Rounce et al. (2021) debris map)########
 coordinate_file = 'CoordinateTable.csv'
 coordstable = np.loadtxt(coordinate_file,delimiter=",",skiprows=1) #namelist!!
 debthickness = coordstable[:,1]
@@ -35,7 +35,7 @@ lon = coordstable[:,3]
 x_meters = coordstable[:,4]
 y_meters = coordstable[:,5]
 
-# GET COORDINATES FOR MODEL DOMAIN
+# GET COORDINATES FOR MODEL DOMAIN#############################################
 Path2Model = 'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\RunModel'
 File_glacier_in = os.path.join(Path2Model,'Kaskonly_deb.txt')
 glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
@@ -70,7 +70,7 @@ for i in range(0,len(debris_m)):
         else:
             pass
         
-# CONVERT EASTING/NORTHING TO LAT/LON using python module utm
+# CONVERT EASTING/NORTHING TO LAT/LON using python module utm #################
 easting_DR = []
 northing_DR =[]
 for i in range(0,len(lat)):
@@ -95,24 +95,25 @@ EY_cellarea = 0.2*0.2
 DR_debrisarea = len(easting_DR)*DR_cellarea
 EY_debrisarea = len(easting_EY)*EY_cellarea
 
-print('DR debris area = ' + str(np.round(DR_debrisarea,2)) + ' km2')
-print('EY debris area = ' + str(np.round(EY_debrisarea,2)) + ' km2')
+print('Original DR debris area = ' + str(np.round(DR_debrisarea,2)) + ' km2')
+print('Original EY debris area = ' + str(np.round(EY_debrisarea,2)) + ' km2')
 
-# CALCULATE THE TOTAL VOLUME OF DEBRIS IN THE DR MAP
+# CALCULATE THE TOTAL VOLUME OF DEBRIS IN THE DR MAP ##########################
 # Volume per cell = DR_cellarea * debris thickness
 Vol_per_cell = (100*100) * debthickness
 Total_deb_vol = np.sum(Vol_per_cell)
 print('Total volume of debris in DR map = ' + str(Total_deb_vol) + ' m^3')
 
-# CALCULATE ELEVATION OF THE DR DEBRIS CELLS FROM EY ZGRID.
+# CALCULATE ELEVATION OF THE DR DEBRIS CELLS FROM EY ZGRID. ###################
 # ASSIGN Z VALUE BASED ON NEAREST NEIGHBOUR EY CELL
+
+# only let nearest neighbour be somewhere on the actual glacier (insert nanlocs into Xgrid and Ygrid)
+Xgrid[nanlocs] = np.nan #Xgrid looks normal --> increases West to East
+#Ygrid[nanlocs] = np.nan # Ygrid not normal --> increases South to North
+Ygrid_flipped[nanlocs] = np.nan #normal South to North increasing, but Kask is upside down, nanlocs are wrong. 
+
 elevation_DR = []
 distance_to_NN = []
-# only let nearest neighbour be somewhere on the actual glacier (insert nanlocs into Xgrid and Ygrid)
-#Xgrid[nanlocs] = np.nan
-#Ygrid_flipped[nanlocs] = np.nan
-
-#point i = 0 might be outside the model domain
 for i in range(0,len(easting_DR)):
     x_dist = Xgrid - easting_DR[i]
     y_dist = Ygrid_flipped - northing_DR[i]
@@ -120,11 +121,118 @@ for i in range(0,len(easting_DR)):
     loc = np.where(distance == np.nanmin(distance))
     distance_to_NN.append(np.nanmin(distance))
     elevation_DR.append(Zgrid[loc[0][0]][loc[1][0]])
-#################################################### THIS WORKS! #########    
-    
+# distance to nearest neighbour (NN) is 1-275 meters, mean = 78m away
 
-#Problem: There are debris cells in DR's projection that are OUTSIDE the model domain from EY
-# ie. np.max(easting_EY) - np.max(Xgrid) = 223.4 m
+# PLOT HISTOGRAM OF DEBRIS VOLUME VS ELEVATION ################################
+# --> This is to check conservation of mass after interpolating to the 200 m domain
+#working with: elevation_DR and debthickness
+
+#range is 700 - 2500 m (18 bins of 100 m each)
+b700, b800, b900, b1000, b1100, b1200, b1300, b1400, b1500, b1600, b1700, b1800, b1900, \
+b2000, b2100, b2200, b2300, b2400 = [],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]
+for i in range(0,len(elevation_DR)):
+    z = elevation_DR[i]
+    if z < 1600:
+        if z >= 700 and z < 800:
+            b700.append(debthickness[i])
+        elif z >= 800 and z < 900:
+            b800.append(debthickness[i])
+        elif z >= 900 and z < 1000:
+            b900.append(debthickness[i])
+        elif z >= 1000 and z < 1100:
+            b1000.append(debthickness[i])
+        elif z >= 1100 and z < 1200:
+            b1100.append(debthickness[i])
+        elif z >= 1200 and z < 1300:
+            b1200.append(debthickness[i])
+        elif z >= 1300 and z < 1400:
+            b1300.append(debthickness[i])
+        elif z >= 1400 and z < 1500:
+            b1400.append(debthickness[i])
+        elif z >= 1500 and z < 1600:
+            b1500.append(debthickness[i])
+    elif z >= 1600:
+        if z >= 1600 and z < 1700:
+            b1600.append(debthickness[i])
+        elif z >= 1700 and z < 1800:
+            b1700.append(debthickness[i])
+        elif z >= 1800 and z < 1900:
+            b1800.append(debthickness[i])
+        elif z >= 1900 and z < 2000:
+            b1900.append(debthickness[i])
+        elif z >= 2000 and z < 2100:
+            b2000.append(debthickness[i])
+        elif z >= 2100 and z < 2200:
+            b2100.append(debthickness[i])
+        elif z >= 2200 and z < 2300:
+            b2200.append(debthickness[i])
+        elif z >= 2300 and z < 2400:
+            b2300.append(debthickness[i])
+        elif z >= 2400 and z <= 2500:
+            b2400.append(debthickness[i])
+
+#check that all cells were accounted for:
+numcells = np.sum([len(b700),len(b800),len(b900),len(b1000),len(b1100),len(b1200),len(b1300) \
+                   ,len(b1400),len(b1500),len(b1600),len(b1700),len(b1800),len(b1900)\
+                   ,len(b2000),len(b2100),len(b2200),len(b2300),len(b2400)])
+
+# plot VOLUME of debris in each elevation band AND AVERAGE debris thickness at each elevation + range 
+# also plot histogram of debris thicknesses? ie. debris covered-area vs thickness bin
+i = 700
+zlabels = []
+while i < 2500:
+    label = str(i+50) 
+    zlabels.append(label)
+    i += 100
+
+mass_per_bin = ([np.sum(b700),np.sum(b800),np.sum(b900),np.sum(b1000),np.sum(b1100),np.sum(b1200)\
+                   ,np.sum(b1300),np.sum(b1400),np.sum(b1500),np.sum(b1600),np.sum(b1700),np.sum(b1800)\
+                   ,np.sum(b1900),np.sum(b2000),np.sum(b2100),np.sum(b2200),np.sum(b2300),np.sum(b2400)]) #units = m
+    
+volume_per_bin = np.array(mass_per_bin) * (100*100) / 1e9 #units = km^3
+
+mean_thickness_per_bin = ([np.mean(b700),np.mean(b800),np.mean(b900),np.mean(b1000),np.mean(b1100),np.mean(b1200)\
+                   ,np.mean(b1300),np.mean(b1400),np.mean(b1500),np.mean(b1600),np.mean(b1700),np.mean(b1800)\
+                   ,np.mean(b1900),np.mean(b2000),np.mean(b2100),np.mean(b2200),np.mean(b2300),np.mean(b2400)])
+
+width = 0.75
+plt.figure(figsize=(10,6))
+plt.suptitle('Original DR Debris Map, Elevation interpolated from EY DEM',fontsize=14,y=1.01)
+plt.subplot(1,2,1)
+plt.title('Volume of Debris vs Elevation', fontsize=14)
+#plt.bar(x-width, tmean_shift30, width,color='gold')
+plt.barh(x, volume_per_bin, width,color='turquoise')
+#plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.yticks(x,zlabels, fontsize=14)
+plt.ylabel('Elevation (m)',fontsize=14)
+plt.xlabel('Volume of Debris (km$^3$)',fontsize=14)
+plt.subplot(1,2,2)
+plt.title('Mean Debris Thickness vs Elevation', fontsize=14)
+#plt.bar(x-width, tmean_shift30, width,color='gold')
+plt.barh(x, mean_thickness_per_bin, width,color='turquoise')
+#plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.yticks(x,zlabels, fontsize=14)
+plt.ylabel('Elevation (m)',fontsize=14)
+plt.xlabel('Mean Debris Thickness (m)',fontsize=14)
+plt.tight_layout()
+plt.savefig('DRdebris_volume_thickness_vs_z.png',bbox_inches='tight')
+
+#calculate histogram of debris thicknesses (ie. y-axis = thickness, x-axis = covered area)
+full_deb_hist = np.histogram(debthickness,bins=20)
+full_deb_labels = np.round(deb_hist[1][1:],2)
+full_deb_area = deb_hist[0]*(100*100)
+
+x2 = np.arange(len(full_deb_labels))
+
+plt.figure(figsize=(10,6))
+plt.title('Area vs Debris Thickness', fontsize=14)
+#plt.bar(x-width, tmean_shift30, width,color='gold')
+plt.barh(x2, full_deb_area, width,color='turquoise')
+#plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.yticks(x2,full_deb_labels, fontsize=14)
+plt.ylabel('Debris Thickness (m)',fontsize=14)
+plt.xlabel('Area (m$^2$)',fontsize=14)
+plt.tight_layout()
     
 
 
