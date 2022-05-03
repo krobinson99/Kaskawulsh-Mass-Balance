@@ -15,6 +15,8 @@ to the 200 m mass balance model domain
 # 4. Open editor, select "calculate geometry"
 # 5. calculate x,y coordinates for each column
 # 6. export shapefile as .csv
+# Adding elevation layer to the ArcMap:
+# 1. Add Data > Add Basemap > Topographic World Map
 
 import numpy as np
 import os
@@ -55,13 +57,16 @@ debris_m[np.where(debris_grid <= 100)] = np.nan
 debris_m[nanlocs] = np.nan
 
 Ygrid_flipped = np.flipud(Ygrid) # Ygrid is originally upside down (values decreasing south to north)
+
 easting_EY = []
 northing_EY = []
+elevation_EY = []
 for i in range(0,len(debris_m)):
     for j in range(0,len(debris_m[1])):
         if debris_m[i,j] == 1:
             easting_EY.append(Xgrid[i,j])
             northing_EY.append(Ygrid_flipped[i,j])
+            elevation_EY.append(Zgrid[i,j])
         else:
             pass
         
@@ -76,6 +81,8 @@ for i in range(0,len(lat)):
 # PLOT THE TWO DIFFERENT GRIDS! COMPARE
 plt.figure(figsize=(8,5))
 plt.scatter(easting_EY,northing_EY,color='red')
+#plt.scatter(easting_EY,northing_EY,c=elevation_EY, cmap="RdYlBu")
+#legend = plt.colorbar()
 plt.scatter(easting_DR,northing_DR,color='dodgerblue')
 plt.legend(['EY Debris Cells','DR Debris Cells'],fontsize=12)
 plt.xlabel('Easting (m)',fontsize=12)
@@ -91,6 +98,30 @@ EY_debrisarea = len(easting_EY)*EY_cellarea
 print('DR debris area = ' + str(np.round(DR_debrisarea,2)) + ' km2')
 print('EY debris area = ' + str(np.round(EY_debrisarea,2)) + ' km2')
 
+# CALCULATE THE TOTAL VOLUME OF DEBRIS IN THE DR MAP
+# Volume per cell = DR_cellarea * debris thickness
+Vol_per_cell = (100*100) * debthickness
+Total_deb_vol = np.sum(Vol_per_cell)
+print('Total volume of debris in DR map = ' + str(Total_deb_vol) + ' m^3')
+
+# CALCULATE ELEVATION OF THE DR DEBRIS CELLS FROM EY ZGRID.
+# ASSIGN Z VALUE BASED ON NEAREST NEIGHBOUR EY CELL
+elevation_DR = []
+distance_to_NN = []
+# only let nearest neighbour be somewhere on the actual glacier (insert nanlocs into Xgrid and Ygrid)
+#Xgrid[nanlocs] = np.nan
+#Ygrid_flipped[nanlocs] = np.nan
+
+#point i = 0 might be outside the model domain
+for i in range(0,len(easting_DR)):
+    x_dist = Xgrid - easting_DR[i]
+    y_dist = Ygrid_flipped - northing_DR[i]
+    distance = np.sqrt((x_dist**2)+(y_dist**2))
+    loc = np.where(distance == np.nanmin(distance))
+    distance_to_NN.append(np.nanmin(distance))
+    elevation_DR.append(Zgrid[loc[0][0]][loc[1][0]])
+#################################################### THIS WORKS! #########    
+    
 
 #Problem: There are debris cells in DR's projection that are OUTSIDE the model domain from EY
 # ie. np.max(easting_EY) - np.max(Xgrid) = 223.4 m
