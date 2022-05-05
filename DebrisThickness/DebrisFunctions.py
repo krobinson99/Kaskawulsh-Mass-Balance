@@ -12,6 +12,7 @@ import numpy as np
 import PIL
 from PIL import Image
 import os
+import sys
 import matplotlib.pyplot as plt
 import random
 #from osgeo import gdal
@@ -55,16 +56,27 @@ def MeltEnhancementMap(Path2files='D:\Katie\Mass Balance Model\MassBalanceModel_
 
     return MF_array    
 
-def MeltFactors(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,bo=11.0349260206858,k=1.98717418666925):
+def MeltFactors(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,b0=11.0349260206858,k=1.98717418666925):
     """
     this function calculates the melt enhacement field using a user-specified transition thickness
-    (tt) in meters. The tt is where the melt changes from enhanced to reduced
+    (tt) in meters. The tt is where the melt changes from enhanced to reduced.
     """
-    SubdebrisMelt = M2cm/(1+(k*M2cm*debris_array)) # eq(1) from Rounce et al. (2021)
-    tt_melt = M2cm/(1+(k*M2cm*tt)) #calculate the melt at the transition thickness using eq(1) from Rounce et al (2021)
-    MEF = SubdebrisMelt/tt_melt # calculate the melt factors by dividing the melt array by the melt at the transition thickness
+    # don't use clean ice melt at all, use tt_melt
+    tt_melt = b0/(1+(k*b0*tt))
     
-    return MEF
+    Melt_array = np.zeros(debris_array.shape)
+    Melt_array = (((M2cm-tt_melt)/0.02)*debris_array) + tt_melt #linear portion of melt curve for debris 0-2cm
+    
+    thickerthan2cm = np.where(debris_array > 0.02)
+    Melt_array[thickerthan2cm] = b0/(1+(k*b0*debris_array[thickerthan2cm]))
+    # cap melt at the value of M2cm ??
+    meltcap = np.where(Melt_array > M2cm) # comment out these lines if it should NOT be capped
+    Melt_array[meltcap] = M2cm 
+    
+    MeltFactors = Melt_array/tt_melt
+    
+    #return Melt_array
+    return MeltFactors,Melt_array
 
 def SyntheticDebrisMap(File_glacier_in):
     """
@@ -107,7 +119,7 @@ File_glacier_in = os.path.join(Path2files,'Kaskonly_deb.txt')
 debris_m = SyntheticDebrisMap(File_glacier_in)
 
 # test the synthetic debris map with the meltfactor function
-testmef = MeltFactors(debris_m,0.04)
+testmef = MeltFactorsv0(debris_m,0.04)
 
 meltfacts = []
 thickness = []
