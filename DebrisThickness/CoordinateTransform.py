@@ -100,9 +100,14 @@ print('Original EY debris area = ' + str(np.round(EY_debrisarea,2)) + ' km2')
 
 # CALCULATE THE TOTAL VOLUME OF DEBRIS IN THE DR MAP ##########################
 # Volume per cell = DR_cellarea * debris thickness
-Vol_per_cell = (100*100) * debthickness
-Total_deb_vol = np.sum(Vol_per_cell)
-print('Total volume of debris in DR map = ' + str(Total_deb_vol) + ' m^3')
+def CalculateDebrisVolume(debris_map,cellsize_m):
+    
+    Vol_per_cell = (cellsize_m*cellsize_m) * debris_map
+    Total_deb_vol = np.nansum(Vol_per_cell)
+    print('Total volume of debris in map = ' + str(Total_deb_vol) + ' m^3')
+    return Total_deb_vol
+
+CalculateDebrisVolume(debthickness,100)
 
 # CALCULATE ELEVATION OF THE DR DEBRIS CELLS FROM EY ZGRID. ###################
 # ASSIGN Z VALUE BASED ON NEAREST NEIGHBOUR EY CELL
@@ -195,6 +200,7 @@ mean_thickness_per_bin = ([np.mean(b700),np.mean(b800),np.mean(b900),np.mean(b10
                    ,np.mean(b1300),np.mean(b1400),np.mean(b1500),np.mean(b1600),np.mean(b1700),np.mean(b1800)\
                    ,np.mean(b1900),np.mean(b2000),np.mean(b2100),np.mean(b2200),np.mean(b2300),np.mean(b2400)])
 
+x = np.arange(len(zlabels))
 width = 0.75
 plt.figure(figsize=(10,6))
 plt.suptitle('Original DR Debris Map, Elevation interpolated from EY DEM',fontsize=14,y=1.01)
@@ -215,25 +221,121 @@ plt.yticks(x,zlabels, fontsize=14)
 plt.ylabel('Elevation (m)',fontsize=14)
 plt.xlabel('Mean Debris Thickness (m)',fontsize=14)
 plt.tight_layout()
-plt.savefig('DRdebris_volume_thickness_vs_z.png',bbox_inches='tight')
+#plt.savefig('DRdebris_volume_thickness_vs_z.png',bbox_inches='tight')
 
 #calculate histogram of debris thicknesses (ie. y-axis = thickness, x-axis = covered area)
 full_deb_hist = np.histogram(debthickness,bins=20)
-full_deb_labels = np.round(deb_hist[1][1:],2)
-full_deb_area = deb_hist[0]*(100*100)
-
+full_deb_labels = np.round(full_deb_hist[1][1:],2)
+full_deb_area = full_deb_hist[0]*(0.1*0.1)
 x2 = np.arange(len(full_deb_labels))
+partial_deb_hist = np.histogram(debthickness,range=(0,0.1))
+partial_deb_labels = np.round(partial_deb_hist[1][1:],2)
+partial_deb_area = partial_deb_hist[0]*(0.1*0.1)
+x3 = np.arange(len(partial_deb_labels))
 
 plt.figure(figsize=(10,6))
-plt.title('Area vs Debris Thickness', fontsize=14)
+plt.suptitle('Area vs Debris Thickness', fontsize=14,y=1)
+plt.subplot(1,2,1)
 #plt.bar(x-width, tmean_shift30, width,color='gold')
 plt.barh(x2, full_deb_area, width,color='turquoise')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
 plt.yticks(x2,full_deb_labels, fontsize=14)
 plt.ylabel('Debris Thickness (m)',fontsize=14)
-plt.xlabel('Area (m$^2$)',fontsize=14)
+plt.xlabel('Area (km$^2$)',fontsize=14)
+plt.subplot(1,2,2)
+#plt.bar(x-width, tmean_shift30, width,color='gold')
+plt.barh(x3, partial_deb_area, width,color='turquoise')
+#plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.yticks(x3,partial_deb_labels, fontsize=14)
+plt.ylabel('Debris Thickness (m)',fontsize=14)
+plt.xlabel('Area (km$^2$)',fontsize=14)
 plt.tight_layout()
+#plt.savefig('DRdebris_thickness_vs_are.png',bbox_inches='tight')
     
+#now that this data is ready for quality checking, I can try a few different interpolations
+# (100m grid to 200m grid) and check that they match the data well. 
+
+# INTERPOLATION METHOD 1: NEAREST NEIGHBOUR ###################################
+def NearestNeighbourInterp(original_domain='CoordinateTable.csv',target_domain=File_glacier_in):
+    """
+    this function takes in the original domain (coordinate table with debris cells, lat, long)
+    (100m resolution debris map from Rounce et al. (2021)) and returns an "upscaled"
+    debris map with same domain as 'target domain' (200 m).
+    """
+    # load the original (100 m) domain
+    coordinate_file = original_domain
+    coordstable = np.loadtxt(coordinate_file,delimiter=",",skiprows=1) #namelist!!
+    debthickness = coordstable[:,1]
+    lat = coordstable[:,2]
+    lon = coordstable[:,3]
+    
+    easting_DR = []
+    northing_DR =[]
+    for i in range(0,len(lat)):
+        x = utm.from_latlon(lat[i],lon[i])
+        easting_DR.append(x[0])
+        northing_DR.append(x[1])
+        
+    # load the target (200 m) domain
+    glacier = np.genfromtxt(target_domain, skip_header=1, delimiter=',')
+    Ix = glacier[:,3] 
+    Iy = glacier[:,4] 
+    Ih = glacier[:,2] 
+    debris_array = glacier[:,6]
+    
+    #-------Turn vectors into 3D gridded inputs--------------------
+    
+    Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+    nanlocs = np.where(np.isnan(Zgrid))
+    
+    #Setup debris mask for use in radiation parameters
+    debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+    debris_m = np.zeros(debris_grid.shape)
+    debris_m[np.where(debris_grid > 100)] = 1
+    debris_m[np.where(debris_grid <= 100)] = np.nan
+    debris_m[nanlocs] = np.nan
+    
+    Ygrid_flipped = np.flipud(Ygrid) # Ygrid is originally upside down (values decreasing south to north)
+    Xgrid[nanlocs] = np.nan
+    Ygrid_flipped[nanlocs] = np.nan
+    
+    
+    #target domain is kask_deb.txt file
+    #load Xgird, Ygrid etc
+    #make empty 2d array with shape like Xgrid
+    #populate with debris thicknesses from debristhicknesslist
+    
+    New_debrismap = np.empty(Xgrid.shape)
+    New_debrismap[:] = np.nan
+    distance_to_NN = []
+    for i in range(0,len(easting_DR)):
+        x_dist = Xgrid - easting_DR[i] #need to put NaNs in Xgrid and ygrid
+        y_dist = Ygrid_flipped - northing_DR[i]
+        distance = np.sqrt((x_dist**2)+(y_dist**2))
+        loc = np.where(distance == np.nanmin(distance))
+        distance_to_NN.append(np.nanmin(distance))
+        New_debrismap[loc] = debthickness[i]
+        
+    return New_debrismap,distance_to_NN
+        
+newdebmap = NearestNeighbourInterp()[0]
+distance_to_nearneigbhour =  NearestNeighbourInterp()[1]
+
+plt.figure(figsize=(8,5))
+plt.contourf(np.flipud(newdebmap[:180,100:]), cmap = 'PuOr', levels = np.round(np.linspace(0,1,10),1))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
+plt.tight_layout()
+plt.title('Kaskawulsh Debris Thickness Estimate',fontsize=14)
+#plt.savefig(os.path.join(Path2files,'KW_debristhickness_zoomed.png'),bbox_inches = 'tight')
+
+CalculateDebrisVolume(debthickness,100)/CalculateDebrisVolume(newdebmap,200)
+
+
+# INTERPOLATION METHOD 2: INVERSE DISTANCE WEIGHTED AVERAGE ###################
+
+# INTERPOLATION METHOD 3: SPLINE INTERPOLATION ################################
+
 
 
 
