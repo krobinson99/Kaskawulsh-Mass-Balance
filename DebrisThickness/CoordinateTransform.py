@@ -330,64 +330,69 @@ def NearestNeighbourInterp(original_domain='CoordinateTablev2.csv',target_domain
     (100m resolution debris map from Rounce et al. (2021)) and returns an "upscaled"
     debris map with same domain as 'target domain' (200 m).
     """
-    # load the original (100 m) domain
-    coordinate_file = original_domain
-    coordstable = np.loadtxt(coordinate_file,delimiter=",",skiprows=1) #namelist!!
-    OG_debristhickness_list = coordstable[:,1]
-    lat = coordstable[:,2]
-    lon = coordstable[:,3]
+    #load the tiff file with debris thicknessess
+    debristhickness = Image.open(debthickness_array)
+    debristhickness_array = np.array(debristhickness)    
+    nanlocs = np.where(debristhickness_array >= 1e20 )
+    #zerolocs = np.where(debristhickness_array == 0 )
+    debristhickness_array[nanlocs] = 0
     
-    easting_DR = []
-    northing_DR =[]
-    for i in range(0,len(lat)):
-        x = utm.from_latlon(lat[i],lon[i])
-        easting_DR.append(x[0])
-        northing_DR.append(x[1])
+    # load the original (100 m) domain
+    coordstable_v2 = np.loadtxt(original_domain,delimiter=",",skiprows=1) #namelist!!
+    lat_v2 = coordstable_v2[:,4]
+    lon_v2 = coordstable_v2[:,3]
+    
+    #covert to utm easting/northing
+    easting_DR_v2 = []
+    northing_DR_v2 =[]
+    for i in range(0,len(lat_v2)):
+        x = utm.from_latlon(lat_v2[i],lon_v2[i])
+        easting_DR_v2.append(x[0])
+        northing_DR_v2.append(x[1])
+
+    #fill the coords into the DR array TOP TO BOTTOM, LEFT TO RIGHT:
+    DR_Xgrid = np.reshape(easting_DR_v2,(debristhickness_array.shape))    
+    DR_Ygrid = np.reshape(northing_DR_v2,(debristhickness_array.shape)) 
         
     # load the target (200 m) domain
     glacier = np.genfromtxt(target_domain, skip_header=1, delimiter=',')
     Ix = glacier[:,3] 
     Iy = glacier[:,4] 
     Ih = glacier[:,2] 
-    debris_array = glacier[:,6]
     
     #-------Turn vectors into 3D gridded inputs--------------------
     
     Zgrid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
     nanlocs = np.where(np.isnan(Zgrid))
     
-    #Setup debris mask for use in radiation parameters
-    debris_grid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
-    debris_m = np.zeros(debris_grid.shape)
-    debris_m[np.where(debris_grid > 100)] = 1
-    debris_m[np.where(debris_grid <= 100)] = np.nan
-    debris_m[nanlocs] = np.nan
-    
     EY_Ygrid_flipped = np.flipud(EY_Ygrid) # EY_Ygrid is originally upside down (values decreasing south to north)
     EY_Xgrid[nanlocs] = np.nan
     EY_Ygrid_flipped[nanlocs] = np.nan
     
-    
-    #target domain is kask_deb.txt file
-    #load Xgird, EY_Ygrid etc
-    #make empty 2d array with shape like EY_Xgrid
-    #populate with debris thicknesses from debristhicknesslist
-    
-    New_debrismap = np.empty(EY_Xgrid.shape)
-    New_debrismap[:] = np.nan
+    NN_map = np.empty(EY_Xgrid.shape)
     distance_to_NN = []
-    for i in range(0,len(easting_DR)):
-        x_dist = EY_Xgrid - easting_DR[i] #need to put NaNs in EY_Xgrid and EY_Ygrid
-        y_dist = EY_Ygrid_flipped - northing_DR[i]
-        distance = np.sqrt((x_dist**2)+(y_dist**2))
-        loc = np.where(distance == np.nanmin(distance))
-        distance_to_NN.append(np.nanmin(distance))
-        New_debrismap[loc] = OG_debristhickness_list[i]
+    for i in range(0,len(EY_Xgrid)):
+        for j in range(0,len(EY_Xgrid[0])):
+            if np.isnan(EY_Xgrid[i][j]):
+                pass
+            else:
+                x_dist = DR_Xgrid - EY_Xgrid[i][j]
+                y_dist = DR_Ygrid - EY_Ygrid_flipped[i][j]
+                distance = np.sqrt((x_dist**2)+(y_dist**2))
+                closest_cell = np.where(distance == np.nanmin(distance))
+                distance_to_NN.append(np.nanmin(distance))
+                nearestneighbour_debris = debristhickness_array[closest_cell]
+                NN_map[i][j] = nearestneighbour_debris
+    
+    NN_map[nanlocs] = np.nan
         
-    return New_debrismap,distance_to_NN
+    return NN_map,distance_to_NN
         
 NNdebmap = NearestNeighbourInterp()[0]
-distance_to_nearneigbhour =  NearestNeighbourInterp()[1]
+nodeblocs = np.where(NNdebmap == 0)
+NNdebmap[nodeblocs] = np.nan
+
+distance_to_nearneighbour =  NearestNeighbourInterp()[1]
 
 plt.figure(figsize=(8,5))
 plt.contourf(np.flipud(NNdebmap[:180,100:]), cmap = 'PuOr', levels = np.round(np.linspace(0,1,10),1))
@@ -395,7 +400,7 @@ legend = plt.colorbar()
 legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
 plt.tight_layout()
 plt.title('Nearest Neighbour Resampling',fontsize=14)
-plt.savefig('NN_resampled_debris.png',bbox_inches = 'tight')
+#plt.savefig('NN_resampled_debris.png',bbox_inches = 'tight')
 
 volumeratio = CalculateDebrisVolume(OG_debristhickness_list,100)/CalculateDebrisVolume(NNdebmap,200)
 
