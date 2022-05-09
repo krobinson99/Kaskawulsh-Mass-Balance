@@ -16,6 +16,7 @@ Considering_Catchment = False #are we simulating the whole catchment? (True) or 
 
 #physics/dynamics
 debris = True  #turn debris on or off
+transition_thickness = 0.04 #transition between melt-enhancing and melt-reducing debris, in meters
 Rain_to_snow = 1   #set the rain to snow threshold (line ~132)
 Refreezing = True
 Temp_shift = True # do you want to change the entire temperature array up or down by a uniform constant? True = yes 
