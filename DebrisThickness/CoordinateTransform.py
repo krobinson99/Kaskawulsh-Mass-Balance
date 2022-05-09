@@ -39,7 +39,7 @@ x_meters = coordstable[:,4]
 y_meters = coordstable[:,5]
 
 # TRY TO MAKE ARRAY OF EASTING NORTHING FROM DR DEBRIS MAP #####################
-thicknessmap = os.path.join(Path2files,'HMA_DTE_1.16201_hdts_m.tif')
+thicknessmap = 'HMA_DTE_1.16201_hdts_m.tif'
 debristhickness = Image.open(thicknessmap)
 #debristhickness.show()
 debristhickness_array = np.array(debristhickness)
@@ -47,7 +47,7 @@ debristhickness_array.shape
 
 nanlocs = np.where(debristhickness_array >= 1e20 )
 #zerolocs = np.where(debristhickness_array == 0 )
-debristhickness_array[nanlocs] = np.nan
+debristhickness_array[nanlocs] = 0
 
 coordinate_file_v2 = 'CoordinateTablev2.csv' #this one contains data for ALL pixels
 coordstable_v2 = np.loadtxt(coordinate_file_v2,delimiter=",",skiprows=1) #namelist!!
@@ -64,12 +64,8 @@ for i in range(0,len(lat_v2)):
 
 #try filling the coords into the DR array TOP TO BOTTOM, LEFT TO RIGHT:
 DR_Xgrid = np.reshape(easting_DR_v2,(debristhickness_array.shape))    
-DR_Ygrid = np.reshape(northing_DR_v2,(debristhickness_array.shape))    
-    
-        
-
-
-
+DR_Ygrid = np.reshape(northing_DR_v2,(debristhickness_array.shape)) 
+   
 # GET COORDINATES FOR MODEL DOMAIN#############################################
 Path2Model = 'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\RunModel'
 File_glacier_in = os.path.join(Path2Model,'Kaskonly_deb.txt')
@@ -81,17 +77,17 @@ debris_array = glacier[:,6]
 
 #-------Turn vectors into 3D gridded inputs--------------------
 
-Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+Zgrid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
 nanlocs = np.where(np.isnan(Zgrid))
 
 #Setup debris mask for use in radiation parameters
-debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+debris_grid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
 debris_m = np.zeros(debris_grid.shape)
 debris_m[np.where(debris_grid > 100)] = 1
 debris_m[np.where(debris_grid <= 100)] = np.nan
 debris_m[nanlocs] = np.nan
 
-Ygrid_flipped = np.flipud(Ygrid) # Ygrid is originally upside down (values decreasing south to north)
+EY_Ygrid_flipped = np.flipud(EY_Ygrid) # EY_Ygrid is originally upside down (values decreasing south to north)
 
 easting_EY = []
 northing_EY = []
@@ -99,8 +95,8 @@ elevation_EY = []
 for i in range(0,len(debris_m)):
     for j in range(0,len(debris_m[1])):
         if debris_m[i,j] == 1:
-            easting_EY.append(Xgrid[i,j])
-            northing_EY.append(Ygrid_flipped[i,j])
+            easting_EY.append(EY_Xgrid[i,j])
+            northing_EY.append(EY_Ygrid_flipped[i,j])
             elevation_EY.append(Zgrid[i,j])
         else:
             pass
@@ -135,18 +131,6 @@ print('Original DR debris area = ' + str(np.round(DR_debrisarea,2)) + ' km2')
 print('Original EY debris area = ' + str(np.round(EY_debrisarea,2)) + ' km2')
 
 
-def Populate_DR_domain_with_Coords(debrislist,debrisarray):
-    # first check how many cells in coordstable correspond to a single pixel
-    for i in range(0,len(debrislist)):
-        match = np.where(debrisarray == debrislist[i])
-        if len(match[0]) > 0:
-            print('match! + i = ' + str(i))
-            print(match)
-        else:
-            pass
-    
-#Populate_DR_domain_with_Coords(OG_debristhickness_list,debristhickness_array)
-
 # CALCULATE THE TOTAL VOLUME OF DEBRIS IN THE DR MAP ##########################
 # Volume per cell = DR_cellarea * debris thickness
 def CalculateDebrisVolume(debris_map,cellsize_m):
@@ -161,16 +145,16 @@ CalculateDebrisVolume(OG_debristhickness_list,100)
 # CALCULATE ELEVATION OF THE DR DEBRIS CELLS FROM EY ZGRID. ###################
 # ASSIGN Z VALUE BASED ON NEAREST NEIGHBOUR EY CELL
 
-# only let nearest neighbour be somewhere on the actual glacier (insert nanlocs into Xgrid and Ygrid)
-Xgrid[nanlocs] = np.nan #Xgrid looks normal --> increases West to East
-#Ygrid[nanlocs] = np.nan # Ygrid not normal --> increases South to North
-Ygrid_flipped[nanlocs] = np.nan #normal South to North increasing, but Kask is upside down, nanlocs are wrong. 
+# only let nearest neighbour be somewhere on the actual glacier (insert nanlocs into EY_Xgrid and EY_Ygrid)
+EY_Xgrid[nanlocs] = np.nan #EY_Xgrid looks normal --> increases West to East
+#EY_Ygrid[nanlocs] = np.nan # EY_Ygrid not normal --> increases South to North
+EY_Ygrid_flipped[nanlocs] = np.nan #normal South to North increasing, but Kask is upside down, nanlocs are wrong. 
 
 OG_elevation_DR = []
 distance_to_NN = []
 for i in range(0,len(easting_DR)):
-    x_dist = Xgrid - easting_DR[i]
-    y_dist = Ygrid_flipped - northing_DR[i]
+    x_dist = EY_Xgrid - easting_DR[i]
+    y_dist = EY_Ygrid_flipped - northing_DR[i]
     distance = np.sqrt((x_dist**2)+(y_dist**2))
     loc = np.where(distance == np.nanmin(distance))
     distance_to_NN.append(np.nanmin(distance))
@@ -340,7 +324,7 @@ def Get_debris_lists_for_plotting(debrisarray,elevationarray):
 # (100m grid to 200m grid) and check that they match the data well. 
 
 # INTERPOLATION METHOD 1: NEAREST NEIGHBOUR ###################################
-def NearestNeighbourInterp(original_domain='CoordinateTablev1.csv',target_domain=File_glacier_in):
+def NearestNeighbourInterp(original_domain='CoordinateTablev2.csv',target_domain=File_glacier_in,debthickness_array=thicknessmap):
     """
     this function takes in the original domain (coordinate table with debris cells, lat, long)
     (100m resolution debris map from Rounce et al. (2021)) and returns an "upscaled"
@@ -369,32 +353,32 @@ def NearestNeighbourInterp(original_domain='CoordinateTablev1.csv',target_domain
     
     #-------Turn vectors into 3D gridded inputs--------------------
     
-    Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+    Zgrid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
     nanlocs = np.where(np.isnan(Zgrid))
     
     #Setup debris mask for use in radiation parameters
-    debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+    debris_grid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
     debris_m = np.zeros(debris_grid.shape)
     debris_m[np.where(debris_grid > 100)] = 1
     debris_m[np.where(debris_grid <= 100)] = np.nan
     debris_m[nanlocs] = np.nan
     
-    Ygrid_flipped = np.flipud(Ygrid) # Ygrid is originally upside down (values decreasing south to north)
-    Xgrid[nanlocs] = np.nan
-    Ygrid_flipped[nanlocs] = np.nan
+    EY_Ygrid_flipped = np.flipud(EY_Ygrid) # EY_Ygrid is originally upside down (values decreasing south to north)
+    EY_Xgrid[nanlocs] = np.nan
+    EY_Ygrid_flipped[nanlocs] = np.nan
     
     
     #target domain is kask_deb.txt file
-    #load Xgird, Ygrid etc
-    #make empty 2d array with shape like Xgrid
+    #load Xgird, EY_Ygrid etc
+    #make empty 2d array with shape like EY_Xgrid
     #populate with debris thicknesses from debristhicknesslist
     
-    New_debrismap = np.empty(Xgrid.shape)
+    New_debrismap = np.empty(EY_Xgrid.shape)
     New_debrismap[:] = np.nan
     distance_to_NN = []
     for i in range(0,len(easting_DR)):
-        x_dist = Xgrid - easting_DR[i] #need to put NaNs in Xgrid and ygrid
-        y_dist = Ygrid_flipped - northing_DR[i]
+        x_dist = EY_Xgrid - easting_DR[i] #need to put NaNs in EY_Xgrid and EY_Ygrid
+        y_dist = EY_Ygrid_flipped - northing_DR[i]
         distance = np.sqrt((x_dist**2)+(y_dist**2))
         loc = np.where(distance == np.nanmin(distance))
         distance_to_NN.append(np.nanmin(distance))
@@ -410,8 +394,8 @@ plt.contourf(np.flipud(NNdebmap[:180,100:]), cmap = 'PuOr', levels = np.round(np
 legend = plt.colorbar()
 legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
 plt.tight_layout()
-plt.title('Kaskawulsh Debris Thickness Estimate',fontsize=14)
-#plt.savefig(os.path.join(Path2files,'KW_debristhickness_zoomed.png'),bbox_inches = 'tight')
+plt.title('Nearest Neighbour Resampling',fontsize=14)
+plt.savefig('NN_resampled_debris.png',bbox_inches = 'tight')
 
 volumeratio = CalculateDebrisVolume(OG_debristhickness_list,100)/CalculateDebrisVolume(NNdebmap,200)
 
@@ -426,7 +410,7 @@ NN_partialdebrisarea = debris_area_histogram(NN_debristhickness_list,0.2)[2]
 
 
 # INTERPOLATION METHOD 2: INVERSE DISTANCE WEIGHTED AVERAGE ###################
-def InverseDistance_Interp(searchradius,p,original_domain='CoordinateTablev1.csv',target_domain=File_glacier_in):
+def InverseDistance_Interp(searchradius,p,original_domain='CoordinateTablev2.csv',target_domain=File_glacier_in,debthickness_array=thicknessmap):
     """
     this function uses inverse distane weighted average to interpolate the DR debris thickness map to the
     200 m mass balance model domain, using the formula: https://en.wikipedia.org/wiki/Inverse_distance_weighting.
@@ -434,45 +418,84 @@ def InverseDistance_Interp(searchradius,p,original_domain='CoordinateTablev1.csv
     The value of each cell in the model domain is obtained by weighing the DR debris thickness values,
     NaNs are treated as zeros (ie. clean ice). 
     """
-    # load the original (100 m) domain
-    coordinate_file = original_domain
-    coordstable = np.loadtxt(coordinate_file,delimiter=",",skiprows=1) #namelist!!
-    OG_debristhickness_list = coordstable[:,1]
-    lat = coordstable[:,2]
-    lon = coordstable[:,3]
+    #load the tiff file with debris thicknessess
+    debristhickness = Image.open(debthickness_array)
+    debristhickness_array = np.array(debristhickness)    
+    nanlocs = np.where(debristhickness_array >= 1e20 )
+    #zerolocs = np.where(debristhickness_array == 0 )
+    debristhickness_array[nanlocs] = 0
     
-    easting_DR = []
-    northing_DR =[]
-    for i in range(0,len(lat)):
-        x = utm.from_latlon(lat[i],lon[i])
-        easting_DR.append(x[0])
-        northing_DR.append(x[1])
+    # load the original (100 m) domain
+    coordstable_v2 = np.loadtxt(original_domain,delimiter=",",skiprows=1) #namelist!!
+    lat_v2 = coordstable_v2[:,4]
+    lon_v2 = coordstable_v2[:,3]
+    
+    #covert to utm easting/northing
+    easting_DR_v2 = []
+    northing_DR_v2 =[]
+    for i in range(0,len(lat_v2)):
+        x = utm.from_latlon(lat_v2[i],lon_v2[i])
+        easting_DR_v2.append(x[0])
+        northing_DR_v2.append(x[1])
+
+    #fill the coords into the DR array TOP TO BOTTOM, LEFT TO RIGHT:
+    DR_Xgrid = np.reshape(easting_DR_v2,(debristhickness_array.shape))    
+    DR_Ygrid = np.reshape(northing_DR_v2,(debristhickness_array.shape)) 
         
     # load the target (200 m) domain
     glacier = np.genfromtxt(target_domain, skip_header=1, delimiter=',')
     Ix = glacier[:,3] 
     Iy = glacier[:,4] 
     Ih = glacier[:,2] 
-    debris_array = glacier[:,6]
     
     #-------Turn vectors into 3D gridded inputs--------------------
     
-    Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+    Zgrid, EY_Xgrid, EY_Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
     nanlocs = np.where(np.isnan(Zgrid))
     
-    #Setup debris mask for use in radiation parameters
-    debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
-    debris_m = np.zeros(debris_grid.shape)
-    debris_m[np.where(debris_grid > 100)] = 1
-    debris_m[np.where(debris_grid <= 100)] = np.nan
-    debris_m[nanlocs] = np.nan
+    EY_Ygrid_flipped = np.flipud(EY_Ygrid) # EY_Ygrid is originally upside down (values decreasing south to north)
+    EY_Xgrid[nanlocs] = np.nan
+    EY_Ygrid_flipped[nanlocs] = np.nan
     
-    Ygrid_flipped = np.flipud(Ygrid) # Ygrid is originally upside down (values decreasing south to north)
-    Xgrid[nanlocs] = np.nan
-    Ygrid_flipped[nanlocs] = np.nan
-    
-    
+    #get all nearest neighbours within the search radius
+    IDWA_map = np.empty(EY_Xgrid.shape)
+    for i in range(0,len(EY_Xgrid)):
+        for j in range(0,len(EY_Xgrid[0])):
+            if np.isnan(EY_Xgrid[i][j]):
+                pass
+            else:
+                x_dist = DR_Xgrid - EY_Xgrid[i][j]
+                y_dist = DR_Ygrid - EY_Ygrid_flipped[i][j]
+                distance = np.sqrt((x_dist**2)+(y_dist**2))
+                within_search_radius = np.where(distance <= searchradius)
+                
+                ui = debristhickness_array[within_search_radius] #deb thicknesses within search radius
+                dx = distance[within_search_radius] #distances within search radius
+                
+                wi = 1/((dx)**p)
+                ux = (np.sum(wi*ui))/(np.sum(wi))
+                
+                IDWA_map[i,j] = ux
+                
+    IDWA_map[nanlocs] = np.nan
 
+    return IDWA_map
+
+IDWAdebmap = InverseDistance_Interp(200,1)
+
+nodeblocs = np.where(IDWAdebmap == 0)
+IDWAdebmap[nodeblocs] = np.nan
+
+diff = NNdebmap-IDWAdebmap
+
+plt.figure(figsize=(8,5))
+#plt.contourf(debristhickness_array, cmap = 'PuOr', levels = np.round(np.linspace(0,3,10),1))
+plt.contourf(np.flipud(IDWAdebmap[:180,100:]), cmap = 'PuOr',levels = np.round(np.linspace(0.0001,1,10),3))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
+plt.tight_layout()
+plt.title('Inverse Distance Weighted Average Resampling',fontsize=14)
+plt.savefig('IDWA_resampled_debris.png',bbox_inches = 'tight')
 
 # INTERPOLATION METHOD 3: SPLINE INTERPOLATION ################################
 
