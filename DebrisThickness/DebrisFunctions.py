@@ -25,13 +25,12 @@ from Model_functions_ver4 import regridXY_something
 # figure out how to turn the 100m res. debris map into a 200m one that matches
 # the model domain
 
-def DebrisMap(Path2files='D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\ProcessOutputs\DebrisThickness'):
+def LoadRounceDebrisMap(DebrisMapPath):
     """
     this function takes the .tif files from Rounce et al. (2021) as input and
     returns a numpy array.
     """
-    thicknessmap = os.path.join(Path2files,'HMA_DTE_1.16201_hdts_m.tif')
-    debristhickness = Image.open(thicknessmap)
+    debristhickness = Image.open(DebrisMapPath)
     debristhickness_array = np.array(debristhickness)
     debristhickness_array.shape
 
@@ -73,10 +72,41 @@ def MeltFactors(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,
     meltcap = np.where(Melt_array > M2cm) # comment out these lines if it should NOT be capped
     Melt_array[meltcap] = M2cm 
     
-    MeltFactors = Melt_array/tt_melt
+    MeltFacts = Melt_array/tt_melt
     
     #return Melt_array
-    return MeltFactors,Melt_array
+    return MeltFacts
+
+def MeltFactorsv2(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,b0=11.0349260206858,k=1.98717418666925):
+    """
+    THIS FUNCTION IS NOW IN THE DEBRISFUNCTIONS.PY FILE. EDIT THERE INSTEAD OF HERE.
+    this function calculates the melt enhacement field using a user-specified transition thickness
+    (tt) in meters. The tt is where the melt changes from enhanced to reduced.
+    """
+    # don't use clean ice melt at all, use tt_melt
+    tt_melt = b0/(1+(k*b0*tt))
+    
+    Melt_array = np.zeros(debris_array.shape)
+    Melt_array = (((M2cm-tt_melt)/0.02)*debris_array) + tt_melt #linear portion of melt curve for debris 0-2cm
+    
+    thickerthan2cm = np.where(debris_array > 0.02)
+    Melt_array[thickerthan2cm] = b0/(1+(k*b0*debris_array[thickerthan2cm]))
+    # cap melt at the value of M2cm ??
+    #meltcap = np.where(Melt_array > M2cm) # comment out these lines if it should NOT be capped
+    #Melt_array[meltcap] = M2cm 
+    
+    MeltFactors = Melt_array/tt_melt
+    
+    # make a copy of melt factors to get the indices where MF is incorrect (if any)
+    MeltFactors_copy = np.empty(MeltFactors.shape)
+    MeltFactors_copy[:] = MeltFactors[:]
+    MeltFactors_copy[thickerthan2cm] = np.nan
+    
+    incorrectMFs = np.where(MeltFactors_copy < 1)
+    MeltFactors[incorrectMFs] = 1
+    
+    #return Melt_array
+    return MeltFactors
 
 def SyntheticDebrisMap(File_glacier_in):
     """
@@ -114,28 +144,3 @@ def SyntheticDebrisMap(File_glacier_in):
                 pass
                 
     return debris_m
-
-File_glacier_in = os.path.join(Path2files,'Kaskonly_deb.txt')
-debris_m = SyntheticDebrisMap(File_glacier_in)
-
-# test the synthetic debris map with the meltfactor function
-testmef = MeltFactorsv0(debris_m,0.04)
-
-meltfacts = []
-thickness = []
-for x in range(len(testmef)):
-    for y in range(len(testmef[0])):
-        h =  debris_m[x][y]
-        MF = testmef[x][y]
-        meltfacts.append(MF)
-        thickness.append(h)
-        
-plt.figure(figsize=(8,6))
-plt.scatter(thickness,meltfacts)
-plt.xlabel('Debris Thickness (m)',fontsize=14)
-plt.ylabel('Melt Enhancement Factor',fontsize=14)
-plt.axhline(y=1,color='k',linestyle='--')
-plt.axvline(x=0.04,color='k',linestyle='--')
-#plt.axvline(x=0.03,color='k',linestyle='--')
-plt.title('Function Test',fontsize=14)
-#plt.xlim(0,0.45)
