@@ -251,7 +251,7 @@ while sim<(len(MF_p)-1):
         # removed glacier vectors from this section
         
         aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m
-        asnow_a = np.ones(Zgrid.shape) * asnow_p[sim] * debris_m
+        asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
         MF_a = np.ones(Zgrid.shape) * MF_p[sim]
         MF_a[nanlocs] = np.nan #NEW LINE!! as above, trying to fix MB for non debris case
         
