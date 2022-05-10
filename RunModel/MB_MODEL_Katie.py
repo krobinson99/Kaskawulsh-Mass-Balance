@@ -14,19 +14,23 @@ Created on Tue May 25 10:02:43 2021
 
 #This is a copy of the script MB_MODEL_FINALRUNS_balancefluxes.py (originally by Erik Young) with revisions by Katie Robinson 
 
-#import libraries and functions
+#import libraries
 import numpy as np
 import netCDF4
 from netCDF4 import Dataset
 import datetime as dt
 from datetime import datetime
-#from Model_functions_ver4 import MB_vectorized_discreteSnI
-#from Model_functions_ver4 import cold_content
-#from Model_functions_ver4 import regridXY_something
-#from Model_functions_ver4 import get_meanSP
-#from Model_functions_ver4 import netcdf_container_gen
 import sys
 import os
+# import model functions
+from Model_functions_ver4 import MB_vectorized_discreteSnI
+from Model_functions_ver4 import cold_content
+from Model_functions_ver4 import regridXY_something
+from Model_functions_ver4 import get_meanSP
+from Model_functions_ver4 import netcdf_container_gen
+# import debris functions
+sys.path.insert(1,'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\DebrisThickness')
+from DebrisFunctions import MeltFactors
 # import from the config file
 from MBMnamelist import glacier_id
 from MBMnamelist import params_filename
@@ -36,26 +40,30 @@ from MBMnamelist import end_year
 from MBMnamelist import debris
 from MBMnamelist import time_step
 from MBMnamelist import Output_path
-from MBMnamelist import Rain_to_snow
+from MBMnamelist import Rain_to_snow as R2S
 from MBMnamelist import Refreezing
 from MBMnamelist import T_inputs
 from MBMnamelist import P_inputs
 from MBMnamelist import SR_inputs
 from MBMnamelist import Temp_shift
 from MBMnamelist import temp_shift_factor
-from MBMnamelist import Bias_CorrectionT
-from MBMnamelist import Bias_CorrectionP
+from MBMnamelist import Bias_CorrectionT as BC_T
+from MBMnamelist import Bias_CorrectionP as BC_P
 from MBMnamelist import Considering_Catchment
+from MBMnamelist import transition_thickness as tt
+from MBMnamelist import debris_treatment
+from MBMnamelist import debris_thickness_map
+
 #from MBMnamelist import *
 
 #Initialize model (get parameterizations from the namelist)
 sim = -1
 glacier_ID = glacier_id #namelist!!
 OUTPUT_PATH = Output_path #namelist
-R2S = Rain_to_snow #rain to snow melt threshold
+#R2S = Rain_to_snow #rain to snow melt threshold
 REFREEZING = Refreezing
-BC_T = Bias_CorrectionT
-BC_P = Bias_CorrectionP
+#BC_T = Bias_CorrectionT
+#BC_P = Bias_CorrectionP
 considering_catchment = Considering_Catchment
 #where are the downscaled/bias corrected inputs stored
 Temp_input_path = T_inputs
@@ -67,16 +75,6 @@ params = np.loadtxt(params_filename) #namelist!!
 aice_p = params[0,:]
 asnow_p = params[1,:]
 MF_p = params[2,:]
-#aice_p1 = params[0]
-#asnow_p1 = params[1]
-#MF_p1 = params[2]
-#aice_p = []
-#aice_p.append(aice_p1)
-#asnow_p = []
-#asnow_p.append(asnow_p1)
-#MF_p = []
-#MF_p.append(MF_p1)
-
 
 ## set up time range ###
 years = []
@@ -89,6 +87,64 @@ while year <= end_year:
 #calculate mean snowpack for cold content before looping
 DHval = get_meanSP(years,glacier_ID,R2S,BC_T,BC_P,Temp_input_path,Precip_input_path) #change this func to match shape of domain
 #-------------------------#
+
+#-------Set up glacier vectors-----------------------
+
+if considering_catchment == True:
+    File_glacier_in = 'kask_catchment.txt'
+else:
+    File_glacier_in = glacier_ID + '_deb.txt'
+
+glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
+
+if considering_catchment == True:
+    if debris == True:
+        Ix = glacier[:,4] 
+        Iy = glacier[:,5] 
+        Ih = glacier[:,6]
+        sfc_type = glacier[:,8]
+        debris_array = glacier[:,9]
+    else:      
+        Ix = glacier[:,4] 
+        Iy = glacier[:,5] 
+        Ih = glacier[:,6]
+        sfc_type = glacier[:,8]
+else:
+    if debris == True:
+        Ix = glacier[:,3] 
+        Iy = glacier[:,4] 
+        Ih = glacier[:,2] 
+        debris_array = glacier[:,6]
+    else:  
+        Ix = glacier[:,3] 
+        Iy = glacier[:,4] 
+        Ih = glacier[:,2]
+
+#-------Turn vectors into 3D gridded inputs--------------------
+
+Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+nanlocs = np.where(np.isnan(Zgrid))
+
+#Setup debris mask for use in radiation parameters
+if debris == True:
+    if debris_treatment == 'Boolean':
+        debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+        debris_m = np.zeros(debris_grid.shape)
+        debris_m[np.where(debris_grid > 100)] = 0.
+        debris_m[np.where(debris_grid <= 100)] = 1.
+    elif debris_treatment == 'Variable Thickness':
+        #EDIT!! get melt factor array
+        debristhickness_array = np.load(debris_thickness_map)
+        subdebrismeltfactors = MeltFactors(debristhickness_array,tt)
+        debris_m = np.ones(Zgrid.shape)
+        debris_m[nanlocs] = np.nan 
+        print('edit!!!!!!!!!!!!!!!!!')
+    else:
+        print('Invalid debris treatment option')
+else:
+    debris_m = np.ones(Zgrid.shape)
+    debris_m[nanlocs] = np.nan 
+
 
 #open a writeout file to keep track of the step the model is on
 rsl_file = open('writeout.txt','w')
@@ -137,10 +193,7 @@ while sim<(len(MF_p)-1):
         File_precip_in = os.path.join(Precip_input_path,File_precip_name)
         File_PDCSR_in = os.path.join(Srad_input_path,File_PDCSR_name)
         
-        if considering_catchment == True:
-            File_glacier_in = 'kask_catchment.txt'
-        else:
-            File_glacier_in = glacier_ID + '_deb.txt'
+
         #if debris == True:
         #    File_glacier_in = glacier_ID + '_deb.txt'
         #else:
@@ -195,48 +248,7 @@ while sim<(len(MF_p)-1):
         Rain_array[snowlocs] = 0.
         
         
-#-------Set up glacier vectors-----------------------
-
-        glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
-        
-        if considering_catchment == True:
-            if debris == True:
-                Ix = glacier[:,4] 
-                Iy = glacier[:,5] 
-                Ih = glacier[:,6]
-                sfc_type = glacier[:,8]
-                debris_array = glacier[:,9]
-            else:      
-                Ix = glacier[:,4] 
-                Iy = glacier[:,5] 
-                Ih = glacier[:,6]
-                sfc_type = glacier[:,8]
-        else:
-            if debris == True:
-                Ix = glacier[:,3] 
-                Iy = glacier[:,4] 
-                Ih = glacier[:,2] 
-                debris_array = glacier[:,6]
-            else:  
-                Ix = glacier[:,3] 
-                Iy = glacier[:,4] 
-                Ih = glacier[:,2]
-
-#-------Turn vectors into 3D gridded inputs--------------------
-
-        Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
-        nanlocs = np.where(np.isnan(Zgrid))
-        
-        #Setup debris mask for use in radiation parameters
-        if debris == True:
-            debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
-            debris_m = np.zeros(debris_grid.shape)
-            debris_m[np.where(debris_grid > 100)] = 0.
-            debris_m[np.where(debris_grid <= 100)] = 1.
-        else:
-            #debris_m = np.ones(Zgrid.shape) tried this for non debris case it gives MB = -7.51
-            debris_m = np.ones(Zgrid.shape)
-            debris_m[nanlocs] = np.nan # NEW LINE!! does this fix MB for non debris case?
+        # removed glacier vectors from this section
         
         aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m
         asnow_a = np.ones(Zgrid.shape) * asnow_p[sim] * debris_m
@@ -394,8 +406,8 @@ while sim<(len(MF_p)-1):
         else:
             np.savetxt('snowini' + str(current_year+1) + '.txt', Leftover_list)
             np.savetxt('CCini' + str(current_year+1) + '.txt', CC_list)
+        
         ###insert outputs into .nc containers using funktion
-
         netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year)
         netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year)
         netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year)
