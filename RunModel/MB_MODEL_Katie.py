@@ -389,6 +389,12 @@ while sim<(len(MF_p)-1):
             else:
                 pass
             
+            #Multiply ice melt in debris covered cells by the melt enhancement factors
+            if debris_treatment == 'Variable Thickness':
+                Icemelt = Icemelt * subdebrismeltfactors
+            else:
+                pass
+            
             ###update leftoverlists
             Leftover_list = Leftover_list_out  
             CC_list = CC_out       
