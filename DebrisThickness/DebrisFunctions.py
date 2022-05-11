@@ -55,10 +55,11 @@ def MeltEnhancementMap(Path2files='D:\Katie\Mass Balance Model\MassBalanceModel_
 
     return MF_array    
 
-def MeltFactors(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,b0=11.0349260206858,k=1.98717418666925):
+def MeltFactors_Draft(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,b0=11.0349260206858,k=1.98717418666925):
     """
     this function calculates the melt enhacement field using a user-specified transition thickness
     (tt) in meters. The tt is where the melt changes from enhanced to reduced.
+    This function still has MF < 1 below 2cm when the tt is < 2cm
     """
     # don't use clean ice melt at all, use tt_melt
     tt_melt = b0/(1+(k*b0*tt))
@@ -77,7 +78,7 @@ def MeltFactors(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,
     #return Melt_array
     return MeltFacts
 
-def MeltFactorsv2(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,b0=11.0349260206858,k=1.98717418666925):
+def MeltFactors(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.62306028549649,b0=11.0349260206858,k=1.98717418666925):
     """
     THIS FUNCTION IS NOW IN THE DEBRISFUNCTIONS.PY FILE. EDIT THERE INSTEAD OF HERE.
     this function calculates the melt enhacement field using a user-specified transition thickness
@@ -104,6 +105,9 @@ def MeltFactorsv2(debris_array,tt,Mcleanice=2.9200183038347,M2cm=6.6230602854964
     
     incorrectMFs = np.where(MeltFactors_copy < 1)
     MeltFactors[incorrectMFs] = 1
+    
+    cleanice = np.where(debris_array == 0)
+    MeltFactors[cleanice] = 1 #so that when the melt factors are multiplied by the icemelt, the melt will not change in debris free cells
     
     #return Melt_array
     return MeltFactors
