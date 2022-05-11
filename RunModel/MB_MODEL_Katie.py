@@ -163,6 +163,11 @@ while sim<(len(MF_p)-1):
     asnow = asnow_p[sim]
     MF = MF_p[sim]
     
+    aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying my debris_m makes aice = 0 in debris covered cells
+    asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
+    MF_a = np.ones(Zgrid.shape) * MF_p[sim]
+    MF_a[nanlocs] = np.nan #NEW LINE!! as above, trying to fix MB for non debris case
+    
     for y in years:
         current_year = y
         print('starting year: ' + str(current_year))
@@ -250,10 +255,10 @@ while sim<(len(MF_p)-1):
         
         # removed glacier vectors from this section
         
-        aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m
-        asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
-        MF_a = np.ones(Zgrid.shape) * MF_p[sim]
-        MF_a[nanlocs] = np.nan #NEW LINE!! as above, trying to fix MB for non debris case
+        #aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying my debris_m makes aice = 0 in debris covered cells
+        #asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
+        #MF_a = np.ones(Zgrid.shape) * MF_p[sim]
+        #MF_a[nanlocs] = np.nan #NEW LINE!! as above, trying to fix MB for non debris case
         
         if considering_catchment == True:
             Topo_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, sfc_type)
