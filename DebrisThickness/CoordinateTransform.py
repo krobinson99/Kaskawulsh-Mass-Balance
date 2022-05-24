@@ -21,7 +21,7 @@ to the 200 m mass balance model domain
 import numpy as np
 import os
 import sys
-sys.path.insert(1,'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\RunModel')
+sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
 import utm
 import matplotlib.pyplot as plt
@@ -67,7 +67,7 @@ DR_Xgrid = np.reshape(easting_DR_v2,(debristhickness_array.shape))
 DR_Ygrid = np.reshape(northing_DR_v2,(debristhickness_array.shape)) 
    
 # GET COORDINATES FOR MODEL DOMAIN#############################################
-Path2Model = 'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\RunModel'
+Path2Model = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel'
 File_glacier_in = os.path.join(Path2Model,'Kaskonly_deb.txt')
 glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
 Ix = glacier[:,3] 
@@ -500,7 +500,7 @@ legend = plt.colorbar()
 legend.ax.set_ylabel('Debris Thickness (m)', rotation=270,fontsize=14,labelpad=20)
 plt.tight_layout()
 plt.title('Inverse Distance Weighted Average Resampling',fontsize=14)
-plt.savefig('IDWA_resampled_debris.png',bbox_inches = 'tight')
+#plt.savefig('IDWA_resampled_debris.png',bbox_inches = 'tight')
 
 # INTERPOLATION METHOD 3: SPLINE INTERPOLATION ################################
 
