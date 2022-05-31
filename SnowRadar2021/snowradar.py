@@ -363,7 +363,7 @@ def accumulationvselevation(Zgrid,Accumulation_Array):
 # icebridge covers less area so it is the "limiting factor"
 # for every cell in icebridge, calculate who is the nearest NARR neighbour and record in a list
 
-def nearestneighbour(NARRsnowarray,NASAsnowlist=depth,NASAeasting=easting,NASAnorthing=northing,xgrid=Xgrid,ygrid=Ygrid):    
+def nearestneighbour(NARRsnowarray,NASAsnowlist=depth,NASAeasting=easting,NASAnorthing=northing,xgrid=Xgrid,ygrid=EY_Ygrid_flipped):    
     distance_to_NN = []
     NARRaccumulation = []
     for i in range(0,len(NASAeasting)):
@@ -457,9 +457,59 @@ def howmuchsnowinlatesummer(year1file,BC):
     
     return summersnow
 
-summersnow_2020 = howmuchsnowinlatesummer('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/Prcpkaskonly_BC_2020.nc',True)
+summersnow_2020_bc = howmuchsnowinlatesummer('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/Prcpkaskonly_BC_2020.nc',True)
+snow2021_bc_plussummersnow = np.add(snow2021_bc,summersnow_2020_bc)
+
+summersnow_2020_Nobc = howmuchsnowinlatesummer('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/netSnowkaskonly2020.nc',False)
+snow2021_nobc_plussummersnow = np.add(snow2021_nobc,summersnow_2020_Nobc)
+
     
-plt.contourf(summersnow_2020)
-plt.colorbar()
+plt.figure(figsize=(6,8))
+plt.scatter(accumulationvselevation(Zgrid,snow2021_nobc_plussummersnow)[0],accumulationvselevation(Zgrid,snow2021_nobc_plussummersnow)[1],marker='.',color='orange')
+plt.scatter(accumulationvselevation(Zgrid,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid,snow2021_bc_plussummersnow)[1],marker='.',color='purple')
+plt.scatter(depth,elevation,marker='.',color='turquoise')
+plt.title('Kaskawulsh Accumulation',fontsize=12)
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+plt.legend(['NARR Accumulation (Aug2020-May2021) Uncorrected','NARR Accumulation (Aug2020-May2021) Bias Corrected','CReSIS Snow Radar (2021)'])
+plt.xlim(0,4.5)
+plt.ylim(500,4000)
+#plt.savefig('NARRCresis2021_AccvsElev_summersnowincl.png',bbox_inches = 'tight')
+
+# compare directly: nearest neighbour NARR (BC) to NASA accumulation
+snow2021_bc_NN_NASAcells = nearestneighbour(snow2021_bc_plussummersnow)
+snow2021_nobc_NN_NASAcells = nearestneighbour(snow2021_nobc_plussummersnow)
+
+plt.figure(figsize=(12,6))
+plt.subplot(1,2,1)
+plt.scatter(depth,snow2021_nobc_NN_NASAcells)
+plt.title('Nearest Neighbour Comparison \n NARR (Aug2020-May2021) Uncorrected vs CReSIS (2021)')
+plt.xlim(0,3)
+plt.ylim(0,3)
+plt.plot([0,3],[0,3],linestyle='--',color='k')
+plt.xlabel('CReSIS Snow Radar (m w.e.)',fontsize=14)
+plt.ylabel('NARR Accumulation (m.w.e.)',fontsize=14)
+plt.subplot(1,2,2)
+plt.scatter(depth,snow2021_bc_NN_NASAcells)
+plt.title('Nearest Neighbour Comparison \n NARR (Aug2020-May2021) Bias Corrected vs CReSIS (2021)')
+plt.xlim(0,3)
+plt.ylim(0,3)
+plt.plot([0,3],[0,3],linestyle='--',color='k')
+plt.xlabel('CReSIS Snow Radar (m w.e.)',fontsize=14)
+plt.ylabel('NARR Accumulation (m.w.e.)',fontsize=14)
+#plt.savefig('NNComparison_NARRvsCReSIS_2021.png',bbox_inches = 'tight')
+
+#get spatially distributed plot of the differences between NARR and NASA
+difference_2021bc = depth - snow2021_bc_NN_NASAcells
+
+plt.figure(figsize=(12,7))
+plt.scatter(easting_EY,northing_EY,color='lightslategrey')#,c=acc_EY)#,cmap="Greys")
+plt.scatter(easting,northing,c=difference_2021bc, cmap="BuPu",marker='o',linewidth=3) #levels = np.linspace(0,4.5,19))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Difference in Accumulation (m w.e.)', rotation=270,fontsize=14,labelpad=20)
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.title('Difference between CReSIS and NARR (Aug2020-May2021) Bias Corrected Accumulation',fontsize=14)
+plt.savefig('Spatialdiffs_NARRvsCReSIS.png',bbox_inches = 'tight')
 
 
