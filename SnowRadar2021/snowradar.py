@@ -15,11 +15,11 @@ import os
 import sys
 sys.path.insert(1,'F:\Mass Balance Model\RawNARR_Catchment')
 from Model_functions_ver4 import regridXY_something
+from netCDF4 import Dataset
 
 
 # load .csv file with radar data
-radardata = np.loadtxt('F:/Mass Balance Model/SnowRadar2021/Data_20210510_03.csv',delimiter=',',skiprows=1)
-
+radardata = np.loadtxt('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03.csv',delimiter=',',skiprows=1)
 # load individual variables from the .csv file, eliminate last line since it is a Null value
 lat = radardata[:,0][:-1]
 lon = radardata[:,1][:-1]
@@ -153,11 +153,11 @@ plt.subplot(1,2,1)
 plt.scatter(depth_fixed,elevation)
 
 # METHOD 2: MANUALLY REMOVE FRAMES THAT LOOK WIERD IN THE ECHO: https://data.cresis.ku.edu/data/snow/2021_Alaska_SO/images/20210510_03/
-bad_frames = np.array([11,12,13,14,15,25,26,27,28,29,30,31,32,33,34,35,36])
-questionable_frames = [16,17,37] #check these ones with gwenn
+bad_indices = np.array([11,12,13,14,15,25,26,27,28,29,30,31,32,33,34,35,36])
+questionable_indices = [16,17,37] #check these ones with gwenn
 
 frame0 = 2021051003000
-bad_frames = bad_frames + frame0
+bad_frames = bad_indices + frame0
 
 for i in bad_frames:
     badpoints = np.where(frame == i)
@@ -281,4 +281,77 @@ plt.ylabel('Northing',fontsize=14)
 plt.title('CReSIS Snow Radar Compared to NARR Accumulation',fontsize=14)
 #plt.savefig('NARR_CReSIS_samecolours.png',bbox_inches = 'tight')
         
+###############################################################################
+# look at 2021 accumulation season only: (Oct1 2020-May 10 2022)
+# also check --> how much accumulation in august, september. 
+# test: with netsnow2014 and netsnow2011 and netsnow2012
+
+# 1. load net snow 2011 and 2012
+def seasonalaccumulation(year1,year2,BC):
+    if BC == False:
+        Fvar = 'Temperature'
+    else:
+        Fvar = 'Net snow'
+        
+    inF1 = Dataset(year1,'r')
+    snowyr1 = inF1.variables[Fvar][:] # has shape (time,y,x)
+    
+    inF2 = Dataset(year2,'r')
+    snowyr2 = inF2.variables[Fvar][:] # has shape (time,y,x)
+    
+    # calculate total accumulation from oct - jan of year 1
+    #use np.nansum(axis=0) to get sum through time
+    
+    #formula = 8*(DOY-1)
+    oct1_DOY= 274 
+    oct1 = 8*(oct1_DOY-1)
+    
+    may10_DOY = 132
+    may10 = 8*(may10_DOY-1)
+    
+    snowoct = np.nansum(snowyr1[oct1:,:,:],axis=0) #units are m.w.e.
+    snowmay = np.nansum(snowyr2[:may10,:,:],axis=0)
+    
+    totalsnow = np.add(snowoct,snowmay)
+    nanlocs = np.where(totalsnow == 0)
+    totalsnow[nanlocs] = np.nan 
+    
+    return totalsnow
+
+snow20112012_noBC = seasonalaccumulation('F:/Mass Balance Model/DownscaledNARR/netSnowkaskonly2011.nc','F:/Mass Balance Model/DownscaledNARR/netSnowkaskonly2012.nc',False)
+snow20112012_BC = seasonalaccumulation('F:/Mass Balance Model/BiasCorrectedInputs/Kaskonly_R2S=1/Prcpkaskonly_BC_2011.nc','F:/Mass Balance Model/BiasCorrectedInputs/Kaskonly_R2S=1/Prcpkaskonly_BC_2011.nc',True)
+
+plt.figure()
+plt.contourf(snow20112012)
+legend = plt.colorbar()
+
+def accumulationvselevation(Zgrid,Accumulation_Array):
+    elevation = []
+    accumulation = []
+    for i in range(0,len(Zgrid)):
+        for j in range(0,len(Zgrid[1])):
+            if np.isnan(Zgrid[i,j]):
+                pass
+            else:
+                elevation.append(Zgrid[i,j])
+                accumulation.append(Accumulation_Array[i,j])
+    
+    return accumulation,elevation
+
+noBC2011 = accumulationvselevation(Zgrid,snow20112012_noBC)
+BC2011 = accumulationvselevation(Zgrid,snow20112012_BC)
+
+
+
+# COMPARISON SCATTER PLOT
+plt.figure(figsize=(5,7))
+plt.scatter(noBC2011[0],noBC2011[1],marker='.',color='purple')
+plt.scatter(BC2011[0],BC2011[1],marker='.',color='green')
+plt.scatter(depth,elevation,marker='.',color='turquoise')
+plt.title('CReSIS Snow Radar (2021)',fontsize=12)
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+plt.legend(['NARR Accumulation','CReSIS Snow Radar'])
+plt.xlim(0,4.5)
+plt.ylim(500,4000)
 
