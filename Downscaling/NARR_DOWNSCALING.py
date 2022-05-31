@@ -34,7 +34,7 @@ from DOWNSCALINGnamelist import glacier_id
 from DOWNSCALINGnamelist import Topo_param
 from DOWNSCALINGnamelist import Debris
 from DOWNSCALINGnamelist import UTM
-from DOWNSCALINGnamelist import ELA
+#from DOWNSCALINGnamelist import ELA
 from DOWNSCALINGnamelist import SNOW_START
 from DOWNSCALINGnamelist import gen_snow
 from DOWNSCALINGnamelist import NARR_subregions
@@ -46,6 +46,8 @@ from DOWNSCALINGnamelist import snowfactor
 from DOWNSCALINGnamelist import downscaled_outputs
 from DOWNSCALINGnamelist import Glacier_outline
 from DOWNSCALINGnamelist import considering_kaskonly
+from DOWNSCALINGnamelist import rawnarr_inputs
+from DOWNSCALINGnamelist import solar_in
 
 #set path for downscaled outputs(Temp, Precip, & Radiation) to go into 
 OUTPUT_PATH = downscaled_outputs
@@ -88,8 +90,8 @@ for year in years:
     UTM_zone = UTM
     
     #ELA value used for area
-    ela = ELA
-    print(ela)
+    #ela = ELA
+    #print(ela)
     
     #Boolean for whether initial snow profile exists or start with no snow condition
     #Followed by boolean for whether to generate snow.txt output
@@ -132,9 +134,10 @@ for year in years:
     ###steps performed on original datasets, use cdo in terminal
     ###for easy navigation
     
-    File_elev_in = 'kaskhgt' + str(current_year) + '.nc'
-    File_temp_in = 'kaskair' + str(current_year) + '.nc'
-    File_precip_in = 'kaskapcp' + str(current_year) + '.nc'
+    
+    File_elev_in = os.path.join(rawnarr_inputs,'kaskhgt.' + str(current_year) + '.nc')
+    File_temp_in = os.path.join(rawnarr_inputs,'kaskair.' + str(current_year) + '.nc')
+    File_precip_in = os.path.join(rawnarr_inputs,'kaskapcp.' + str(current_year) + '.nc')
     File_CoarseElev_in = 'kaskCE.nc'
     File_glacier_in = Glacier_outline + '.txt' 
     if Debris_cover == True:
@@ -318,10 +321,13 @@ for year in years:
     #arrays for dumping carry-over values for snow in  each model, set initial snow 
     #condition here: use previous years sow profile
     
-    if snow_start == True:
-        snow_ini_a = np.zeros(Ih.shape)
-    else:    
-        snow_ini_a = snow_ini
+    if year == years[0]:
+        snow_ini_a = np.zeros(Ih.shape) # set snow profile intitial condition to zero for first year
+    else:
+        if snow_start == True:
+            snow_ini_a = np.zeros(Ih.shape)
+        else:    
+            snow_ini_a = snow_ini
     
     Leftover_list = np.zeros(np.size(Ih)) + snow_ini_a
     Leftover_listSR_arc = np.zeros(np.size(Ih)) + snow_ini_a
@@ -340,8 +346,8 @@ for year in years:
         pass
         
     #number of counts per day for inputs (might be irrelevant in netcdf design)
-    dayT = 32
-    dayP = 2
+    #dayT = 32
+    #dayP = 2
     
     #set start day for model run
     st_day = 1
@@ -399,7 +405,7 @@ for year in years:
         #get daily rad values from arc files
         today_num = it_day + st_day    
         #UNCOMMENT
-        curSR_arc = np.genfromtxt(solar_prefix + str(today_num) + solar_suffix, delimiter=' ')
+        curSR_arc = np.genfromtxt(os.path.join(solar_in,solar_prefix + str(today_num) + solar_suffix), delimiter=' ')
         
         
         for i in range(0, len(timeinterv)):
@@ -444,9 +450,9 @@ for year in years:
                 
                 #Get closest NARR grid point for appropriate downscaling T values
                 grid_pt = np.asarray(([Iy[z]], [Ix[z]]))
-                print(grid_pt)
+                #print(grid_pt)
                 grid_loc = closest_node(grid_pt, grid_pts)
-                print(grid_loc)
+                #print(grid_loc)
             
                 #use index to get nearest grid point in u, w notation
                 u = int(np.where(UTMx == grid_pts[0][grid_loc])[0])
