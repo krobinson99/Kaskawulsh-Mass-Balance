@@ -29,7 +29,7 @@ frame = radardata[:,5][:-1]
 
 # convert lat/lon to easting/northing:
 easting = []
-northing =[]
+northing = []
 for i in range(0,len(lat)):
     x = utm.from_latlon(lat[i],lon[i])
     easting.append(x[0])
@@ -341,17 +341,44 @@ def accumulationvselevation(Zgrid,Accumulation_Array):
 noBC2011 = accumulationvselevation(Zgrid,snow20112012_noBC)
 BC2011 = accumulationvselevation(Zgrid,snow20112012_BC)
 
-
-
 # COMPARISON SCATTER PLOT
 plt.figure(figsize=(5,7))
 plt.scatter(noBC2011[0],noBC2011[1],marker='.',color='purple')
 plt.scatter(BC2011[0],BC2011[1],marker='.',color='green')
 plt.scatter(depth,elevation,marker='.',color='turquoise')
-plt.title('CReSIS Snow Radar (2021)',fontsize=12)
+plt.title('Kaskawulsh Accumulation',fontsize=12)
 plt.xlabel('Accumulation (m w.e.)',fontsize=14)
 plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
-plt.legend(['NARR Accumulation','CReSIS Snow Radar'])
+plt.legend(['NARR Accumulation (2011) No BC','NARR Accumulation (2011) BC','CReSIS Snow Radar'])
 plt.xlim(0,4.5)
 plt.ylim(500,4000)
+
+# compare cell by cell NARR and Icebridge:
+# means we need to calculate nearest neighbour
+# icebridge covers less area so it is the "limiting factor"
+# for every cell in icebridge, calculate who is the nearest NARR neighbour and record in a list
+
+def nearestneighbour(NARRsnowarray,NASAsnowlist=depth,NASAeasting=easting,NASAnorthing=northing,xgrid=Xgrid,ygrid=Ygrid):    
+    distance_to_NN = []
+    NARRaccumulation = []
+    for i in range(0,len(NASAeasting)):
+        if np.isnan(NASAsnowlist[i]):
+            NARRaccumulation.append(np.nan)
+        else:
+            x_dist = xgrid - NASAeasting[i]
+            y_dist = ygrid - NASAnorthing[i]
+            distance = np.sqrt((x_dist**2)+(y_dist**2))
+            closest_cell = np.where(distance == np.nanmin(distance))
+            distance_to_NN.append(np.nanmin(distance))
+            NARRaccumulation.append(NARRsnowarray[closest_cell])
+        
+    return NARRaccumulation
+
+snow2011_BC_list = nearestneighbour(snow20112012_BC)
+
+plt.figure(figsize=(5,7))
+plt.scatter(depth,snow2011_BC_list)
+
+
+
 
