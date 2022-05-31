@@ -245,19 +245,27 @@ debris_m[nanlocs] = np.nan
 
 EY_Ygrid_flipped = np.flipud(EY_Ygrid) # EY_Ygrid is originally upside down (values decreasing south to north)
 
-easting_EY = []
-northing_EY = []
-elevation_EY = []
-acc_EY = []
-for i in range(0,len(Xgrid)):
-    for j in range(0,len(Xgrid[1])):
-        if np.isnan(Zgrid[i,j]):
-            pass
-        else:
-            easting_EY.append(Xgrid[i,j])
-            northing_EY.append(EY_Ygrid_flipped[i,j])
-            elevation_EY.append(Zgrid[i,j])
-            acc_EY.append(distributed_accumulation[i,j])
+def calculate_XYZAcc(Xgrid,Ygrid,Zgrid,Acc_array):
+    easting_EY = []
+    northing_EY = []
+    elevation_EY = []
+    acc_EY = []
+    for i in range(0,len(Xgrid)):
+        for j in range(0,len(Xgrid[1])):
+            if np.isnan(Zgrid[i,j]):
+                pass
+            else:
+                easting_EY.append(Xgrid[i,j])
+                northing_EY.append(EY_Ygrid_flipped[i,j])
+                elevation_EY.append(Zgrid[i,j])
+                acc_EY.append(distributed_accumulation[i,j])
+    
+    return easting_EY,northing_EY,elevation_EY,acc_EY
+                
+easting_EY = calculate_XYZAcc(Xgrid,EY_Ygrid_flipped,Zgrid,distributed_accumulation)[0]
+northing_EY = calculate_XYZAcc(Xgrid,EY_Ygrid_flipped,Zgrid,distributed_accumulation)[1]
+elevation_EY = calculate_XYZAcc(Xgrid,EY_Ygrid_flipped,Zgrid,distributed_accumulation)[2]
+acc_EY = calculate_XYZAcc(Xgrid,EY_Ygrid_flipped,Zgrid,distributed_accumulation)[3]
 
 plt.figure(figsize=(14,7))
 plt.scatter(easting_EY,northing_EY,c=acc_EY,cmap="BuPu")
@@ -289,7 +297,7 @@ plt.title('CReSIS Snow Radar Compared to NARR Accumulation',fontsize=14)
 # 1. load net snow 2011 and 2012
 def seasonalaccumulation(year1,year2,BC):
     if BC == False:
-        Fvar = 'Temperature'
+        Fvar = 'Precipitation'
     else:
         Fvar = 'Net snow'
         
@@ -318,12 +326,9 @@ def seasonalaccumulation(year1,year2,BC):
     
     return totalsnow
 
-snow20112012_noBC = seasonalaccumulation('F:/Mass Balance Model/DownscaledNARR/netSnowkaskonly2011.nc','F:/Mass Balance Model/DownscaledNARR/netSnowkaskonly2012.nc',False)
-snow20112012_BC = seasonalaccumulation('F:/Mass Balance Model/BiasCorrectedInputs/Kaskonly_R2S=1/Prcpkaskonly_BC_2011.nc','F:/Mass Balance Model/BiasCorrectedInputs/Kaskonly_R2S=1/Prcpkaskonly_BC_2011.nc',True)
+#snow20112012_noBC = seasonalaccumulation('F:/Mass Balance Model/DownscaledNARR/netSnowkaskonly2011.nc','F:/Mass Balance Model/DownscaledNARR/netSnowkaskonly2012.nc',False)
+#snow20112012_BC = seasonalaccumulation('F:/Mass Balance Model/BiasCorrectedInputs/Kaskonly_R2S=1/Prcpkaskonly_BC_2011.nc','F:/Mass Balance Model/BiasCorrectedInputs/Kaskonly_R2S=1/Prcpkaskonly_BC_2011.nc',True)
 
-plt.figure()
-plt.contourf(snow20112012)
-legend = plt.colorbar()
 
 def accumulationvselevation(Zgrid,Accumulation_Array):
     elevation = []
@@ -338,20 +343,20 @@ def accumulationvselevation(Zgrid,Accumulation_Array):
     
     return accumulation,elevation
 
-noBC2011 = accumulationvselevation(Zgrid,snow20112012_noBC)
-BC2011 = accumulationvselevation(Zgrid,snow20112012_BC)
+#noBC2011 = accumulationvselevation(Zgrid,snow20112012_noBC)
+#BC2011 = accumulationvselevation(Zgrid,snow20112012_BC)
 
 # COMPARISON SCATTER PLOT
-plt.figure(figsize=(5,7))
-plt.scatter(noBC2011[0],noBC2011[1],marker='.',color='purple')
-plt.scatter(BC2011[0],BC2011[1],marker='.',color='green')
-plt.scatter(depth,elevation,marker='.',color='turquoise')
-plt.title('Kaskawulsh Accumulation',fontsize=12)
-plt.xlabel('Accumulation (m w.e.)',fontsize=14)
-plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
-plt.legend(['NARR Accumulation (2011) No BC','NARR Accumulation (2011) BC','CReSIS Snow Radar'])
-plt.xlim(0,4.5)
-plt.ylim(500,4000)
+#plt.figure(figsize=(5,7))
+#plt.scatter(noBC2011[0],noBC2011[1],marker='.',color='purple')
+#plt.scatter(BC2011[0],BC2011[1],marker='.',color='green')
+#plt.scatter(depth,elevation,marker='.',color='turquoise')
+#plt.title('Kaskawulsh Accumulation',fontsize=12)
+#plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+#plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+#plt.legend(['NARR Accumulation (2011) No BC','NARR Accumulation (2011) BC','CReSIS Snow Radar'])
+#plt.xlim(0,4.5)
+#plt.ylim(500,4000)
 
 # compare cell by cell NARR and Icebridge:
 # means we need to calculate nearest neighbour
@@ -374,11 +379,87 @@ def nearestneighbour(NARRsnowarray,NASAsnowlist=depth,NASAeasting=easting,NASAno
         
     return NARRaccumulation
 
-snow2011_BC_list = nearestneighbour(snow20112012_BC)
+#snow2011_BC_list = nearestneighbour(snow20112012_BC)
 
-plt.figure(figsize=(5,7))
-plt.scatter(depth,snow2011_BC_list)
+#plt.figure(figsize=(5,5))
+#plt.scatter(depth,snow2011_BC_list)
+#plt.xlim(0,3.5)
+#plt.ylim(0,3.5)
 
+###############################################################################
+# load 2020/2021 data
+snow2021_nobc = seasonalaccumulation('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/netSnowkaskonly2020.nc','F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/netSnowkaskonly2021.nc',False)
+snow2021_bc = seasonalaccumulation('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/Prcpkaskonly_BC_2020.nc','F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/Prcpkaskonly_BC_2021.nc',True)
 
+snow2021_bc_list = calculate_XYZAcc(Xgrid,EY_Ygrid_flipped,Zgrid,snow2021_bc)[3]
+
+# compare to NASA snow data
+plt.figure(figsize=(14,7))
+plt.scatter(easting_EY,northing_EY,c=snow2021_bc_list,cmap="BuPu")
+legend1 = plt.colorbar()
+legend1.ax.set_ylabel('Accumulation (m w.e. $a^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.scatter(easting,northing,c=depth, facecolor='k',marker='o',linewidth=3) #levels = np.linspace(0,4.5,19))
+legend2 = plt.colorbar()
+#legend2.ax.set_ylabel('Accumulation (m w.e. $a^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.title('CReSIS Snow Radar (May2021) Compared to NARR Accumulation (Oct2020-May2021)',fontsize=14)
+#plt.savefig('NARR_CReSIS_2021_diffcolour.png',bbox_inches = 'tight')
+
+plt.figure(figsize=(12,7))
+plt.scatter(easting_EY,northing_EY,c=snow2021_bc_list,cmap="BuPu")
+plt.scatter(easting,northing,c=depth, cmap="BuPu",marker='o',linewidth=3) #levels = np.linspace(0,4.5,19))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Accumulation (m w.e. $a^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.title('CReSIS Snow Radar (May2021) Compared to NARR Accumulation (Oct2020-May2021)',fontsize=14)
+#plt.savefig('NARR_CReSIS_2021_samecolours.png',bbox_inches = 'tight')
+
+plt.figure(figsize=(6,8))
+plt.scatter(accumulationvselevation(Zgrid,snow2021_nobc)[0],accumulationvselevation(Zgrid,snow2021_nobc)[1],marker='.',color='orange')
+plt.scatter(accumulationvselevation(Zgrid,snow2021_bc)[0],accumulationvselevation(Zgrid,snow2021_bc)[1],marker='.',color='purple')
+plt.scatter(depth,elevation,marker='.',color='turquoise')
+plt.title('Kaskawulsh Accumulation',fontsize=12)
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+plt.legend(['NARR Accumulation (Oct2020-May2021) Uncorrected','NARR Accumulation (Oct2020-May2021) Bias Corrected','CReSIS Snow Radar (2021)'])
+plt.xlim(0,4.5)
+plt.ylim(500,4000)
+#plt.savefig('NARRCresis2021_AccvsElev.png',bbox_inches = 'tight')
+
+def howmuchsnowinlatesummer(year1file,BC):
+    if BC == False:
+        Fvar = 'Precipitation'
+    else:
+        Fvar = 'Net snow'
+        
+    inF1 = Dataset(year1file,'r')
+    snowyr1 = inF1.variables[Fvar][:] # has shape (time,y,x)
+    
+    #inF2 = Dataset(year2,'r')
+    #snowyr2 = inF2.variables[Fvar][:] # has shape (time,y,x)
+    
+    # calculate total accumulation from oct - jan of year 1
+    #use np.nansum(axis=0) to get sum through time
+    
+    #formula = 8*(DOY-1)
+    aug1_DOY= 214
+    aug1 = 8*(aug1_DOY-1)
+    
+    sept30_DOY = 274
+    sept30 = 8*(sept30_DOY-1)
+    
+    summersnow = np.nansum(snowyr1[aug1:sept30,:,:],axis=0) #units are m.w.e.
+    
+    nanlocs = np.where(summersnow == 0)
+    summersnow[nanlocs] = np.nan 
+    
+    return summersnow
+
+summersnow_2020 = howmuchsnowinlatesummer('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/downscaled2021acc/Prcpkaskonly_BC_2020.nc',True)
+    
+plt.contourf(summersnow_2020)
+plt.colorbar()
 
 
