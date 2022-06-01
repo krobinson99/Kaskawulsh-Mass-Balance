@@ -1162,6 +1162,7 @@ def KWtributaries(coordinatefile,Zgrid):
     SW = 2
     CA = 3
     NA = 4
+    Trunk = 5
     """
     #get nanlocs
     #nanlocs = np.where(np.isnan(Zgrid))
@@ -1177,18 +1178,22 @@ def KWtributaries(coordinatefile,Zgrid):
     twos = np.where(tribs == 'SW')
     threes = np.where(tribs == 'CA')
     fours = np.where(tribs == 'NorthArm')
+    fives = np.where(tribs == 'Tr') # trunk
     zeros = np.where(pd.isna(tribs))
     
     tribs[ones] = 1
     tribs[twos] = 2
     tribs[threes] = 3
     tribs[fours] = 4
+    tribs[fives] = 5
     tribs[zeros] = 0
         
     #reshape tribcodes list in Zgrid.shape
     tribarray = np.reshape(tribs,(Zgrid.shape))
+    
+    tribarray_f = np.flipud(tribarray)
     #tribarray[nanlocs] = np.nan
     
-    return tribarray
+    return tribarray_f
 
     
