@@ -7,6 +7,7 @@ from scipy import interpolate
 from netCDF4 import Dataset
 import netCDF4
 import os
+import pandas as pd
 
 
 ###Downscale temperature based on atmospheric structure and inversions###
@@ -1152,5 +1153,42 @@ def Check_out_that_MB(flat_netMB, flat_z, ELA):
         medians.append(np.nanmedian(MBvals[k]))
         
     return means, stds, medians
+
+def KWtributaries(coordinatefile,Zgrid):
+    """
+    codes:
+    nontrib = 0
+    SA = 1
+    SW = 2
+    CA = 3
+    NA = 4
+    """
+    #get nanlocs
+    #nanlocs = np.where(np.isnan(Zgrid))
+    
+    #load .csv file with tributary codes
+    df = pd.read_csv(coordinatefile)
+    #df['Tributary'].astype('Int64')
+    arr = np.array(df)
+    
+    tribs = arr[:,3]
+    
+    ones = np.where(tribs == 'SA')
+    twos = np.where(tribs == 'SW')
+    threes = np.where(tribs == 'CA')
+    fours = np.where(tribs == 'NorthArm')
+    zeros = np.where(pd.isna(tribs))
+    
+    tribs[ones] = 1
+    tribs[twos] = 2
+    tribs[threes] = 3
+    tribs[fours] = 4
+    tribs[zeros] = 0
+        
+    #reshape tribcodes list in Zgrid.shape
+    tribarray = np.reshape(tribs,(Zgrid.shape))
+    #tribarray[nanlocs] = np.nan
+    
+    return tribarray
 
     
