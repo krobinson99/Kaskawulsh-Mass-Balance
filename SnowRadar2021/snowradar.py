@@ -13,8 +13,9 @@ import matplotlib.pyplot as plt
 import utm
 import os
 import sys
-sys.path.insert(1,'F:\Mass Balance Model\RawNARR_Catchment')
+sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
+from Model_functions_ver4 import KWtributaries
 from netCDF4 import Dataset
 
 
@@ -163,6 +164,7 @@ for i in bad_frames:
     badpoints = np.where(frame == i)
     depth[badpoints] = np.nan
     elevation[badpoints] = np.nan
+    frame[badpoints] = np.nan
     
 plt.figure(figsize=(12,7))
 plt.scatter(easting,northing,c=depth, cmap="BuPu") #levels = np.linspace(0,4.5,19))
@@ -510,6 +512,120 @@ legend.ax.set_ylabel('Difference in Accumulation (m w.e.)', rotation=270,fontsiz
 plt.xlabel('Easting',fontsize=14)
 plt.ylabel('Northing',fontsize=14)
 plt.title('Difference between CReSIS and NARR (Aug2020-May2021) Bias Corrected Accumulation',fontsize=14)
-plt.savefig('Spatialdiffs_NARRvsCReSIS.png',bbox_inches = 'tight')
+#plt.savefig('Spatialdiffs_NARRvsCReSIS.png',bbox_inches = 'tight')
 
+# segment the NASA data into the diff tributaries:
+tribarray = KWtributaries('file:///F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KWTributaries.csv',Zgrid)
+nanlocs = np.where(np.isnan(Zgrid))
+tribarray[nanlocs] = np.nan
+
+def tributary_accvselev(tribarray,Zgrid,snowarray):
+    SAs = []
+    SAz = []
+    SWs = []
+    SWz = []
+    NAs = []
+    NAz = []
+    CAs = []
+    CAz = []
+    Trs = []
+    Trz = []
+    
+    for i in range(0,len(Zgrid)):
+        for j in range(0,len(Zgrid[0])):
+            if np.isnan(Zgrid[i][j]):
+                pass
+            else:
+                if tribarray[i][j] == 1:
+                    SAs.append(snowarray[i][j])
+                    SAz.append(Zgrid[i][j])
+                elif tribarray[i][j] == 2:
+                    SWs.append(snowarray[i][j])
+                    SWz.append(Zgrid[i][j])
+                elif tribarray[i][j] == 3:
+                    CAs.append(snowarray[i][j])
+                    CAz.append(Zgrid[i][j])
+                elif tribarray[i][j] == 4:
+                    NAs.append(snowarray[i][j])
+                    NAz.append(Zgrid[i][j])
+                elif tribarray[i][j] == 5:
+                    Trs.append(snowarray[i][j])
+                    Trz.append(Zgrid[i][j])
+                else:
+                    pass
+                
+    return [SAs,SAz],[SWs,SWz],[CAs,CAz],[NAs,NAz],[Trs,Trz]
+
+#get tributary data from NASA snow radar:
+
+NAs_nasa = depth[0:9000]
+NAz_nasa = elevation[0:9000]
+
+Trs_nasa = depth[9000:31000]
+Trz_nasa = elevation[9000:31000]
+
+SAs_nasa = depth[31000:45000]
+SAz_nasa = elevation[31000:45000]
+
+CAs_nasa = depth[50000:76203]
+CAz_nasa = elevation[50000:76203]
+                    
+plt.figure(figsize=(10,12))
+plt.subplot(2,2,1)
+plt.title('South Arm',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[0][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[0][1],color='purple')
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[0][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[0][1],color='orange')
+plt.scatter(SAs_nasa,SAz_nasa,color='turquoise')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.ylim(700,3700)
+plt.xlim(0,4)
+plt.subplot(2,2,2)
+plt.title('Stairway Glacier',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[1][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[1][1],color='purple')
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[1][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[1][1],color='orange')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.ylim(700,3700)
+plt.xlim(0,4)
+plt.subplot(2,2,3)
+plt.title('Central Arm',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[2][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[2][1],color='purple')
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[2][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[2][1],color='orange')
+plt.scatter(CAs_nasa,CAz_nasa,color='turquoise')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.ylim(700,3700)
+plt.xlim(0,4)
+plt.subplot(2,2,4)
+plt.title('North Arm',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[3][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[3][1],color='purple')
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[3][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[3][1],color='orange')
+plt.scatter(NAs_nasa,NAz_nasa,color='turquoise')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.ylim(700,3700)
+plt.xlim(0,4)
+plt.tight_layout()
+#plt.savefig('Tributaries_SnowvsZ.png',bbox_inches = 'tight')
+
+plt.figure(figsize=(6,8))
+plt.title('Trunk',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[4][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[4][1],color='purple')
+plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[4][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[4][1],color='orange')
+plt.scatter(Trs_nasa,Trz_nasa,color='turquoise')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.ylim(700,3700)
+plt.xlim(0,4)
+#plt.savefig('Trunk_SnowvsZ.png',bbox_inches = 'tight')
+
+
+plt.contourf(tribarray,levels=(-1,0,1,2,3,4,5,6,))
+plt.colorbar()
 
