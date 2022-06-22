@@ -16,6 +16,7 @@ import os
 import sys
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
+from Model_functions_ver4 import KWtributaries
 
 # use baseline case: file:///F:/Mass Balance Model/OUTPUTS/Kaskonly_Baseline
 
@@ -82,15 +83,19 @@ aice = params[0,:]
 asnow = params[1,:]
 MF = params[2,:]
 
-allruns_MB = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
-for sim in range(0, len(aice)):
-    print('starting sim ' + str(sim))
+maxmelt_list = []
+allruns_Melt = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
+#for sim in range(0, len(aice)):
+for year in years[1:]:
+    #print('starting sim ' + str(sim))
+    print('starting year ' + str(year))
 
     #create empty array with shape [t,x,y] = number of years, MB_array dims (ie. (12,218,328) for kaskonly)
     MB_empty_container = np.empty(((len(years)-1),len(Zgrid),len(Zgrid[0])))
     
-    for year in years[1:]: # start at index 1 (first year skipped for spin-up)
-        print(year)
+    #for year in years[1:]: # start at index 1 (first year skipped for spin-up)
+    for sim in range(0, len(aice)):
+        print(sim)
         
         MB_file_name = 'NetMelt' + str(year) + str(sim) + '.nc'
         MB_File_in = os.path.join(FILEPATH,MB_file_name)
@@ -114,7 +119,10 @@ for sim in range(0, len(aice)):
         
         # insert the net mass balance for the year into the empty MB container for that year
         #MB_empty_container[np.where(np.asarray(years) == year-1),:,:] = N_MB # np.asarray Converts the input to an array.
-        MB_empty_container[np.where(np.asarray(years) == year-1),:] = N_MB
+        MB_empty_container[sim,:,:] = N_MB
+    
+    maxmelt = np.nanmax(MB_empty_container)
+    maxmelt_list.append(maxmelt)
     
     #out_file_MB = 'Net_Melt' + str(sim) + '.npy'
     #MB_out_path = os.path.join(OUTPUT_PATH,out_file_MB)  
@@ -129,16 +137,55 @@ for sim in range(0, len(aice)):
     
     run_mean_MB[nanlocs] = np.nan
     
-    allruns_MB[sim,:,:] = run_mean_MB
     
-summermelt = np.nanmean(allruns_MB, axis = 0)
+    allruns_Melt[np.where(np.asarray(years) == year-1),:] = run_mean_MB
+    
+summermelt = np.nanmean(allruns_Melt, axis = 0)
     
 #save output of run means
 out_run_means = 'summermelt_' + Case + '.npy'
 out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
-np.save(out_allruns, summermelt)
+#np.save(out_allruns, summermelt)
 
-allruns_MB = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
+out_run_means = 'allyears_summermelt_' + Case + '.npy'
+out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
+#np.save(out_allruns, allruns_Melt)
+
+allyearsmelt = np.load(out_allruns)
+maxmelt = np.nanmax(allyearsmelt)
+
+for i in range(0,len(allyearsmelt)):
+    print(i+2007)
+    loc = np.where(allyearsmelt[i] == np.nanmax(allyearsmelt[i]))
+    print(np.nanmax(allyearsmelt[i]))
+    #print(Zgrid[loc])
+    
+#max ablation in the elevation zone 1750-1850 m asl
+targetelev = np.where((Zgrid > 1750) & (Zgrid < 1850))
+
+for i in range(0,len(allyearsmelt)):
+    print(i+2007)
+    yearmelt = allyearsmelt[i]
+    print(np.nanmax(yearmelt[targetelev]))
+
+
+
+#search for minimum ablation in the trunk area only
+tribarray = KWtributaries('file:///F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KWTributaries.csv',Zgrid)
+nanlocs = np.where(np.isnan(Zgrid))
+tribarray[nanlocs] = np.nan
+
+nontrunk = np.where(tribarray < 5)
+for i in range(0,len(allruns_Melt)):
+    nannontrunk = allruns_Melt[i]
+    nannontrunk[nontrunk] = np.nan
+    allruns_Melt[i] = nannontrunk
+    
+
+minmelt = np.where(allruns_Melt == np.nanmin(allruns_Melt))
+
+
+allruns_Snow = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
 for sim in range(0, len(aice)):
     print('starting sim ' + str(sim))
 
@@ -185,9 +232,9 @@ for sim in range(0, len(aice)):
     
     run_mean_MB[nanlocs] = np.nan
     
-    allruns_MB[sim,:,:] = run_mean_MB
+    allruns_Snow[sim,:,:] = run_mean_MB
     
-summersnow = np.nanmean(allruns_MB, axis = 0)
+summersnow = np.nanmean(allruns_Snow, axis = 0)
     
 #save output of run means
 out_run_means = 'summersnow_' + Case + '.npy'
@@ -197,19 +244,25 @@ np.save(out_allruns, summersnow)
 ###############################################################################
 #PLOT OUTPUTS
 plt.figure(figsize=(12,7))
-plt.contourf(np.flipud(summermelt), cmap = 'YlOrRd', levels = np.linspace(0,12, 20))
+plt.contourf(np.flipud(summermelt), cmap = 'YlOrRd', levels = np.linspace(0,5, 21))
 legend = plt.colorbar()
 legend.ax.set_ylabel('Melt (m w.e.)', rotation=270)
 #legend.ax.set_ylabel('Precipitation (m w.e./yr)', rotation=270,x=1.1)
 plt.title('Summer (Jul 15 - Aug 31) Ablation (2007-2008)')
-plt.savefig('summmer_melt.png')
+#plt.savefig('summmer_melt.png')
 
 plt.figure(figsize=(12,7))
-plt.contourf(np.flipud(summersnow), cmap = 'YlOrRd', levels = np.linspace(0,12, 20))
+plt.contourf(np.flipud(summersnow), cmap = 'PuRd', levels = np.linspace(0,0.5, 21))
 legend = plt.colorbar()
 legend.ax.set_ylabel('Accumulation (m w.e.)', rotation=270)
 #legend.ax.set_ylabel('Precipitation (m w.e./yr)', rotation=270,x=1.1)
 plt.title('Summer (Jul 15 - Aug 31) Accumulation (2007-2008)')
-plt.savefig('summmer_snow.png')
+#plt.savefig('summmer_snow.png')
 
 
+plt.figure(figsize=(12,7))
+plt.contourf(np.flipud(allruns_Melt[4]), cmap = 'YlOrRd', levels = np.linspace(0,5, 21))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Melt (m w.e.)', rotation=270)
+#legend.ax.set_ylabel('Precipitation (m w.e./yr)', rotation=270,x=1.1)
+plt.title('Summer (Jul 15 - Aug 31) Ablation (2007-2008)')
