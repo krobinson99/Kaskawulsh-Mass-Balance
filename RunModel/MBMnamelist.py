@@ -24,6 +24,7 @@ temp_shift_factor = -1.7 # what is the temperature shift. + is an increase in te
 Bias_CorrectionT = True #are you using bias corrected temp files as input (True) or not (False)
 Bias_CorrectionP = True #are you using bias corrected temp files as input (True) or not (False)
 
+Tuning = False
 #file_names
 #Input_path = .../.../… #tell the model where to find the input files
 params_filename = 'final_params_deb.csv' #tell the model which file contains the parameters we want to use for this run
