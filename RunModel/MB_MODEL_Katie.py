@@ -23,13 +23,14 @@ from datetime import datetime
 import sys
 import os
 # import model functions
+sys.path.insert(1,'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel')
 from Model_functions_ver4 import MB_vectorized_discreteSnI
 from Model_functions_ver4 import cold_content
 from Model_functions_ver4 import regridXY_something
 from Model_functions_ver4 import get_meanSP
 from Model_functions_ver4 import netcdf_container_gen
 # import debris functions
-sys.path.insert(1,'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\DebrisThickness')
+sys.path.insert(1,'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/DebrisThickness')
 from DebrisFunctions import MeltFactors
 # import from the config file
 from MBMnamelist import glacier_id
@@ -51,6 +52,8 @@ from MBMnamelist import Bias_CorrectionT as BC_T
 from MBMnamelist import Bias_CorrectionP as BC_P
 from MBMnamelist import Considering_Catchment
 from MBMnamelist import transition_thickness as tt
+from MBMnamelist import Tuning
+from MBMnamelist import param_total
 from MBMnamelist import debris_treatment
 from MBMnamelist import debris_thickness_map
 
@@ -71,10 +74,30 @@ Precip_input_path = P_inputs
 Srad_input_path = SR_inputs
 
 #Load parameters 
-params = np.loadtxt(params_filename) #namelist!!
-aice_p = params[0,:]
-asnow_p = params[1,:]
-MF_p = params[2,:]
+if Tuning == True:
+    aice_p = np.zeros(param_total)
+    asnow_p = np.zeros(param_total)
+    MF_p = np.zeros(param_total)
+    for i in range(0,param_total):
+        aice = np.random.normal(0.000003396, 0.00000265) 
+        while aice < 0:
+            aice = np.random.normal(0.000003396, 0.00000265) #OG spread was = 4.38e-6
+        asnow = np.random.normal(0.000001546,0.00000085) 
+        while asnow < 0:
+            asnow = np.random.normal(0.000001546,0.00000085) 
+        MF = np.random.normal(0.0002707,0.0001632) 
+        while MF < 0:
+            MF = np.random.normal(0.0002707,0.0001632)
+        
+        aice_p[i] = aice
+        asnow_p[i] = asnow
+        MF_p[i] = MF
+        
+else:
+    params = np.loadtxt(params_filename) #namelist!!
+    aice_p = params[0,:]
+    asnow_p = params[1,:]
+    MF_p = params[2,:]
 
 ## set up time range ###
 years = []
@@ -418,14 +441,22 @@ while sim<(len(MF_p)-1):
             np.savetxt('snowini' + str(current_year+1) + '.txt', Leftover_list)
             np.savetxt('CCini' + str(current_year+1) + '.txt', CC_list)
         
-        ###insert outputs into .nc containers using funktion
-        netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year)
-        netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year)
-        netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year)
-        netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year)
-        netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year)
-        netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year)
-        netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year)
+        ###insert outputs into .nc containers using function
+        if Tuning == True:
+            # save only the MB variable as a numpy array, to save space and time
+            # save as 1 file per year and per sim as usual 
+            filename = 'MB' + str(current_year) + str(sim)
+            output = os.path.join(OUTPUT_PATH,filename)
+            np.save(output, MBhour)
+
+        else:
+            netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year)
 
         inT.close()
         inP.close()
