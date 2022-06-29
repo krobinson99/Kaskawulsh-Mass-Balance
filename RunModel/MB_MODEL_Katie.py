@@ -93,6 +93,9 @@ if Tuning == True:
         asnow_p[i] = asnow
         MF_p[i] = MF
         
+    #add line to save the params to an xls or npy or txt file
+    np.savetxt(os.path.join(OUTPUT_PATH,'initial_params.csv'), [aice_p,asnow_p,MF_p])
+        
 else:
     params = np.loadtxt(params_filename) #namelist!!
     aice_p = params[0,:]
