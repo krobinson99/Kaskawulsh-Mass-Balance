@@ -33,6 +33,9 @@ OUTPUT_PATH =  'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022'
 #'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs'
 domain = 'kaskonly'
 
+summermelt_gen = False #need to re-generate the summersnow.npy / summermelt.npy files? if no: False
+summersnow_gen = False
+
 # times
 start_year = 2006
 end_year = 2018
@@ -83,75 +86,81 @@ aice = params[0,:]
 asnow = params[1,:]
 MF = params[2,:]
 
-maxmelt_list = []
-allruns_Melt = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
-#for sim in range(0, len(aice)):
-for year in years[1:]:
-    #print('starting sim ' + str(sim))
-    print('starting year ' + str(year))
-
-    #create empty array with shape [t,x,y] = number of years, MB_array dims (ie. (12,218,328) for kaskonly)
-    MB_empty_container = np.empty(((len(years)-1),len(Zgrid),len(Zgrid[0])))
+if summermelt_gen == True:
+    maxmelt_list = []
+    allruns_Melt = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
+    #for sim in range(0, len(aice)):
+    for year in years[1:]:
+        #print('starting sim ' + str(sim))
+        print('starting year ' + str(year))
     
-    #for year in years[1:]: # start at index 1 (first year skipped for spin-up)
-    for sim in range(0, len(aice)):
-        print(sim)
+        #create empty array with shape [t,x,y] = number of years, MB_array dims (ie. (12,218,328) for kaskonly)
+        MB_empty_container = np.empty(((len(years)-1),len(Zgrid),len(Zgrid[0])))
         
-        MB_file_name = 'NetMelt' + str(year) + str(sim) + '.nc'
-        MB_File_in = os.path.join(FILEPATH,MB_file_name)
-
-
-        MB_in = Dataset(MB_File_in, "r")
-        #print('file in')
-        MB_var = 'Melt'
-        MB_array = MB_in.variables[MB_var][:]
+        #for year in years[1:]: # start at index 1 (first year skipped for spin-up)
+        for sim in range(0, len(aice)):
+            print(sim)
+            
+            MB_file_name = 'NetMelt' + str(year) + str(sim) + '.nc'
+            MB_File_in = os.path.join(FILEPATH,MB_file_name)
+    
+    
+            MB_in = Dataset(MB_File_in, "r")
+            #print('file in')
+            MB_var = 'Melt'
+            MB_array = MB_in.variables[MB_var][:]
+            
+            #what timesteps correspond to July 15 and Aug 31
+            #formula = 8*(DOY-1)
+            #july 15 DOY = 196
+            # aug 31 DOY = 243
+            
+            jul15 = 8*(196-1)
+            aug31 = 8*(243-1)
         
-        #what timesteps correspond to July 15 and Aug 31
-        #formula = 8*(DOY-1)
-        #july 15 DOY = 196
-        # aug 31 DOY = 243
+            N_MB = np.nansum(MB_array[jul15:aug31,:,:], axis = 0) #nansum returns the sum of array elements over a given axis treating Not a Numbers (NaNs) as zero.
+            #N_MB[nanlocs] = np.nan
+            
+            # insert the net mass balance for the year into the empty MB container for that year
+            #MB_empty_container[np.where(np.asarray(years) == year-1),:,:] = N_MB # np.asarray Converts the input to an array.
+            MB_empty_container[sim,:,:] = N_MB
         
-        jul15 = 8*(196-1)
-        aug31 = 8*(243-1)
-    
-        N_MB = np.nansum(MB_array[jul15:aug31,:,:], axis = 0) #nansum returns the sum of array elements over a given axis treating Not a Numbers (NaNs) as zero.
-        #N_MB[nanlocs] = np.nan
+        maxmelt = np.nanmax(MB_empty_container)
+        maxmelt_list.append(maxmelt)
         
-        # insert the net mass balance for the year into the empty MB container for that year
-        #MB_empty_container[np.where(np.asarray(years) == year-1),:,:] = N_MB # np.asarray Converts the input to an array.
-        MB_empty_container[sim,:,:] = N_MB
+        #out_file_MB = 'Net_Melt' + str(sim) + '.npy'
+        #MB_out_path = os.path.join(OUTPUT_PATH,out_file_MB)  
+        #np.save(MB_out_path, MB_empty_container) #results in a file caled Net_MB1.npy for each simulation
     
-    maxmelt = np.nanmax(MB_empty_container)
-    maxmelt_list.append(maxmelt)
+    #------------------------------------------------------------------------------
+    # Concantenate all simulations and take the average mass balance
     
-    #out_file_MB = 'Net_Melt' + str(sim) + '.npy'
-    #MB_out_path = os.path.join(OUTPUT_PATH,out_file_MB)  
-    #np.save(MB_out_path, MB_empty_container) #results in a file caled Net_MB1.npy for each simulation
+        #run_MB = np.load(MB_out_path) # loads the file w each full run in it
+        
+        run_mean_MB = np.nanmean(MB_empty_container, axis = 0)
+        
+        run_mean_MB[nanlocs] = np.nan
+        
+        
+        allruns_Melt[np.where(np.asarray(years) == year-1),:] = run_mean_MB
+        
+    summermelt = np.nanmean(allruns_Melt, axis = 0)
+    
+    #save output of run means
+    out_run_means = 'summermelt_' + Case + '.npy'
+    out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
+    np.save(out_allruns, summermelt)
+    
+    out_run_means = 'allyears_summermelt_' + Case + '.npy'
+    out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
+    np.save(out_allruns, allruns_Melt)
 
-#------------------------------------------------------------------------------
-# Concantenate all simulations and take the average mass balance
+else:
+    pass
 
-    #run_MB = np.load(MB_out_path) # loads the file w each full run in it
-    
-    run_mean_MB = np.nanmean(MB_empty_container, axis = 0)
-    
-    run_mean_MB[nanlocs] = np.nan
-    
-    
-    allruns_Melt[np.where(np.asarray(years) == year-1),:] = run_mean_MB
-    
-summermelt = np.nanmean(allruns_Melt, axis = 0)
-    
-#save output of run means
-out_run_means = 'summermelt_' + Case + '.npy'
-out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
-#np.save(out_allruns, summermelt)
+summermelt = np.load(os.path.join(OUTPUT_PATH,'summermelt_' + Case + '.npy'))
 
-out_run_means = 'allyears_summermelt_' + Case + '.npy'
-out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
-#np.save(out_allruns, allruns_Melt)
-
-allyearsmelt = np.load(out_allruns)
+allyearsmelt = np.load(os.path.join(OUTPUT_PATH,'allyears_summermelt_' + Case + '.npy'))
 maxmelt = np.nanmax(allyearsmelt)
 
 for i in range(0,len(allyearsmelt)):
@@ -184,62 +193,66 @@ for i in range(0,len(allruns_Melt)):
 
 minmelt = np.where(allruns_Melt == np.nanmin(allruns_Melt))
 
-
-allruns_Snow = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
-for sim in range(0, len(aice)):
-    print('starting sim ' + str(sim))
-
-    #create empty array with shape [t,x,y] = number of years, MB_array dims (ie. (12,218,328) for kaskonly)
-    MB_empty_container = np.empty(((len(years)-1),len(Zgrid),len(Zgrid[0])))
+if summersnow_gen == True:
+    allruns_Snow = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
+    for sim in range(0, len(aice)):
+        print('starting sim ' + str(sim))
     
-    for year in years[1:]: # start at index 1 (first year skipped for spin-up)
-        print(year)
+        #create empty array with shape [t,x,y] = number of years, MB_array dims (ie. (12,218,328) for kaskonly)
+        MB_empty_container = np.empty(((len(years)-1),len(Zgrid),len(Zgrid[0])))
         
-        MB_file_name = 'Accumulation' + str(year) + str(sim) + '.nc'
-        MB_File_in = os.path.join(FILEPATH,MB_file_name)
-
-
-        MB_in = Dataset(MB_File_in, "r")
-        #print('file in')
-        MB_var = 'Accumulation'
-        MB_array = MB_in.variables[MB_var][:]
+        for year in years[1:]: # start at index 1 (first year skipped for spin-up)
+            print(year)
+            
+            MB_file_name = 'Accumulation' + str(year) + str(sim) + '.nc'
+            MB_File_in = os.path.join(FILEPATH,MB_file_name)
+    
+    
+            MB_in = Dataset(MB_File_in, "r")
+            #print('file in')
+            MB_var = 'Accumulation'
+            MB_array = MB_in.variables[MB_var][:]
+            
+            #what timesteps correspond to July 15 and Aug 31
+            #formula = 8*(DOY-1)
+            #july 15 DOY = 196
+            # aug 31 DOY = 243
+            
+            jul15 = 8*(196-1)
+            aug31 = 8*(243-1)
         
-        #what timesteps correspond to July 15 and Aug 31
-        #formula = 8*(DOY-1)
-        #july 15 DOY = 196
-        # aug 31 DOY = 243
+            N_MB = np.nansum(MB_array[jul15:aug31,:,:], axis = 0) #nansum returns the sum of array elements over a given axis treating Not a Numbers (NaNs) as zero.
+            #N_MB[nanlocs] = np.nan
+            
+            # insert the net mass balance for the year into the empty MB container for that year
+            #MB_empty_container[np.where(np.asarray(years) == year-1),:,:] = N_MB # np.asarray Converts the input to an array.
+            MB_empty_container[np.where(np.asarray(years) == year-1),:] = N_MB
         
-        jul15 = 8*(196-1)
-        aug31 = 8*(243-1)
+        #out_file_MB = 'Net_Melt' + str(sim) + '.npy'
+        #MB_out_path = os.path.join(OUTPUT_PATH,out_file_MB)  
+        #np.save(MB_out_path, MB_empty_container) #results in a file caled Net_MB1.npy for each simulation
     
-        N_MB = np.nansum(MB_array[jul15:aug31,:,:], axis = 0) #nansum returns the sum of array elements over a given axis treating Not a Numbers (NaNs) as zero.
-        #N_MB[nanlocs] = np.nan
+    #------------------------------------------------------------------------------
+    # Concantenate all simulations and take the average mass balance
+    
+        #run_MB = np.load(MB_out_path) # loads the file w each full run in it
         
-        # insert the net mass balance for the year into the empty MB container for that year
-        #MB_empty_container[np.where(np.asarray(years) == year-1),:,:] = N_MB # np.asarray Converts the input to an array.
-        MB_empty_container[np.where(np.asarray(years) == year-1),:] = N_MB
-    
-    #out_file_MB = 'Net_Melt' + str(sim) + '.npy'
-    #MB_out_path = os.path.join(OUTPUT_PATH,out_file_MB)  
-    #np.save(MB_out_path, MB_empty_container) #results in a file caled Net_MB1.npy for each simulation
+        run_mean_MB = np.nanmean(MB_empty_container, axis = 0)
+        
+        run_mean_MB[nanlocs] = np.nan
+        
+        allruns_Snow[sim,:,:] = run_mean_MB
+        
+    summersnow = np.nanmean(allruns_Snow, axis = 0)
+        
+    #save output of run means
+    out_run_means = 'summersnow_' + Case + '.npy'
+    out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
+    np.save(out_allruns, summersnow)
+else:
+    pass
 
-#------------------------------------------------------------------------------
-# Concantenate all simulations and take the average mass balance
-
-    #run_MB = np.load(MB_out_path) # loads the file w each full run in it
-    
-    run_mean_MB = np.nanmean(MB_empty_container, axis = 0)
-    
-    run_mean_MB[nanlocs] = np.nan
-    
-    allruns_Snow[sim,:,:] = run_mean_MB
-    
-summersnow = np.nanmean(allruns_Snow, axis = 0)
-    
-#save output of run means
-out_run_means = 'summersnow_' + Case + '.npy'
-out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
-np.save(out_allruns, summersnow)
+summersnow = np.load(os.path.join(OUTPUT_PATH,'summersnow_' + Case + '.npy'))
 
 ###############################################################################
 #PLOT OUTPUTS
