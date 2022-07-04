@@ -15,10 +15,10 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import os
 import sys
-sys.path.insert(1,'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\RunModel')
+sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
 
-Path2files = 'D:\Katie\Mass Balance Model\MassBalanceModel_KatiesVersion\ProcessOutputs\DebrisThickness'
+Path2files = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\DebrisThickness'
 
 thicknessmap = os.path.join(Path2files,'HMA_DTE_1.16201_hdts_m.tif')
 debristhickness = Image.open(thicknessmap)
