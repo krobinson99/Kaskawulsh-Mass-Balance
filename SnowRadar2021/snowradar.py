@@ -9,10 +9,14 @@ Data is available at https://data.cresis.ku.edu/data/snow/2021_Alaska_SO
 """
 
 import numpy as np
+import h5py 
+import scipy.io
+import mat4py
 import matplotlib.pyplot as plt
 import utm
 import os
 import sys
+import mat73
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
 from Model_functions_ver4 import KWtributaries
@@ -625,7 +629,76 @@ plt.ylim(700,3700)
 plt.xlim(0,4)
 #plt.savefig('Trunk_SnowvsZ.png',bbox_inches = 'tight')
 
+plt.figure(figsize=(8,6))
+plt.contourf(np.flipud(tribarray),levels=(-1,0,1,2,3,4,5,6,),cmap='tab10')
+#plt.colorbar()
+plt.legend(['grey = trunk','pink = NA','brown = CA','red = SW','green = SA','blue = none'])
+plt.tight_layout()
+#plt.savefig('KWTributaries.png',bbox_inches = 'tight')
 
-plt.contourf(tribarray,levels=(-1,0,1,2,3,4,5,6,))
-plt.colorbar()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####IMPORT THE NASA DATA FROM THE MATLAB FILE#################################
+#matfile = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03_001.mat' #from CSARP_layer
+matfile002 = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03_002.mat' #this one came from CSARP_qlook
+matfile009 = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03_009.mat'
+matfile041 = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03_041.mat'
+
+#data_dict = mat73.loadmat(matfile) # print this to see the variables
+radar_data002 = mat73.loadmat(matfile002) # print this to see the variables
+radar_data009 = mat73.loadmat(matfile009)
+# looks like matfile2 has the variables in documentation except for Depth
+
+
+f = h5py.File(matfile002,'r')
+data = f.get('Surface') 
+surface002 = np.array(data)
+
+f = h5py.File(matfile002,'r')
+data = f.get('Time') 
+time002 = np.array(data)
+
+f = h5py.File(matfile009,'r')
+data = f.get('Surface') 
+surface009 = np.array(data)
+
+f = h5py.File(matfile009,'r')
+data = f.get('Time') 
+time009 = np.array(data)
+
+f = h5py.File(matfile009,'r')
+data = f.get('Depth') 
+depth009 = np.array(data) #does not exist :(
+
+f = h5py.File(matfile041,'r')
+data = f.get('Surface') 
+surface041 = np.array(data)
+
+f = h5py.File(matfile041,'r')
+data = f.get('Time') 
+time041 = np.array(data)
+
+e = 1.53
+c = 3e8
+
+#D = (time[0,-1] - np.median(surface))*c/2/np.sqrt(e) 
+
+D002 = (time002[0] - np.median(surface002))*c/2/np.sqrt(e) #closest point to origin = D002[5071] = 2.73 m
+D009 = (time009[0] - np.median(surface009))*c/2/np.sqrt(e) #closest point to origin = D009[2803] = 0.37 m
+D041 = (time041[0] - np.median(surface041))*c/2/np.sqrt(e) #closest point to origin = D041[5967] = 1.32 m
 
