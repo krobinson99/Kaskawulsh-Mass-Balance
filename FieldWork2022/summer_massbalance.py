@@ -25,7 +25,7 @@ from Model_functions_ver4 import KWtributaries
 # inputs
 #where should the script get the model outputs from:
 FILEPATH = 'F:/Mass Balance Model/OUTPUTS/Kaskonly_Baseline'
-File_glacier_in = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/kaskonly.txt'
+File_glacier_in = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/kaskonly_deb.txt'
 Case = 'Baseline'
 # where should the outputs of this script be stored
 OUTPUT_PATH =  'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022'
@@ -62,9 +62,14 @@ if Catchment == True:
 else:
     Ix = glacier[:,3]
     Iy = glacier[:,4] 
-    Ih = glacier[:,5]         
+    Ih = glacier[:,2]  
+    debris_array = glacier[:,6]       
         
 Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+debris_m = np.zeros(debris_grid.shape)
+debris_m[np.where(debris_grid > 100)] = 0.
+debris_m[np.where(debris_grid <= 100)] = 1.
 
 # ----------------------------------------------------------------------------
 # calculated locations where the value is NaN:
@@ -78,7 +83,7 @@ T_var = 'Temperature'
 T_array = inT.variables[T_var][:]
 nanlocs = np.isnan(T_array[0,:,:])
 
-
+debris_m[nanlocs] = np.nan
 #---------------------------------------------------------------------------
 # Get param combination 
 params = np.loadtxt(Params_file)
@@ -169,15 +174,29 @@ for i in range(0,len(allyearsmelt)):
     print(np.nanmax(allyearsmelt[i]))
     #print(Zgrid[loc])
     
-#max ablation in the elevation zone 1750-1850 m asl
-targetelev = np.where((Zgrid > 1750) & (Zgrid < 1850))
+#max ablation in a specific elevation zone, clean ice only
+def maxcleanicemelt_z(targetz_low,targetz_high):
+    maxcleanicemelt = []
+    dirtyice = np.where(debris_m == 0)
+    targetelev = np.where((Zgrid > targetz_low) & (Zgrid < targetz_high))
+
+    for i in range(0,len(allyearsmelt)):
+        #print(i+2007)
+        yearmelt = allyearsmelt[i]
+        yearmelt[dirtyice] = np.nan
+        maxmelt_yr = np.nanmax(yearmelt[targetelev])
+        maxcleanicemelt.append(maxmelt_yr)
+    
+    return maxcleanicemelt
+    
+# compare to all melt at this elev (same because max melt will always be on clean ice)
+targetelev = np.where((Zgrid > 1400) & (Zgrid < 1500))
 
 for i in range(0,len(allyearsmelt)):
     print(i+2007)
     yearmelt = allyearsmelt[i]
     print(np.nanmax(yearmelt[targetelev]))
-
-
+    
 
 #search for minimum ablation in the trunk area only
 tribarray = KWtributaries('file:///F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KWTributaries.csv',Zgrid)
@@ -185,13 +204,13 @@ nanlocs = np.where(np.isnan(Zgrid))
 tribarray[nanlocs] = np.nan
 
 nontrunk = np.where(tribarray < 5)
-for i in range(0,len(allruns_Melt)):
-    nannontrunk = allruns_Melt[i]
-    nannontrunk[nontrunk] = np.nan
-    allruns_Melt[i] = nannontrunk
+#for i in range(0,len(allyearsmelt)):
+#    nannontrunk = allyearsmelt[i]
+#    nannontrunk[nontrunk] = np.nan
+#    allyearsmelt[i] = nannontrunk
     
 
-minmelt = np.where(allruns_Melt == np.nanmin(allruns_Melt))
+minmelt = np.where(allyearsmelt == np.nanmin(allyearsmelt))
 
 if summersnow_gen == True:
     allruns_Snow = np.empty((len(aice),len(Zgrid),len(Zgrid[0]))) #an empty array with a 'slot'for each simulation
@@ -272,10 +291,65 @@ legend.ax.set_ylabel('Accumulation (m w.e.)', rotation=270)
 plt.title('Summer (Jul 15 - Aug 31) Accumulation (2007-2008)')
 #plt.savefig('summmer_snow.png')
 
+plt.figure(figsize=(12,7))
+plt.contourf(np.flipud(debris_m), cmap = 'PuRd', levels = np.linspace(0,3, 6))
+legend = plt.colorbar()
 
 plt.figure(figsize=(12,7))
-plt.contourf(np.flipud(allruns_Melt[4]), cmap = 'YlOrRd', levels = np.linspace(0,5, 21))
+plt.contourf(np.flipud(Zgrid), cmap = 'PuRd', levels = np.linspace(700,3550, 21))
 legend = plt.colorbar()
-legend.ax.set_ylabel('Melt (m w.e.)', rotation=270)
+#plt.figure(figsize=(12,7))
+#plt.contourf(np.flipud(allyearsmelt[4]), cmap = 'YlOrRd', levels = np.linspace(0,5, 21))
+#legend = plt.colorbar()
+#legend.ax.set_ylabel('Melt (m w.e.)', rotation=270)
 #legend.ax.set_ylabel('Precipitation (m w.e./yr)', rotation=270,x=1.1)
-plt.title('Summer (Jul 15 - Aug 31) Ablation (2007-2008)')
+#plt.title('Summer (Jul 15 - Aug 31) Ablation (2010-2008)')
+
+#get the max annual melt at each potential ablation measurement site:
+
+siteA_Z = 1*Zgrid[:]
+targetloc = np.where((Zgrid > 1690) & (Zgrid < 1710))
+siteA_Z[targetloc] = 1e10
+siteA_Z[nontrunk] = np.nan
+siteA = np.where(siteA_Z == 1e10) #make a mask so that we only calculate nanmax from the target area
+
+siteB_Z = 1*Zgrid[:]
+targetloc = np.where((Zgrid > 1650) & (Zgrid < 1670))
+siteB_Z[targetloc] = 1e10
+siteB_Z[nontrunk] = np.nan
+siteB = np.where(siteB_Z == 1e10) #make a mask so that we only calculate nanmax from the target area
+
+siteC_Z = 1*Zgrid[:]
+targetloc = np.where((Zgrid > 1640) & (Zgrid < 1660))
+siteC_Z[targetloc] = 1e10
+siteC_Z[nontrunk] = np.nan
+siteC = np.where(siteC_Z == 1e10) #make a mask so that we only calculate nanmax from the target area
+
+
+plt.figure()
+plt.contourf(np.flipud(siteA_Z))
+
+plt.figure()
+plt.contourf(np.flipud(siteB_Z))
+
+plt.figure()
+plt.contourf(np.flipud(siteC_Z))
+
+def maxcleanicemelt_site(site):
+    maxcleanicemelt = np.zeros((len(years[1:]),2))
+    maxcleanicemelt[:,0] = years[1:]
+    dirtyice = np.where(debris_m == 0)
+
+    for i in range(0,len(allyearsmelt)):
+        #print(i+2007)
+        yearmelt = allyearsmelt[i]
+        yearmelt[dirtyice] = np.nan
+        maxmelt_yr = np.nanmax(yearmelt[site])
+        maxcleanicemelt[i,1] = np.round(maxmelt_yr,2)
+    
+    return maxcleanicemelt
+
+siteA_melt = maxcleanicemelt_site(siteA)
+siteB_melt = maxcleanicemelt_site(siteB)
+siteC_melt = maxcleanicemelt_site(siteC)
+
