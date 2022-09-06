@@ -1,0 +1,9 @@
+site name,initial stake height (cm),initial uncertainty (cm),final stake height lower bound (cm),final stake height upper bound (cm),final uncertainty (cm)
+CI00,0,5,219,225,10
+DI00,3.2,5,228.5,228.5,5
+DB01,2.2,5,243.5,243.5,5
+DB02,2.3,5,227,233,10
+DB03,1.7,5,200,204,10
+DB04,1.2,5,178,186,10
+MR07,0.9,5,125,125,10
+KV04,56,10,214,214,10
