@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import os
 from netCDF4 import Dataset
 from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 
 stakedata ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/AblationStakeData_2022.csv'
 
@@ -83,17 +84,6 @@ for i in range(0,len(debris_final)):
     avg = np.nanmean([debris_final[i],debris_initial[i]])
     debris_average[i] = avg
 
-interp_initdebris = interp1d(debris_initial,height_change,kind='quadratic')
-x_init = np.arange(0,12.3,0.1)
-y_init = interp_initdebris(x_init)
-
-interp_findebris = interp1d(debris_final,height_change,kind='quadratic')
-x_fin = np.arange(0,5,0.1)
-y_fin = interp_findebris(x_fin)
-
-interp_avgdebris = interp1d(debris_average,height_change,kind='quadratic')
-x_avg = np.arange(0,8.7,0.1)
-y_avg = interp_avgdebris(x_avg)
 
 #calculate uncertainties on STAKE HEIGHT: 
 #upper bound:
@@ -184,11 +174,46 @@ def calculate_debristhickness_uncertainty(debris_site_thicknesses,meanthicknesse
 initial_debris_uncertainty = calculate_debristhickness_uncertainty(initial_debris_lists,debris_initial)
 final_debris_uncertainty = calculate_debristhickness_uncertainty(final_debris_lists,debris_final)
 
-#PLOTS
-plt.figure(figsize=(11,8))
+interp_initdebris = interp1d(debris_initial,height_change,kind='linear')
+x_init = np.arange(0,12.3,0.1)
+y_init = interp_initdebris(x_init)
+
+interp_findebris = interp1d(debris_final,height_change,kind='linear')
+x_fin = np.arange(0,5,0.1)
+y_fin = interp_findebris(x_fin)
+
+interp_avgdebris = interp1d(debris_average,height_change,kind='linear')
+x_avg = np.arange(0,8.7,0.1)
+y_avg = interp_avgdebris(x_avg)
+
+#OSTREM CURVE FROM LOOMIS (1970)
+loomis ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/Loomis1970_data.csv'
+loomis_avg ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/Loomis1970_data_averaged.csv'
+
+df = pd.read_csv(loomis)
+arr3 = np.array(df)
+loomis_abl = arr3[:,0]
+loomis_till = arr3[:,1]
+
+df = pd.read_csv(loomis_avg)
+arr4 = np.array(df)
+loomis_abl_avg = arr4[:,0]
+loomis_till_avg = arr4[:,1]
+
+interploomis = interp1d(loomis_till_avg,loomis_abl_avg,kind='quadratic')
+
+x_loomis = np.arange(0,37.5,0.1)
+y_loomis = interploomis(x_loomis)
+######################################################################################################
+########################################PLOTS#########################################################
+######################################################################################################
+
+plt.figure(figsize=(8,8))
 plt.title('Debris Thickness vs. Ablation',fontsize=12)
-plt.plot(debris_initial,height_change,'royalblue')
-plt.plot(debris_final,height_change,'red')
+#plt.plot(debris_initial,height_change,'royalblue')
+#plt.plot(debris_final,height_change,'red')
+plt.plot(x_init,y_init,c='royalblue')
+plt.plot(x_fin,y_fin,c='red')
 #plt.plot(debris_average,height_change,'orange')
 #plt.scatter(debris_initial,height_change,c='royalblue')
 #plt.scatter(debris_final,height_change,c='red')
@@ -201,6 +226,8 @@ plt.errorbar(debris_final,height_change,yerr=None,xerr=final_debris_uncertainty,
 plt.legend(['Initial debris thickness (July)','Final debris thickness (Aug)'],fontsize=12)
 plt.xlabel('Debris Thickness (cm)',fontsize=12)
 plt.ylabel('Change in Stake Height (m)',fontsize=12)
+plt.xlim(0,15)
+#plt.savefig('stakegarden_data.png',bbox_inches = 'tight')
 
 
 plt.figure(figsize=(8,6))
@@ -211,3 +238,61 @@ plt.scatter(debris_average,height_change)
 plt.plot(x_fin,y_fin)
 plt.scatter(debris_final,height_change)
 plt.ylim(1,2.5)
+
+#ablation stakes were out for 43 DAYS
+#convert stake heights to ablation in cm/day
+height_change_cmday = height_change/43*100
+
+interp_cmday_kmr_init = interp1d(debris_initial,height_change_cmday,kind='quadratic')
+x_kmr_i = np.arange(0,12.3,0.1)
+y_kmr_i = interp_cmday_kmr_init(x_kmr_i)
+
+interp_cmday_kmr_fin = interp1d(debris_final,height_change_cmday,kind='quadratic')
+x_kmr_f = np.arange(0,4.95,0.01)
+y_kmr_f = interp_cmday_kmr_fin(x_kmr_f)
+
+loomis4 = np.poly1d(np.polyfit(loomis_till,loomis_abl, 4))
+polylineloomis = np.linspace(0, 37.5, 100)
+
+plt.figure(figsize=(7,7))
+plt.scatter(loomis_till,loomis_abl,c='orange')
+plt.plot(polylineloomis, loomis4(polylineloomis), color='orange')
+plt.scatter(debris_initial,height_change_cmday,c='royalblue')
+plt.plot(x_kmr_i,y_kmr_i,'royalblue')
+plt.scatter(debris_final,height_change_cmday,c='red')
+plt.plot(x_kmr_f,y_kmr_f,'red')
+plt.xlim(0,40)
+plt.xlabel('Debris Thickness (cm)',fontsize=12)
+plt.ylabel('Change in Stake Height (cm/day)',fontsize=12)
+plt.legend(['Loomis (1970)','2022 Field Data (July thicknesses)','2022 Field Data (Aug thicknesses)'],fontsize=12)
+#plt.savefig('2022vs1970_curves.png',bbox_inches = 'tight')
+
+#FIND PEAK MELT AND TRANSITION THICKNESS:
+#PEAK MELT:
+peakmelt_i = np.where(y_init == np.max(y_init))
+peakmelt_thickness_i = x_init[peakmelt_i]
+print('Jul obs: debris thickness resulting in peak melt is: ' + str(peakmelt_thickness_i))
+peakmelt_f = np.where(y_fin == np.max(y_fin))
+peakmelt_thickness_f = x_fin[peakmelt_f]
+print('Aug obs: debris thickness resulting in peak melt is: ' + str(peakmelt_thickness_f))
+
+#transition thickness:
+diff_from_CI00_i = [99]
+for i in y_init[1:]:
+    diff_from_CI00_i.append(i-y_init[0])
+diff_from_cleanice_i = np.abs(diff_from_CI00_i)
+    
+#minafterpeak = np.absmin(diff_from_cleanice[peakmelt_i[0][0]:])
+CI00_eq_melt_i = np.where(diff_from_cleanice_i == np.min(diff_from_cleanice_i[peakmelt_i[0][0]:]))
+transition_thickness_i = x_init[CI00_eq_melt_i]
+
+diff_from_CI00_f = [99]
+for i in y_fin[1:]:
+    diff_from_CI00_f.append(i-y_fin[0])
+diff_from_cleanice_f = np.abs(diff_from_CI00_f)
+    
+#minafterpeak = np.absmin(diff_from_cleanice[peakmelt_i[0][0]:])
+CI00_eq_melt_f = np.where(diff_from_cleanice_f == np.min(diff_from_cleanice_f[peakmelt_f[0][0]:]))
+transition_thickness_f = x_fin[CI00_eq_melt_f]    
+print('Jul obs: transition thickness = ' + str(transition_thickness_i))
+print('Aug obs: transition thickness = ' + str(transition_thickness_f))
