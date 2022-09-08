@@ -12,29 +12,28 @@ from scipy.interpolate import interp1d
 from netCDF4 import Dataset
 import sys
 import os
-sys.path.insert(0, 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs\\')
+sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 import Model_functions_ver4
 from Model_functions_ver4 import regridXY_something
 from Model_functions_ver4 import netcdf_container_gen
 
 
 #initialize model --------------------------------------------------------
-BiasCorrect_Temp = False 
+BiasCorrect_Temp = True 
 # NOTE: TEMP BIAS CORRECTION MUST HAPPEN FIRST : since R2S threshold is based on bias corrected T_array
 BiasCorrect_Prcp = True
 BiasCorrect_Rain = False #take daily rain arrays and bias correct them w\ the accumulation elevation dependent BC
 
 R2S = 1.0
-start_year = 2006
-end_year = 2018
+start_year = 2021
+end_year = 2022
 
 Glacier_id = 'kaskonly'
 File_glacier_in = 'kaskonly.txt'
 considering_catchment = False
-debris = False
 #INPUT_PATH = 'F:\\Mass Balance Model\\DownscaledNARR' #where are the downscaled NON-BIAS CORRECTED files located
-INPUT_PATH = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
-OUTPUT_PATH = 'F:\\Mass Balance Model\\BiasCorrectedInputs\\Kaskonly_R2S=1'
+INPUT_PATH = 'F:\\Mass Balance Model\\DownscaledNARR_1979-2022\\Constant_Z'
+OUTPUT_PATH = 'F:\\Mass Balance Model\\BiasCorrectedNARR_1979-2022\\Constant_Z'
 #OUTPUT_PATH = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
 #RAIN_PATH = 'F:\\Mass Balance Model\\BiasCorrectedInputs\\BiasCorrected_Rain'
 File_suffix = '.nc'
@@ -48,8 +47,6 @@ while year <= end_year:
 ##-------Turn glacier grid vectors into 3D grids--------------------##
 glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
 
-#if debris is TRUE then we are working from the kaskonly_deb.txt file,
-#if debris is FALSE then we are working from the kaskonly.txt file:
 if considering_catchment == True:
     Ix = glacier[:,4]
     Iy = glacier[:,5] 
@@ -169,7 +166,7 @@ if BiasCorrect_Prcp == True:
 
                 
     #save the new P_array to a netcdf file#------------------------------------------
-        #netcdf_container_gen(P_array, 'Net snow', Prcp_output_path, File_suffix, ybounds, xbounds, year)
+        netcdf_container_gen(P_array, 'Net snow', Prcp_output_path, File_suffix, ybounds, xbounds, year)
         netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_suffix, ybounds, xbounds, year)
         print('Accumulation bias corrected for ' + str(year))
         
