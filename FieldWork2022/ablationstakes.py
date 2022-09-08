@@ -267,6 +267,20 @@ plt.ylabel('Change in Stake Height (cm/day)',fontsize=12)
 plt.legend(['Loomis (1970)','2022 Field Data (July thicknesses)','2022 Field Data (Aug thicknesses)'],fontsize=12)
 #plt.savefig('2022vs1970_curves.png',bbox_inches = 'tight')
 
+plt.figure(figsize=(7,7))
+#plt.scatter(loomis_till,loomis_abl,c='orange')
+plt.plot(polylineloomis, loomis4(polylineloomis), color='orange')
+plt.scatter(debris_initial,height_change_cmday,c='royalblue')
+#plt.plot(x_kmr_i,y_kmr_i,'royalblue')
+plt.scatter(debris_final,height_change_cmday,c='red')
+plt.scatter(loomis_till,loomis_abl,c='orange')
+#plt.plot(x_kmr_f,y_kmr_f,'red')
+plt.xlim(0,40)
+plt.xlabel('Debris Thickness (cm)',fontsize=12)
+plt.ylabel('Change in Stake Height (cm/day)',fontsize=12)
+plt.legend(['Loomis (1970)','2022 Field Data (July thicknesses)','2022 Field Data (Aug thicknesses)'],fontsize=12)
+#plt.savefig('2022vs1970_curves_v2.png',bbox_inches = 'tight')
+
 #FIND PEAK MELT AND TRANSITION THICKNESS:
 #PEAK MELT:
 peakmelt_i = np.where(y_init == np.max(y_init))
