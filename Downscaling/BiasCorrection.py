@@ -29,7 +29,7 @@ start_year = 2021
 end_year = 2022
 
 Glacier_id = 'kaskonly'
-File_glacier_in = 'kaskonly.txt'
+File_glacier_in = os.path.join('F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel','kaskonly.txt')
 considering_catchment = False
 #INPUT_PATH = 'F:\\Mass Balance Model\\DownscaledNARR' #where are the downscaled NON-BIAS CORRECTED files located
 INPUT_PATH = 'F:\\Mass Balance Model\\DownscaledNARR_1979-2022\\Constant_Z'
@@ -37,6 +37,7 @@ OUTPUT_PATH = 'F:\\Mass Balance Model\\BiasCorrectedNARR_1979-2022\\Constant_Z'
 #OUTPUT_PATH = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
 #RAIN_PATH = 'F:\\Mass Balance Model\\BiasCorrectedInputs\\BiasCorrected_Rain'
 File_suffix = '.nc'
+reffiles = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Ref_files'
 
 years = []
 year = start_year
@@ -84,7 +85,7 @@ if BiasCorrect_Temp == True:
         Temp_downscaled_filename = 'Temp' + Glacier_id + str(year) + '.nc' #can't use this bc it has already been bias corrected
         Temp_input = os.path.join(INPUT_PATH,Temp_downscaled_filename)
         inT = Dataset(Temp_input,'r')
-        T_var = 'Temperature'
+        T_var = 'Precipitation'
         T_array = inT.variables[T_var][:] #T_array has shape (2920,218,328) = (t,x,y)
         sys.stdout.flush()
         
@@ -102,7 +103,7 @@ if BiasCorrect_Temp == True:
             index+=1
 
     #save the new T_array to a netcdf file#------------------------------------------
-        netcdf_container_gen(T_array, 'Temperature', Temp_output_path, File_suffix, ybounds, xbounds, year)
+        netcdf_container_gen(T_array, 'Temperature', Temp_output_path, File_suffix, ybounds, xbounds, year, reffiles)
         print('Temperature bias corrected for ' + str(year))
         
     print('ALL YEARS BIAS CORRECTED FOR TEMPERATURE')
@@ -130,7 +131,7 @@ if BiasCorrect_Prcp == True:
         Prcp_downscaled_filename = 'netSnow' + Glacier_id + str(year) + '.nc' #can't use this bc it has already been bias corrected
         Prcp_input = os.path.join(INPUT_PATH,Prcp_downscaled_filename)
         inP = Dataset(Prcp_input,'r')
-        P_var = 'Temperature'
+        P_var = 'Precipitation'
         P_array = inP.variables[P_var][:] #P_array has shape (2920,218,328) = (t,x,y)
         sys.stdout.flush()
         
@@ -166,8 +167,8 @@ if BiasCorrect_Prcp == True:
 
                 
     #save the new P_array to a netcdf file#------------------------------------------
-        netcdf_container_gen(P_array, 'Net snow', Prcp_output_path, File_suffix, ybounds, xbounds, year)
-        netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_suffix, ybounds, xbounds, year)
+        netcdf_container_gen(P_array, 'Net snow', Prcp_output_path, File_suffix, ybounds, xbounds, year, reffiles)
+        netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_suffix, ybounds, xbounds, year, reffiles)
         print('Accumulation bias corrected for ' + str(year))
         
     print('ALL YEARS BIAS CORRECTED FOR Precipitation')
@@ -222,7 +223,7 @@ if BiasCorrect_Rain == True:
 
                 
     #save the new P_array to a netcdf file#------------------------------------------
-        netcdf_container_gen(Rain_array, 'Rain', Prcp_output_path, File_suffix, ybounds, xbounds, year)
+        netcdf_container_gen(Rain_array, 'Rain', Prcp_output_path, File_suffix, ybounds, xbounds, year, reffiles)
         print('Rain bias corrected for ' + str(year))
         
     print('ALL YEARS BIAS CORRECTED FOR Rain')
