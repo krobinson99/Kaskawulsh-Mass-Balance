@@ -637,10 +637,10 @@ def bilinear_interpolation(x, y, points):
            
 
 ###create empty netcdf container, need ref files in directory
-def netcdf_container_gen(melt_model, var_n, File_name, File_sufix, ybounds, xbounds, This_year_is):
+def netcdf_container_gen(melt_model, var_n, File_name, File_sufix, ybounds, xbounds, This_year_is,ref_file_path):
 
     ###Create empty .nc file for MB values###
-    ref_file_in = 'ref' + str(This_year_is) + '.nc'    
+    ref_file_in = os.path.join(ref_file_path,'ref' + str(This_year_is) + '.nc')
     fh = Dataset(ref_file_in, "r")
     f = Dataset(File_name + File_sufix, 'w', format='NETCDF4') #'w' stands for write
         
