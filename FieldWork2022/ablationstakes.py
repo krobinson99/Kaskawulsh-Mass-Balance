@@ -15,6 +15,7 @@ import os
 from netCDF4 import Dataset
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
+import matplotlib.lines as mlines
 
 stakedata ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/AblationStakeData_2022.csv'
 
@@ -37,7 +38,7 @@ for i in range(0,len(final_height_max)):
     final = np.nanmean([final_height_max[i],final_height_min[i]])
     final_height[i] = final
 
-height_change = (final_height - initial_height)/100
+height_change = np.array((final_height - initial_height)/100,dtype=np.float)
 
 
 #load debris thickness data
@@ -226,7 +227,8 @@ plt.errorbar(debris_final,height_change,yerr=None,xerr=final_debris_uncertainty,
 plt.legend(['Initial debris thickness (July)','Final debris thickness (Aug)'],fontsize=12)
 plt.xlabel('Debris Thickness (cm)',fontsize=12)
 plt.ylabel('Change in Stake Height (m)',fontsize=12)
-plt.xlim(0,15)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
 #plt.savefig('stakegarden_data.png',bbox_inches = 'tight')
 
 
@@ -239,15 +241,61 @@ plt.plot(x_fin,y_fin)
 plt.scatter(debris_final,height_change)
 plt.ylim(1,2.5)
 
+#average debris uncertainty
+average_debris_uncertainty = np.zeros(initial_debris_uncertainty.shape)
+for i in range(0,len(average_debris_uncertainty)):
+    average_debris_uncertainty[i] = np.mean([initial_debris_uncertainty[i],final_debris_uncertainty[i]])
+
+blue_line = mlines.Line2D([], [], color='royalblue', marker='_', linestyle='None',
+                          markersize=20, linewidth = 100, label='Initial debris thickness (July)')
+
+orange_line = mlines.Line2D([], [], color='orange', marker='_', linestyle='None',
+                          markersize=20, label='Average debris thickness')
+
+red_line = mlines.Line2D([], [], color='red', marker='_', linestyle='None',
+                          markersize=20, label='Final debris thickness (Aug)')
+
+white_dot = mlines.Line2D([], [], color='white',mec='k', marker='.', linestyle='None',
+                          markersize=12, label='Kovacs Drill')
+
+
+cluster = np.array([1,1,1,1,1,1,1,2]) 
+plt.figure(figsize=(10,7))
+plt.title('Debris Thickness vs. Ablation',fontsize=14)
+plt.plot(debris_initial[:-1],height_change[:-1],c='royalblue')
+plt.plot(debris_average[:-1],height_change[:-1],c='orange')
+plt.plot(x_fin[:30],y_fin[:30],c='red')
+
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1],stake_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1],stake_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1],stake_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1],yerr=None,xerr=initial_debris_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1],yerr=None,xerr=average_debris_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1],yerr=None,xerr=final_debris_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2],stake_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2],stake_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2],stake_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2],yerr=None,xerr=initial_debris_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2],yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2],yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+#plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
+plt.legend(handles=[blue_line,orange_line,red_line,white_dot],fontsize=14)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('Change in Stake Height (m)',fontsize=14)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
+#plt.savefig('stakegarden_data_linearfit.png',bbox_inches = 'tight')
+
 #ablation stakes were out for 43 DAYS
 #convert stake heights to ablation in cm/day
-height_change_cmday = height_change/43*100
+height_change_cmday = np.array((height_change/43*100),dtype=np.float)
 
-interp_cmday_kmr_init = interp1d(debris_initial,height_change_cmday,kind='quadratic')
+interp_cmday_kmr_init = interp1d(debris_initial,height_change_cmday,kind='linear')
 x_kmr_i = np.arange(0,12.3,0.1)
 y_kmr_i = interp_cmday_kmr_init(x_kmr_i)
 
-interp_cmday_kmr_fin = interp1d(debris_final,height_change_cmday,kind='quadratic')
+interp_cmday_kmr_fin = interp1d(debris_final,height_change_cmday,kind='linear')
 x_kmr_f = np.arange(0,4.95,0.01)
 y_kmr_f = interp_cmday_kmr_fin(x_kmr_f)
 
@@ -275,7 +323,8 @@ plt.scatter(debris_initial,height_change_cmday,c='royalblue')
 plt.scatter(debris_final,height_change_cmday,c='red')
 plt.scatter(loomis_till,loomis_abl,c='orange')
 #plt.plot(x_kmr_f,y_kmr_f,'red')
-plt.xlim(0,40)
+plt.margins(x=0.01)
+#plt.xlim(0,40)
 plt.xlabel('Debris Thickness (cm)',fontsize=12)
 plt.ylabel('Change in Stake Height (cm/day)',fontsize=12)
 plt.legend(['Loomis (1970)','2022 Field Data (July thicknesses)','2022 Field Data (Aug thicknesses)'],fontsize=12)
@@ -304,9 +353,109 @@ diff_from_CI00_f = [99]
 for i in y_fin[1:]:
     diff_from_CI00_f.append(i-y_fin[0])
 diff_from_cleanice_f = np.abs(diff_from_CI00_f)
-    
+
 #minafterpeak = np.absmin(diff_from_cleanice[peakmelt_i[0][0]:])
 CI00_eq_melt_f = np.where(diff_from_cleanice_f == np.min(diff_from_cleanice_f[peakmelt_f[0][0]:]))
 transition_thickness_f = x_fin[CI00_eq_melt_f]    
 print('Jul obs: transition thickness = ' + str(transition_thickness_i))
 print('Aug obs: transition thickness = ' + str(transition_thickness_f))
+
+
+###############################################################################
+#############FIT A CURVE TO THE DATA POINTS (EXCLUDING KV04) ##################
+###############################################################################
+fit_initdeb =  np.poly1d(np.polyfit(debris_initial[:-1],height_change[:-1], 3)) #problem is with the height_change dtype = object, fixed by changing dtype to np.float
+polyline_initdeb = np.linspace(0,6.85,100)
+
+fit_avgdeb =  np.poly1d(np.polyfit(debris_average[:-1],height_change[:-1], 3)) #use deg=3 for cubic polynomial
+polyline_avgdeb = np.linspace(0,4.84,100)
+
+fit_findeb =  np.poly1d(np.polyfit(debris_final[:-1],height_change[:-1], 3))
+polyline_findeb = np.linspace(0,2.85,100)
+
+cluster = np.array([1,1,1,1,1,1,1,2]) 
+plt.figure(figsize=(10,7))
+plt.title('Debris Thickness vs. Ablation (July 19 - Aug 31 2022)',fontsize=14)
+plt.plot(polyline_initdeb,fit_initdeb(polyline_initdeb),c='royalblue')
+plt.plot(polyline_avgdeb,fit_avgdeb(polyline_avgdeb),c='orange')
+plt.plot(polyline_findeb,fit_findeb(polyline_findeb),c='red')
+
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1],stake_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1],stake_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1],stake_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1],yerr=None,xerr=initial_debris_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1],yerr=None,xerr=average_debris_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1],yerr=None,xerr=final_debris_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2],stake_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2],stake_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2],stake_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2],yerr=None,xerr=initial_debris_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2],yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2],yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+#plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
+plt.legend(handles=[blue_line,orange_line,red_line,white_dot],fontsize=14)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('Change in Stake Height (m)',fontsize=14)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
+#plt.savefig('stakegarden_data_curvefit.png',bbox_inches = 'tight')
+
+###############################################################################
+##################COMPARE OBSERVED CURVES TO LOOMIS:###########################
+###############################################################################
+# normalize curves to cm/day (for 43 days) by multiplying heightchange by (100/43)
+
+plt.figure(figsize=(10,7))
+#plt.scatter(loomis_till,loomis_abl,c='orange')
+plt.plot(polylineloomis, loomis4(polylineloomis), color='mediumseagreen',linewidth=2.5)
+plt.plot(polyline_findeb,fit_findeb(polyline_findeb)*(100/43),c='red',linewidth=2.5)
+plt.plot(polyline_avgdeb,fit_avgdeb(polyline_avgdeb)*(100/43),c='orange',linewidth=2.5)
+plt.plot(polyline_initdeb,fit_initdeb(polyline_initdeb)*(100/43),c='royalblue',linewidth=2.5)
+plt.scatter(loomis_till,loomis_abl,c='mediumseagreen')
+plt.scatter(debris_final[cluster==1],height_change_cmday[cluster==1],c='red')
+plt.scatter(debris_average[cluster==1],height_change_cmday[cluster==1],c='orange')
+plt.scatter(debris_initial[cluster==1],height_change_cmday[cluster==1],c='royalblue')
+plt.scatter(debris_final[cluster==2],height_change_cmday[cluster==2],c='white',edgecolors='red')
+plt.scatter(debris_average[cluster==2],height_change_cmday[cluster==2],c='white',edgecolors='orange')
+plt.scatter(debris_initial[cluster==2],height_change_cmday[cluster==2],c='white',edgecolors='royalblue')
+#plt.plot(x_kmr_f,y_kmr_f,'red')
+plt.margins(x=0.01)
+#plt.xlim(0,40)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('Change in Stake Height (cm/day)',fontsize=14)
+plt.legend(['Loomis (1970)','2022 Field Data (Aug thicknesses)','Average debris thickness','2022 Field Data (July thicknesses)'],fontsize=12)
+#plt.savefig('loomiscomparison.png',bbox_inches = 'tight')
+
+###############################################################################
+######################PLOT MELT FACTORS########################################
+###############################################################################
+#get melt factors by dividing the curved by the clean ice melt (cim)
+cim = height_change[0] #clean ice melt
+
+plt.figure(figsize=(10,7))
+plt.title('Melt Factors',fontsize=14)
+plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))/cim,c='royalblue')
+plt.plot(polyline_avgdeb,(fit_avgdeb(polyline_avgdeb))/cim,c='orange')
+plt.plot(polyline_findeb,(fit_findeb(polyline_findeb))/cim,c='red')
+
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]/cim,stake_uncertainty[cluster==1]/cim,c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]/cim,stake_uncertainty[cluster==1]/cim,c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]/cim,stake_uncertainty[cluster==1]/cim,c='red',fmt="o",capsize=5)
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]/cim,yerr=None,xerr=initial_debris_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]/cim,yerr=None,xerr=average_debris_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]/cim,yerr=None,xerr=final_debris_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]/cim,stake_uncertainty[cluster==2]/cim,c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]/cim,stake_uncertainty[cluster==2]/cim,c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]/cim,stake_uncertainty[cluster==2]/cim,c='red',fmt="o",capsize=5,mfc='white',mec='red')
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]/cim,yerr=None,xerr=initial_debris_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]/cim,yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]/cim,yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+#plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
+plt.legend(handles=[blue_line,orange_line,red_line,white_dot],fontsize=14)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('$\dfrac{Total\,Melt}{Clean\,Ice\,Melt}$',fontsize=14)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
+#plt.savefig('stakegarden_meltfactors.png',bbox_inches = 'tight')
