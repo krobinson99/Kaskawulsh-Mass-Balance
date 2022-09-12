@@ -16,6 +16,8 @@ from netCDF4 import Dataset
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import matplotlib.lines as mlines
+from scipy.interpolate import CubicSpline
+from scipy.interpolate import UnivariateSpline
 
 stakedata ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/AblationStakeData_2022.csv'
 
@@ -490,3 +492,81 @@ plt.ylabel('Melt (m w.e.)',fontsize=14)
 #plt.xlim(0,15)
 plt.margins(x=0.01)
 #plt.savefig('stakegarden_data_curvefit_mwe.png',bbox_inches = 'tight')
+
+###############################################################################
+#In the above plots the peak of curve is not fully captured by the curve
+#next: try fitting some splines to the data to see if they capture the peak better
+###############################################################################
+# METHOD 1) from scipy.interpolate import CubicSpline
+debris_final_increasingx = np.zeros(debris_final.shape)
+debris_final_increasingx[:] = debris_final[:]
+debris_final_increasingx[4] = debris_final[5]
+debris_final_increasingx[5] = debris_final[4]
+
+heightchange_debrisfinal = np.zeros(debris_final.shape)
+heightchange_debrisfinal[:] = height_change[:]
+heightchange_debrisfinal[4] = height_change[5]
+heightchange_debrisfinal[5] = height_change[4]
+
+
+def univariatespline(debris_list,degree,heightchange=height_change[cluster==1]*(p_ice/1000)):
+    x = debris_list[cluster==1]
+    x[1] = 0.0001
+    y = heightchange
+    
+    spline = UnivariateSpline(x,y,k=degree) #gives exact same curve as np.polyfit with degree = 3 
+    x_spline = np.linspace(0, np.max(x)+0.01, 100)
+    y_spline = spline(x_spline)
+    
+    return x_spline, y_spline
+    
+plt.figure(figsize =(7,12))
+plt.subplot(3,1,1)
+plt.scatter(debris_initial[cluster==1], height_change[cluster==1]*(p_ice/1000), c='white',edgecolors='k',zorder=10,s=70)
+plt.plot(univariatespline(debris_initial,3)[0],univariatespline(debris_initial,3)[1], 'blue',linewidth=2)
+plt.plot(univariatespline(debris_initial,4)[0],univariatespline(debris_initial,4)[1], 'deeppink',linewidth=2)
+plt.plot(univariatespline(debris_initial,5)[0],univariatespline(debris_initial,5)[1], 'orange',linewidth=2)
+#plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))*(p_ice/1000),c='k',linestyle='--')
+plt.ylim(0,2.5)
+plt.xlim(0,8)
+plt.legend(['3rd degree univariate spline','4th degree univariate spline','5th degree univariate spline','Data'])
+plt.title('2022 Field Data (July thicknesses)')
+plt.xlabel('Debris Thickness (cm)',fontsize=12)
+plt.ylabel('Melt (m w.e.)',fontsize=12)
+
+plt.subplot(3,1,2)
+plt.scatter(debris_average[cluster==1], height_change[cluster==1]*(p_ice/1000), c='white',edgecolors='k',zorder=10,s=70)
+plt.plot(univariatespline(debris_average,3)[0],univariatespline(debris_average,3)[1], 'blue',linewidth=2)
+plt.plot(univariatespline(debris_average,4)[0],univariatespline(debris_average,4)[1], 'deeppink',linewidth=2)
+plt.plot(univariatespline(debris_average,5)[0],univariatespline(debris_average,5)[1], 'orange',linewidth=2)
+#plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))*(p_ice/1000),c='k',linestyle='--')
+plt.ylim(0,2.5)
+plt.xlim(0,8)
+plt.legend(['3rd degree univariate spline','4th degree univariate spline','5th degree univariate spline','Data'])
+plt.title('Average debris thickness')
+plt.xlabel('Debris Thickness (cm)',fontsize=12)
+plt.ylabel('Melt (m w.e.)',fontsize=12)
+
+plt.subplot(3,1,3)
+newheights = heightchange_debrisfinal[cluster==1]*(p_ice/1000)
+plt.scatter(debris_final_increasingx[cluster==1], heightchange_debrisfinal[cluster==1]*(p_ice/1000), c='white',edgecolors='k',zorder=10,s=70)
+plt.plot(univariatespline(debris_final_increasingx,3,newheights)[0],univariatespline(debris_final_increasingx,3,newheights)[1], 'blue',linewidth=2)
+plt.plot(univariatespline(debris_final_increasingx,4,newheights)[0],univariatespline(debris_final_increasingx,4,newheights)[1],'deeppink',linewidth=2)
+plt.plot(univariatespline(debris_final_increasingx,5,newheights)[0],univariatespline(debris_final_increasingx,5,newheights)[1], 'orange',linewidth=2)
+#plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))*(p_ice/1000),c='k',linestyle='--')
+plt.ylim(0,2.5)
+plt.xlim(0,8)
+plt.legend(['3rd degree univariate spline','4th degree univariate spline','5th degree univariate spline','Data'])
+plt.title('2022 Field Data (Aug thicknesses)')
+plt.xlabel('Debris Thickness (cm)',fontsize=12)
+plt.ylabel('Melt (m w.e.)',fontsize=12)
+plt.tight_layout()
+
+
+
+###############################################################################
+###############################################################################
+#DEFINE THE RANGE OF UNCERTAINTY IN THE PEAK MELT THICKNESS AND TRANSITION ####
+########################## THICKNESS ##########################################
+###############################################################################
+###############################################################################
