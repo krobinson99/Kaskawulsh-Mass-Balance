@@ -11,13 +11,16 @@ The purpose of this script is to process/plot the data collected from the
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import os
-from netCDF4 import Dataset
+#import os
+#from netCDF4 import Dataset
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import matplotlib.lines as mlines
-from scipy.interpolate import CubicSpline
+#from scipy.interpolate import CubicSpline
 from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import splrep
+from scipy.interpolate import splev
+from sklearn.metrics import mean_squared_error
 
 stakedata ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/AblationStakeData_2022.csv'
 
@@ -498,6 +501,7 @@ plt.margins(x=0.01)
 #next: try fitting some splines to the data to see if they capture the peak better
 ###############################################################################
 # METHOD 1) from scipy.interpolate import CubicSpline
+#NOTE: univariatespline with k=3 gives same curve as np.polyfit with k =3 and scipy.curve_fit with a cubic polynomial
 debris_final_increasingx = np.zeros(debris_final.shape)
 debris_final_increasingx[:] = debris_final[:]
 debris_final_increasingx[4] = debris_final[5]
@@ -519,54 +523,201 @@ def univariatespline(debris_list,degree,heightchange=height_change[cluster==1]*(
     y_spline = spline(x_spline)
     
     return x_spline, y_spline
+
+#try the scipy optimize.curve_fit function
+def cubicpolynomial(x,a,b,c,d):
+    return a*(x**3) + b*(x**2) + c*x  + d
+
+popt, pope = curve_fit(cubicpolynomial,debris_initial[cluster==1], height_change[cluster==1]*(p_ice/1000))
+a,b,c,d = popt
+
+x_curvefit = np.linspace(0, np.max(debris_initial[cluster==1])+0.01, 100)
+y_curvefit = cubicpolynomial(x_curvefit,a,b,c,d)
+
+#try andrew's suggestion: scipy.interpolate.splrep
+def slprepcurve(debris,k,melt=height_change*(p_ice/1000)):
+    knots = np.array(debris[np.where(melt == np.max(melt))])
+    tck = splrep(debris[cluster==1], melt[cluster==1],k=k,s=0.01,t=knots)
+    xnew = np.linspace(0, np.max(debris[cluster==1])+0.01, 100)
+    ynew = splev(xnew,tck)
     
-plt.figure(figsize =(7,12))
-plt.subplot(3,1,1)
+    return xnew, ynew, tck
+
+#PLOT COMPARISON OF ALL CURVE FITTING METHODS    
+plt.figure(figsize =(12,6))
+plt.subplot(1,3,1)
 plt.scatter(debris_initial[cluster==1], height_change[cluster==1]*(p_ice/1000), c='white',edgecolors='k',zorder=10,s=70)
-plt.plot(univariatespline(debris_initial,3)[0],univariatespline(debris_initial,3)[1], 'blue',linewidth=2)
-plt.plot(univariatespline(debris_initial,4)[0],univariatespline(debris_initial,4)[1], 'deeppink',linewidth=2)
-plt.plot(univariatespline(debris_initial,5)[0],univariatespline(debris_initial,5)[1], 'orange',linewidth=2)
+plt.plot(univariatespline(debris_initial,3)[0],univariatespline(debris_initial,3)[1], 'blue',linewidth=1.5)
+plt.plot(univariatespline(debris_initial,4)[0],univariatespline(debris_initial,4)[1], 'deeppink',linewidth=1.5)
+plt.plot(univariatespline(debris_initial,5)[0],univariatespline(debris_initial,5)[1], 'orange',linewidth=1.5)
+#plt.plot(x_curvefit,y_curvefit,linestyle='--')
+#plt.plot(x_new,y_new)
+plt.plot(slprepcurve(debris_initial,k=2)[0],slprepcurve(debris_initial,k=2)[1],linestyle='--',linewidth=1.5,c='blueviolet')
+plt.plot(slprepcurve(debris_initial,k=3)[0],slprepcurve(debris_initial,k=3)[1],linestyle='--',linewidth=1.5,c='darkturquoise')
+plt.plot(slprepcurve(debris_initial,k=4)[0],slprepcurve(debris_initial,k=4)[1],linestyle='--',linewidth=1.5,c='k')
 #plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))*(p_ice/1000),c='k',linestyle='--')
-plt.ylim(0,2.5)
+plt.ylim(1,2.3)
 plt.xlim(0,8)
-plt.legend(['3rd degree univariate spline','4th degree univariate spline','5th degree univariate spline','Data'])
+plt.legend(['univariate spline, k=3','univariate spline, k=4','univariate spline, k=5','splrep, k=2','splrep, k=3','splrep, k=4','Data'])
 plt.title('2022 Field Data (July thicknesses)')
 plt.xlabel('Debris Thickness (cm)',fontsize=12)
 plt.ylabel('Melt (m w.e.)',fontsize=12)
 
-plt.subplot(3,1,2)
+plt.subplot(1,3,2)
 plt.scatter(debris_average[cluster==1], height_change[cluster==1]*(p_ice/1000), c='white',edgecolors='k',zorder=10,s=70)
-plt.plot(univariatespline(debris_average,3)[0],univariatespline(debris_average,3)[1], 'blue',linewidth=2)
-plt.plot(univariatespline(debris_average,4)[0],univariatespline(debris_average,4)[1], 'deeppink',linewidth=2)
-plt.plot(univariatespline(debris_average,5)[0],univariatespline(debris_average,5)[1], 'orange',linewidth=2)
+plt.plot(univariatespline(debris_average,3)[0],univariatespline(debris_average,3)[1], 'blue',linewidth=1.5)
+plt.plot(univariatespline(debris_average,4)[0],univariatespline(debris_average,4)[1], 'deeppink',linewidth=1.5)
+plt.plot(univariatespline(debris_average,5)[0],univariatespline(debris_average,5)[1], 'orange',linewidth=1.5)
 #plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))*(p_ice/1000),c='k',linestyle='--')
-plt.ylim(0,2.5)
-plt.xlim(0,8)
-plt.legend(['3rd degree univariate spline','4th degree univariate spline','5th degree univariate spline','Data'])
+plt.plot(slprepcurve(debris_average,k=2)[0],slprepcurve(debris_average,k=2)[1],linestyle='--',linewidth=1.5,c='blueviolet')
+plt.plot(slprepcurve(debris_average,k=3)[0],slprepcurve(debris_average,k=3)[1],linestyle='--',linewidth=1.5,c='darkturquoise')
+plt.plot(slprepcurve(debris_average,k=4)[0],slprepcurve(debris_average,k=4)[1],linestyle='--',linewidth=1.5,c='k')
+plt.ylim(0.5,2.5)
+plt.xlim(0,6)
+plt.legend(['univariate spline, k=3','univariate spline, k=4','univariate spline, k=5','splrep, k=2','splrep, k=3','splrep, k=4','Data'])
 plt.title('Average debris thickness')
 plt.xlabel('Debris Thickness (cm)',fontsize=12)
 plt.ylabel('Melt (m w.e.)',fontsize=12)
 
-plt.subplot(3,1,3)
+plt.subplot(1,3,3)
 newheights = heightchange_debrisfinal[cluster==1]*(p_ice/1000)
+newheights2 = heightchange_debrisfinal*(p_ice/1000) #no cluster index needed for slprep func
 plt.scatter(debris_final_increasingx[cluster==1], heightchange_debrisfinal[cluster==1]*(p_ice/1000), c='white',edgecolors='k',zorder=10,s=70)
-plt.plot(univariatespline(debris_final_increasingx,3,newheights)[0],univariatespline(debris_final_increasingx,3,newheights)[1], 'blue',linewidth=2)
-plt.plot(univariatespline(debris_final_increasingx,4,newheights)[0],univariatespline(debris_final_increasingx,4,newheights)[1],'deeppink',linewidth=2)
-plt.plot(univariatespline(debris_final_increasingx,5,newheights)[0],univariatespline(debris_final_increasingx,5,newheights)[1], 'orange',linewidth=2)
+plt.plot(univariatespline(debris_final_increasingx,3,newheights)[0],univariatespline(debris_final_increasingx,3,newheights)[1], 'blue',linewidth=1.5)
+plt.plot(univariatespline(debris_final_increasingx,4,newheights)[0],univariatespline(debris_final_increasingx,4,newheights)[1],'deeppink',linewidth=1.5)
+plt.plot(univariatespline(debris_final_increasingx,5,newheights)[0],univariatespline(debris_final_increasingx,5,newheights)[1], 'orange',linewidth=1.5)
 #plt.plot(polyline_initdeb,(fit_initdeb(polyline_initdeb))*(p_ice/1000),c='k',linestyle='--')
-plt.ylim(0,2.5)
-plt.xlim(0,8)
-plt.legend(['3rd degree univariate spline','4th degree univariate spline','5th degree univariate spline','Data'])
+plt.plot(slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1],linestyle='--',linewidth=1.5,c='blueviolet')
+plt.plot(slprepcurve(debris_final_increasingx,k=3,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=3,melt=newheights2)[1],linestyle='--',linewidth=1.5,c='darkturquoise')
+plt.plot(slprepcurve(debris_final_increasingx,k=4,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=4,melt=newheights2)[1],linestyle='--',linewidth=1.5,c='k')
+plt.ylim(1,2.5)
+plt.xlim(0,4)
+plt.legend(['univariate spline, k=3','univariate spline, k=4','univariate spline, k=5','splrep, k=2','splrep, k=3','splrep, k=4','Data'])
 plt.title('2022 Field Data (Aug thicknesses)')
 plt.xlabel('Debris Thickness (cm)',fontsize=12)
 plt.ylabel('Melt (m w.e.)',fontsize=12)
 plt.tight_layout()
+#plt.savefig('splinecomparisons.png',bbox_inches = 'tight')
 
+#CALCULATE METRICS TO DETERMINE WHICH CURVE HAS BEST FIT
+#calculating the adjusted r^2 value based on this formula: https://www.statology.org/curve-fitting-python/
+def adjR_univariate(debris, k, heightchange = height_change[cluster==1]):
+    results = {}
+    x = debris[cluster==1]
+    x[1] = 0.0001
+    y = heightchange*(p_ice/1000)
+    
+    model = UnivariateSpline(x,y,k=k)
+    yhat = model(x)
 
+    ybar = np.sum(y)/len(y)
+    ssreg = np.sum((yhat-ybar)**2)
+    sstot = np.sum((y - ybar)**2)
+    results['r_squared'] = 1- (((1-(ssreg/sstot))*(len(y)-1))/(len(y)-k-1))
 
+    return results
+
+def adjR_splrep(debris, k, heightchange = height_change):
+    results = {}
+    x = debris
+    y = heightchange*(p_ice/1000)
+    tck = (slprepcurve(x,k=2,melt=y))[2]
+    
+    yhat = splev(x[cluster==1],tck)
+
+    ybar = np.sum(y[cluster==1])/len(y[cluster==1])
+    ssreg = np.sum((yhat-ybar)**2)
+    sstot = np.sum((y[cluster==1] - ybar)**2)
+    results['r_squared'] = 1- (((1-(ssreg/sstot))*(len(y[cluster==1])-1))/(len(y[cluster==1])-k-1))
+
+    return results
+
+#initial debris
+for k in 3,4,5:
+    result = adjR_univariate(debris_initial,k)
+    print('initial debris... univariate ... k=' +str(k) + ' ... ' + str(result))
+for k in 2,3,4:
+    result = adjR_splrep(debris_initial,k)
+    print('initial debris... splrep ....... k=' +str(k) + ' ... ' + str(result))
+print('\n')
+#avg debris
+for k in 3,4,5:
+    result = adjR_univariate(debris_average,k)
+    print('avg debris... univariate ... k=' +str(k) + ' ... ' + str(result))
+for k in 2,3,4:
+    result = adjR_splrep(debris_average,k)
+    print('avg debris... splrep ....... k=' +str(k) + ' ... ' + str(result))
+print('\n')
+#final debris
+for k in 3,4,5:
+    result = adjR_univariate(debris_final_increasingx,k,heightchange=heightchange_debrisfinal[cluster==1])
+    print('final debris... univariate ... k=' +str(k) + ' ... ' + str(result))
+for k in 2,3,4:
+    result = adjR_splrep(debris_final_increasingx,k,heightchange=heightchange_debrisfinal)
+    print('final debris... splrep ....... k=' +str(k) + ' ... ' + str(result))
+
+#CONCLUSION: MOVE FORWARD WITH THE SPLREP, K =2 CURVE FOR ALL 3 INSTANCES OF DEBRIS
+    
 ###############################################################################
 ###############################################################################
 #DEFINE THE RANGE OF UNCERTAINTY IN THE PEAK MELT THICKNESS AND TRANSITION ####
 ########################## THICKNESS ##########################################
 ###############################################################################
 ###############################################################################
+    
+#re-plot the ostrem curves with the chosen spline;
+plt.figure(figsize=(10,7))
+plt.title('Debris Thickness vs. Ablation (July 19 - Aug 31 2022) \n data fitted with spline of k = 2',fontsize=14)
+plt.plot(slprepcurve(debris_initial,k=2)[0],slprepcurve(debris_initial,k=2)[1],linestyle='-',linewidth=1.5,c='royalblue')
+plt.plot(slprepcurve(debris_average,k=2)[0],slprepcurve(debris_average,k=2)[1],linestyle='-',linewidth=1.5,c='orange')
+plt.plot(slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1],linestyle='-',linewidth=1.5,c='red')
+
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='red',fmt="o",capsize=5)
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=initial_debris_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='red',fmt="o",capsize=5,mfc='white',mec='red')
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=initial_debris_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+#plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
+plt.legend(handles=[blue_line,orange_line,red_line,white_dot],fontsize=14)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('Melt (m w.e.)',fontsize=14)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
+#plt.savefig('stakegarden_data_k2splines_mwe.png',bbox_inches = 'tight')
+
+#plot the ostrem curves with the splines that VISUALLY seem like the best fit:
+plt.figure(figsize=(10,7))
+plt.title('Debris Thickness vs. Ablation (July 19 - Aug 31 2022) \n data fitted with spline of k = 2',fontsize=14)
+plt.plot(slprepcurve(debris_initial,k=2)[0],slprepcurve(debris_initial,k=2)[1],linestyle='-',linewidth=1.5,c='royalblue')
+plt.plot(slprepcurve(debris_average,k=2)[0],slprepcurve(debris_average,k=2)[1],linestyle='-',linewidth=1.5,c='orange')
+plt.plot(slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1],linestyle='-',linewidth=1.5,c='red')
+
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='red',fmt="o",capsize=5)
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=initial_debris_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==1],c='orange',fmt="o",capsize=5)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==1],c='red',fmt="o",capsize=5)
+
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='red',fmt="o",capsize=5,mfc='white',mec='red')
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=initial_debris_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue')
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange')
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red')
+#plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
+plt.legend(handles=[blue_line,orange_line,red_line,white_dot],fontsize=14)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('Melt (m w.e.)',fontsize=14)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
+#plt.savefig('stakegarden_data_k2splines_mwe.png',bbox_inches = 'tight')
+
