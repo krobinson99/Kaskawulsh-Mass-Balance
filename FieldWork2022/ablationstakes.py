@@ -259,11 +259,17 @@ blue_line = mlines.Line2D([], [], color='royalblue', marker='_', linestyle='None
 orange_line = mlines.Line2D([], [], color='orange', marker='_', linestyle='None',
                           markersize=20, label='Average debris thickness')
 
+orange_line2 = mlines.Line2D([], [], color='orange', marker='_', linestyle='None',
+                          markersize=20, label='PDD weighted average thickness')
+
 red_line = mlines.Line2D([], [], color='red', marker='_', linestyle='None',
                           markersize=20, label='Final debris thickness (Aug)')
 
 white_dot = mlines.Line2D([], [], color='white',mec='k', marker='.', linestyle='None',
                           markersize=12, label='Kovacs Drill')
+
+black_dot = mlines.Line2D([], [], color='k',mec='k', marker='.', linestyle='None',
+                          markersize=12, label='Peak-melt thickness & transition thickness values')
 
 
 cluster = np.array([1,1,1,1,1,1,1,2]) 
@@ -800,8 +806,9 @@ for i in range(0,len(debris_final)):
     avg = ((debris_initial[i]*firsthalf_PDD) + (debris_final[i]*secondhalf_PDD))/(firsthalf_PDD+secondhalf_PDD)
     debris_PDDaverage[i] = avg
     
-
-#FINAL CURVES USED TO DEFINE THE RELATIONSHIP B/W PEAK
+##################################################################################
+#FINAL CURVES USED TO DEFINE THE RELATIONSHIP B/W PEAK MELT & TRANSITION THICKNESS
+##############################################################################
 deb_init_x, deb_init_y = univariatespline(debris_initial,5)[0], univariatespline(debris_initial,5)[1]
 deb_avg_x, deb_avg_y = slprepcurve(debris_PDDaverage,k=3)[0],slprepcurve(debris_PDDaverage,k=3)[1] 
 deb_fin_x, deb_fin_y = slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1]
@@ -852,6 +859,62 @@ print('Jul obs: transition thickness = ' + str(transition_thickness_i))
 print('PDD weighted average transition thickness = ' + str(transition_thickness_ref))
 print('Aug obs: transition thickness = ' + str(transition_thickness_f))
 
+#find the uncertainties on peak deb thickness and transition thickness
+#peak deb thickness: just adopt the uncertainties from the point closest to the peak? since the peaks lie between the CI00 and DB01, and CI00/DI00 do not have uncertainties
+initpeak_uncertainty = initial_debris_uncertainty[2]
+finpeak_uncertainty = final_debris_uncertainty[2]
+
+#transition thickness: the transition thickness lies somewhere on the curve between DB02 and DB03, so the uncertainty should be the weighted average b/w these two values 
+#the weight will be equal to the distance away from each point:
+
+#initial debris:
+def calculate_transition_uncertainty(debris,uncertainty,transition):
+    #DB02toDB03 = np.abs(debris[4] - debris[3])
+    distfromDB02 = np.abs(transition - debris[3])
+    distfromDB03 = np.abs(transition - debris[4])
+    newuncertainty =  ((uncertainty[3]*distfromDB03) + (uncertainty[4]*distfromDB02))/(distfromDB02+distfromDB03)
+    
+    return newuncertainty[0]
+
+inittransition_uncertainty = calculate_transition_uncertainty(debris_initial,initial_debris_uncertainty,transition_thickness_i)
+fintransition_uncertainty = calculate_transition_uncertainty(debris_final,final_debris_uncertainty,transition_thickness_f)
 
 
+df_debrisparams = pd.DataFrame(data={'': ['July','PDD average','August'], 
+                                     'Peak melt thickness (cm)': [np.round(peakmelt_thickness_i[0],1),np.round(peakmelt_thickness_ref[0],1),np.round(peakmelt_thickness_f[0],1)],
+                                     'Peak thickness uncertainty (cm)': [np.round(initpeak_uncertainty,1),np.nan,np.round(finpeak_uncertainty,1)],
+                                     'Transition thickness (cm)': [np.round(transition_thickness_i[0],1),np.round(transition_thickness_ref[0],1),np.round(transition_thickness_f[0],1)],
+                                     'Transition thickness uncertainty (cm)': [np.round(inittransition_uncertainty,1),np.nan,np.round(fintransition_uncertainty,1)]})
 
+#df_debrisparams.to_csv('debrisparameters.csv', index=False)
+
+#plot the debris curves with the important points:
+plt.figure(figsize=(10,7))
+plt.title('Peak melt thickness & transition thickness with uncertainty ranges',fontsize=14)
+plt.plot(deb_init_x, deb_init_y, 'royalblue',linewidth=1.5)
+plt.plot(deb_avg_x, deb_avg_y,linestyle='-',linewidth=1.5,c='orange')
+plt.plot(deb_fin_x, deb_fin_y,linestyle='-',linewidth=1.5,c='red')
+
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='royalblue',fmt="o",capsize=5,alpha=0.25)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='orange',fmt="o",capsize=5,alpha=0.25)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='red',fmt="o",capsize=5,alpha=0.25)
+plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=initial_debris_uncertainty[cluster==1],c='royalblue',fmt="o",capsize=5,alpha=0.25)
+plt.errorbar(debris_average[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==1],c='orange',fmt="o",capsize=5,alpha=0.25)
+plt.errorbar(debris_final[cluster==1],height_change[cluster==1]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==1],c='red',fmt="o",capsize=5,alpha=0.25)
+
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue',alpha=0.25)
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='orange',fmt="o",capsize=5,mfc='white',mec='orange',alpha=0.25)
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),stake_uncertainty[cluster==2]*(p_ice/1000),c='red',fmt="o",capsize=5,mfc='white',mec='red',alpha=0.25)
+plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=initial_debris_uncertainty[cluster==2],c='royalblue',fmt="o",capsize=5,mfc='white',mec='royalblue',alpha=0.25)
+plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange',alpha=0.25)
+plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red',alpha=0.25)
+#plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
+plt.scatter([peakmelt_thickness_ref[0],transition_thickness_ref[0]],[deb_avg_y[peakmelt_ref],deb_avg_y[CI00_eq_melt_ref]],c='k',zorder=10)
+plt.errorbar([peakmelt_thickness_i[0],transition_thickness_i[0]],[deb_init_y[peakmelt_i],deb_init_y[CI00_eq_melt_i]],xerr=np.array([initpeak_uncertainty,inittransition_uncertainty]),c='k',fmt="o",capsize=5,zorder=11)
+plt.errorbar([peakmelt_thickness_f[0],transition_thickness_f[0]],[deb_fin_y[peakmelt_f],deb_fin_y[CI00_eq_melt_f]],xerr=np.array([finpeak_uncertainty,fintransition_uncertainty]),c='k',fmt="o",capsize=5,zorder=11)
+plt.legend(handles=[blue_line,orange_line2,red_line,white_dot,black_dot],fontsize=14)
+plt.xlabel('Debris Thickness (cm)',fontsize=14)
+plt.ylabel('Melt (m w.e.)',fontsize=14)
+#plt.xlim(0,15)
+plt.margins(x=0.01)
+#plt.savefig('debrisparams_refcasewithuncertainty.png',bbox_inches = 'tight')
