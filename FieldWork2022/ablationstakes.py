@@ -11,6 +11,7 @@ The purpose of this script is to process/plot the data collected from the
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 #import os
 #from netCDF4 import Dataset
 from scipy.interpolate import interp1d
@@ -20,7 +21,8 @@ import matplotlib.lines as mlines
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import splrep
 from scipy.interpolate import splev
-from sklearn.metrics import mean_squared_error
+#from sklearn.metrics import mean_squared_error
+import datetime as dt
 
 stakedata ='F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/AblationStakeData_2022.csv'
 
@@ -522,7 +524,7 @@ def univariatespline(debris_list,degree,heightchange=height_change[cluster==1]*(
     x_spline = np.linspace(0, np.max(x)+0.01, 100)
     y_spline = spline(x_spline)
     
-    return x_spline, y_spline
+    return x_spline, y_spline #returns debris thickness (cm) vs melt (mw.e.) curves
 
 #try the scipy optimize.curve_fit function
 def cubicpolynomial(x,a,b,c,d):
@@ -658,13 +660,6 @@ for k in 2,3,4:
 
 #CONCLUSION: MOVE FORWARD WITH THE SPLREP, K =2 CURVE FOR ALL 3 INSTANCES OF DEBRIS
     
-###############################################################################
-###############################################################################
-#DEFINE THE RANGE OF UNCERTAINTY IN THE PEAK MELT THICKNESS AND TRANSITION ####
-########################## THICKNESS ##########################################
-###############################################################################
-###############################################################################
-    
 #re-plot the ostrem curves with the chosen spline;
 plt.figure(figsize=(10,7))
 plt.title('Debris Thickness vs. Ablation (July 19 - Aug 31 2022) \n data fitted with spline of k = 2',fontsize=14)
@@ -695,9 +690,9 @@ plt.margins(x=0.01)
 
 #plot the ostrem curves with the splines that VISUALLY seem like the best fit:
 plt.figure(figsize=(10,7))
-plt.title('Debris Thickness vs. Ablation (July 19 - Aug 31 2022) \n data fitted with spline of k = 2',fontsize=14)
-plt.plot(slprepcurve(debris_initial,k=2)[0],slprepcurve(debris_initial,k=2)[1],linestyle='-',linewidth=1.5,c='royalblue')
-plt.plot(slprepcurve(debris_average,k=2)[0],slprepcurve(debris_average,k=2)[1],linestyle='-',linewidth=1.5,c='orange')
+plt.title('Debris Thickness vs. Ablation (July 19 - Aug 31 2022) \n visual best fit splines',fontsize=14)
+plt.plot(univariatespline(debris_initial,5)[0],univariatespline(debris_initial,5)[1], 'royalblue',linewidth=1.5)
+plt.plot(slprepcurve(debris_average,k=3)[0],slprepcurve(debris_average,k=3)[1],linestyle='-',linewidth=1.5,c='orange')
 plt.plot(slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1],linestyle='-',linewidth=1.5,c='red')
 
 plt.errorbar(debris_initial[cluster==1],height_change[cluster==1]*(p_ice/1000),stake_uncertainty[cluster==1]*(p_ice/1000),c='royalblue',fmt="o",capsize=5)
@@ -719,5 +714,144 @@ plt.xlabel('Debris Thickness (cm)',fontsize=14)
 plt.ylabel('Melt (m w.e.)',fontsize=14)
 #plt.xlim(0,15)
 plt.margins(x=0.01)
-#plt.savefig('stakegarden_data_k2splines_mwe.png',bbox_inches = 'tight')
+#plt.savefig('stakegarden_data_bestfitsplines_mwe.png',bbox_inches = 'tight')
+
+###############################################################################
+###############################################################################
+######### CALCULATE REFERENCE CURVE BASED ON PDD WEIGHTED AVERAGE #############
+###############################################################################
+###############################################################################
+
+#Step 1. Calculate the true "average"/"reference" curve based on a P.D.D. weighted average
+
+#import temperature data from outpost station for july19-aug31 2022
+outpostJulA = np.genfromtxt('D:/FieldData/2022/July/Campbell/Data/Outpost/24July2022_A/TOA5_5216.FiveMin.dat', skip_header=1, delimiter=',')
+outpostJulB = np.genfromtxt('D:/FieldData/2022/July/Campbell/Data/Outpost/24July2022_B/TOA5_5216.FiveMin.dat', skip_header=1, delimiter=',')
+outpostAug = np.genfromtxt('D:/FieldData/2022/August/Campbell/Data/Outpost/TOA5_5216.FiveMin.dat', skip_header=1, delimiter=',')
+
+airtemp_julA = outpostJulA[3:,6] #starts in Jul 2021, need to cut so that it starts Jul 2022
+airtemp_julB = outpostJulB[3:,6]
+airtemp_aug = outpostAug[3:,6]
+#no missing data WITHIN the arrays, but there may be gaps in time BETWEEN the arrays so need to be careful of that 
+
+#timestamps are showing up as NaN here, need to manually create timestamps with datetime (?)
+dates_julA = pd.date_range(start="2021-07-19 17:40:00",end="2022-07-24 17:20:00",freq='5min')
+dates_julB = pd.date_range(start="2022-07-24 17:25:00",end="2022-07-24 17:35:00",freq='5min') #5 min time gap between julB and aug records
+dates_aug = pd.date_range(start="2022-07-24 17:40:00",end="2022-09-01 10:45:00",freq='5min')
+
+#append the missing time with temp = nan to the jul b record, then concatenate the whole thing
+np.append(airtemp_julB,np.nan)
+fulltemprecord = np.concatenate((airtemp_julA,airtemp_julB,airtemp_aug))
+alldates = np.concatenate((dates_julA,dates_julB,dates_aug))
+
+#cut the temp and dates into the exact days needed (jul 19 to aug 31)
+#jul19midnight 
+jul19 = np.where(alldates == np.datetime64(dt.datetime(2022,7,19)))
+#aug31 11:55pm
+aug31 = np.where(alldates == np.datetime64(dt.datetime(2022,8,31,23,55)))
+
+fielddates = alldates[jul19[0][0]:aug31[0][0]+1]
+fieldtemps = fulltemprecord[jul19[0][0]:aug31[0][0]+1]
+
+
+#get daily mean temperatures
+#convert the data to a dataframe
+df_5min = pd.DataFrame(data={'timestamp': fielddates, 'temp': fieldtemps})
+df_daily = df_5min.groupby(by=pd.Grouper(freq='D', key='timestamp')).mean()
+#print(df_daily)
+arr = np.array(df_daily)
+dailytemp = arr[:,0]
+#make datetime array to match the daily temps
+aws_days = pd.date_range(start="2022-07-19",end="2022-08-31",freq='D')
+
+#plot daily temps:
+#plot full 5 min temp record
+plt.figure(figsize=(10,5))
+plt.subplot(1,2,1)
+plt.title('Outpost AWS 5 min record',fontsize=12)
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+plt.plot(fielddates,fieldtemps,'k')
+plt.gcf().autofmt_xdate()
+plt.ylim(-5,30)
+plt.ylabel('Temperature (\u00B0 C)',fontsize=12)
+plt.subplot(1,2,2)
+plt.title('Outpost AWS Daily Averages',fontsize=12)
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+plt.plot(aws_days,dailytemp,'k')
+plt.gcf().autofmt_xdate()
+plt.ylim(-5,30)
+plt.ylabel('Temperature (\u00B0 C)',fontsize=12)
+#plt.savefig('OutpostAWSTemp.png',bbox_inches = 'tight')
+
+#calculate PDD in first half of time period vs 2nd half 
+firsthalf_days = aws_days[0:22]
+secondhalf_days = aws_days[22:]
+firsthalf_PDD = np.sum(dailytemp[0:22]) #no days below zero so can just do a straight sum
+secondhalf_PDD = np.sum(dailytemp[22:])
+
+firsthalfPDD_cumu = np.cumsum(dailytemp[0:22])
+secondhalfPDD_cumu = np.cumsum(dailytemp[22:])
+
+#calculate the PDD weighted average debris thicknesses:
+debris_PDDaverage = np.zeros(len(debris_final))
+for i in range(0,len(debris_final)):
+    avg = ((debris_initial[i]*firsthalf_PDD) + (debris_final[i]*secondhalf_PDD))/(firsthalf_PDD+secondhalf_PDD)
+    debris_PDDaverage[i] = avg
+    
+
+#FINAL CURVES USED TO DEFINE THE RELATIONSHIP B/W PEAK
+deb_init_x, deb_init_y = univariatespline(debris_initial,5)[0], univariatespline(debris_initial,5)[1]
+deb_avg_x, deb_avg_y = slprepcurve(debris_PDDaverage,k=3)[0],slprepcurve(debris_PDDaverage,k=3)[1] 
+deb_fin_x, deb_fin_y = slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1]
+
+#plt.plot(deb_init_x,deb_init_y)
+#plt.plot(deb_avg_x,deb_avg_y)
+#plt.plot(deb_fin_x,deb_fin_y)
+
+#get reference values (peak melt thickness and transition thickness):
+peakmelt_ref = np.where(deb_avg_y == np.max(deb_avg_y))
+peakmelt_thickness_ref = deb_avg_x[peakmelt_ref]
+
+peakmelt_i = np.where(deb_init_y == np.max(deb_init_y))
+peakmelt_thickness_i = deb_init_x[peakmelt_i]
+
+peakmelt_f = np.where(deb_fin_y == np.max(deb_fin_y))
+peakmelt_thickness_f = deb_fin_x[peakmelt_f]
+
+print('Jul obs: debris thickness resulting in peak melt is: ' + str(peakmelt_thickness_i))
+print('PDD weighted average debris thickness resulting in peak melt is: ' + str(peakmelt_thickness_ref))
+print('Aug obs: debris thickness resulting in peak melt is: ' + str(peakmelt_thickness_f))
+
+#transition thickness:
+cleanicemelt = height_change[0]*(p_ice/1000)
+
+diff_from_CI00_i = []
+for i in deb_init_y:
+    diff_from_CI00_i.append(i-cleanicemelt)
+diff_from_cleanice_i = np.abs(diff_from_CI00_i)    
+CI00_eq_melt_i = np.where(diff_from_cleanice_i == np.min(diff_from_cleanice_i[peakmelt_i[0][0]:]))
+transition_thickness_i = deb_init_x[CI00_eq_melt_i]
+
+diff_from_CI00_ref = []
+for i in deb_avg_y:
+    diff_from_CI00_ref.append(i-cleanicemelt)
+diff_from_cleanice_ref = np.abs(diff_from_CI00_ref)    
+CI00_eq_melt_ref = np.where(diff_from_cleanice_ref == np.min(diff_from_cleanice_ref[peakmelt_i[0][0]:]))
+transition_thickness_ref = deb_avg_x[CI00_eq_melt_ref]
+
+diff_from_CI00_f = []
+for i in deb_fin_y:
+    diff_from_CI00_f.append(i-cleanicemelt)
+diff_from_cleanice_f = np.abs(diff_from_CI00_f)    
+CI00_eq_melt_f = np.where(diff_from_cleanice_f == np.min(diff_from_cleanice_f[peakmelt_i[0][0]:]))
+transition_thickness_f = deb_fin_x[CI00_eq_melt_f]
+
+print('Jul obs: transition thickness = ' + str(transition_thickness_i))
+print('PDD weighted average transition thickness = ' + str(transition_thickness_ref))
+print('Aug obs: transition thickness = ' + str(transition_thickness_f))
+
+
+
 
