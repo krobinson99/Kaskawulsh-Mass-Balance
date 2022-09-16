@@ -759,14 +759,23 @@ aug31 = np.where(alldates == np.datetime64(dt.datetime(2022,8,31,23,55)))
 fielddates = alldates[jul19[0][0]:aug31[0][0]+1]
 fieldtemps = fulltemprecord[jul19[0][0]:aug31[0][0]+1]
 
+#lapse temperatures up to study site elevation
+outpost_elevation = 785 #m a.s.l. (from Gaia GPS)
+stake_elevations = 1686 # m a.s.l. (from DI00 waypoint: Gaia)
+elev_change = (stake_elevations - outpost_elevation)/1000 # units = km
+lapserate = -6.5 # units = degree C / km
+tempchange = lapserate*elev_change
+
+lapsedtemps = fieldtemps + tempchange
 
 #get daily mean temperatures
 #convert the data to a dataframe
-df_5min = pd.DataFrame(data={'timestamp': fielddates, 'temp': fieldtemps})
+df_5min = pd.DataFrame(data={'timestamp': fielddates, 'temp': fieldtemps, 'lapsed temp': lapsedtemps})
 df_daily = df_5min.groupby(by=pd.Grouper(freq='D', key='timestamp')).mean()
 #print(df_daily)
 arr = np.array(df_daily)
 dailytemp = arr[:,0]
+dailylapsedtemp = arr[:,1]
 #make datetime array to match the daily temps
 aws_days = pd.date_range(start="2022-07-19",end="2022-08-31",freq='D')
 
@@ -791,14 +800,33 @@ plt.ylim(-5,30)
 plt.ylabel('Temperature (\u00B0 C)',fontsize=12)
 #plt.savefig('OutpostAWSTemp.png',bbox_inches = 'tight')
 
+plt.figure(figsize=(10,5))
+plt.subplot(1,2,1)
+plt.title('Outpost AWS 5 min record \n Lapsed to ablation stake site (1686 m a.s.l.)',fontsize=12)
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+plt.plot(fielddates,lapsedtemps,'k')
+plt.gcf().autofmt_xdate()
+plt.ylim(-10,25)
+plt.ylabel('Temperature (\u00B0 C)',fontsize=12)
+plt.subplot(1,2,2)
+plt.title('Outpost AWS Daily Averages \n Lapsed to ablation stake site (1686 m a.s.l.)',fontsize=12)
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+plt.plot(aws_days,dailylapsedtemp,'k')
+plt.gcf().autofmt_xdate()
+plt.ylim(-10,25)
+plt.ylabel('Temperature (\u00B0 C)',fontsize=12)
+#plt.savefig('OutpostAWSTemp_Lapsed.png',bbox_inches = 'tight')
+
 #calculate PDD in first half of time period vs 2nd half 
 firsthalf_days = aws_days[0:22]
 secondhalf_days = aws_days[22:]
-firsthalf_PDD = np.sum(dailytemp[0:22]) #no days below zero so can just do a straight sum
-secondhalf_PDD = np.sum(dailytemp[22:])
+firsthalf_PDD = np.sum(dailylapsedtemp[0:22]) #no days below zero so can just do a straight sum
+secondhalf_PDD = np.sum(dailylapsedtemp[22:])
 
-firsthalfPDD_cumu = np.cumsum(dailytemp[0:22])
-secondhalfPDD_cumu = np.cumsum(dailytemp[22:])
+firsthalfPDD_cumu = np.cumsum(dailylapsedtemp[0:22])
+secondhalfPDD_cumu = np.cumsum(dailylapsedtemp[22:])
 
 #calculate the PDD weighted average debris thicknesses:
 debris_PDDaverage = np.zeros(len(debris_final))
@@ -864,6 +892,9 @@ print('Aug obs: transition thickness = ' + str(transition_thickness_f))
 initpeak_uncertainty = initial_debris_uncertainty[2]
 finpeak_uncertainty = final_debris_uncertainty[2]
 
+# calculate the uncertainty on the reference case: https://physics.stackexchange.com/questions/392016/uncertainty-in-the-average-of-two-measurements-with-their-respective-uncertaint
+refpeak_uncertainty = np.sqrt(((peakmelt_thickness_i-peakmelt_thickness_ref)**2) + ((peakmelt_thickness_f-peakmelt_thickness_ref)**2))
+
 #transition thickness: the transition thickness lies somewhere on the curve between DB02 and DB03, so the uncertainty should be the weighted average b/w these two values 
 #the weight will be equal to the distance away from each point:
 
@@ -878,15 +909,16 @@ def calculate_transition_uncertainty(debris,uncertainty,transition):
 
 inittransition_uncertainty = calculate_transition_uncertainty(debris_initial,initial_debris_uncertainty,transition_thickness_i)
 fintransition_uncertainty = calculate_transition_uncertainty(debris_final,final_debris_uncertainty,transition_thickness_f)
-
+reftransition_uncertainty = np.sqrt(((transition_thickness_i-transition_thickness_ref)**2) + ((transition_thickness_f-transition_thickness_ref)**2))
 
 df_debrisparams = pd.DataFrame(data={'': ['July','PDD average','August'], 
                                      'Peak melt thickness (cm)': [np.round(peakmelt_thickness_i[0],1),np.round(peakmelt_thickness_ref[0],1),np.round(peakmelt_thickness_f[0],1)],
-                                     'Peak thickness uncertainty (cm)': [np.round(initpeak_uncertainty,1),np.nan,np.round(finpeak_uncertainty,1)],
+                                     'Peak thickness uncertainty (cm)': [np.round(initpeak_uncertainty,1),np.round(refpeak_uncertainty[0],1),np.round(finpeak_uncertainty,1)],
                                      'Transition thickness (cm)': [np.round(transition_thickness_i[0],1),np.round(transition_thickness_ref[0],1),np.round(transition_thickness_f[0],1)],
-                                     'Transition thickness uncertainty (cm)': [np.round(inittransition_uncertainty,1),np.nan,np.round(fintransition_uncertainty,1)]})
+                                     'Transition thickness uncertainty (cm)': [np.round(inittransition_uncertainty,1),np.round(reftransition_uncertainty[0],1),np.round(fintransition_uncertainty,1)]})
 
 #df_debrisparams.to_csv('debrisparameters.csv', index=False)
+    
 
 #plot the debris curves with the important points:
 plt.figure(figsize=(10,7))
@@ -909,8 +941,9 @@ plt.errorbar(debris_initial[cluster==2],height_change[cluster==2]*(p_ice/1000),y
 plt.errorbar(debris_average[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=average_debris_uncertainty[cluster==2],c='orange',fmt="o",capsize=5,mfc='white',mec='orange',alpha=0.25)
 plt.errorbar(debris_final[cluster==2],height_change[cluster==2]*(p_ice/1000),yerr=None,xerr=final_debris_uncertainty[cluster==2],c='red',fmt="o",capsize=5,mfc='white',mec='red',alpha=0.25)
 #plt.legend(['Initial debris thickness (July)','Average debris thickness','Final debris thickness (Aug)'],fontsize=12)
-plt.scatter([peakmelt_thickness_ref[0],transition_thickness_ref[0]],[deb_avg_y[peakmelt_ref],deb_avg_y[CI00_eq_melt_ref]],c='k',zorder=10)
+#plt.errorbar([peakmelt_thickness_ref[0],transition_thickness_ref[0]],[deb_avg_y[peakmelt_ref],deb_avg_y[CI00_eq_melt_ref]],xerr=np.array([refpeak_uncertainty,reftransition_uncertainty]),c='k',zorder=10,fmt="o",capsize=5)
 plt.errorbar([peakmelt_thickness_i[0],transition_thickness_i[0]],[deb_init_y[peakmelt_i],deb_init_y[CI00_eq_melt_i]],xerr=np.array([initpeak_uncertainty,inittransition_uncertainty]),c='k',fmt="o",capsize=5,zorder=11)
+plt.errorbar([peakmelt_thickness_ref[0],transition_thickness_ref[0]],[deb_avg_y[peakmelt_ref],deb_avg_y[CI00_eq_melt_ref]],xerr=np.array([refpeak_uncertainty[0],reftransition_uncertainty[0]]),c='k',fmt="o",capsize=7,zorder=11)
 plt.errorbar([peakmelt_thickness_f[0],transition_thickness_f[0]],[deb_fin_y[peakmelt_f],deb_fin_y[CI00_eq_melt_f]],xerr=np.array([finpeak_uncertainty,fintransition_uncertainty]),c='k',fmt="o",capsize=5,zorder=11)
 plt.legend(handles=[blue_line,orange_line2,red_line,white_dot,black_dot],fontsize=14)
 plt.xlabel('Debris Thickness (cm)',fontsize=14)
@@ -918,3 +951,24 @@ plt.ylabel('Melt (m w.e.)',fontsize=14)
 #plt.xlim(0,15)
 plt.margins(x=0.01)
 #plt.savefig('debrisparams_refcasewithuncertainty.png',bbox_inches = 'tight')
+
+###############################################################################
+#### DEFINE A GUASSIAN DISTRIBUTION FROM WHICH WE CHOOSE THE DEBRIS PARAMS ####
+###############################################################################
+plt.figure()
+mu, sigma = transition_thickness_ref,reftransition_uncertainty # mean and standard deviation
+s = np.random.normal(transition_thickness_ref, reftransition_uncertainty, 10000)
+count, bins, ignored = plt.hist(s, 30, density=True)
+plt.plot(bins, 1/(sigma * np.sqrt(2 * np.pi)) *
+               np.exp( - (bins - mu)**2 / (2 * sigma**2) ),
+         linewidth=2, color='r')
+plt.show()
+
+plt.figure()
+mu, sigma = peakmelt_thickness_ref,refpeak_uncertainty # mean and standard deviation
+s = np.random.normal(peakmelt_thickness_ref, refpeak_uncertainty, 10000)
+count, bins, ignored = plt.hist(s, 30, density=True)
+plt.plot(bins, 1/(sigma * np.sqrt(2 * np.pi)) *
+               np.exp( - (bins - mu)**2 / (2 * sigma**2) ),
+         linewidth=2, color='r')
+plt.show()
