@@ -820,13 +820,34 @@ plt.ylabel('Temperature (\u00B0 C)',fontsize=12)
 #plt.savefig('OutpostAWSTemp_Lapsed.png',bbox_inches = 'tight')
 
 #calculate PDD in first half of time period vs 2nd half 
-firsthalf_days = aws_days[0:22]
-secondhalf_days = aws_days[22:]
-firsthalf_PDD = np.sum(dailylapsedtemp[0:22]) #no days below zero so can just do a straight sum
-secondhalf_PDD = np.sum(dailylapsedtemp[22:])
+#firsthalf_days = aws_days[0:22]
+#secondhalf_days = aws_days[22:]
 
-firsthalfPDD_cumu = np.cumsum(dailylapsedtemp[0:22])
-secondhalfPDD_cumu = np.cumsum(dailylapsedtemp[22:])
+#firsthalf_PDD = np.sum(dailylapsedtemp[0:22]) #no days below zero so can just do a straight sum
+#secondhalf_PDD = np.sum(dailylapsedtemp[22:])
+
+#firsthalfPDD_cumu = np.cumsum(dailylapsedtemp[0:22])
+#secondhalfPDD_cumu = np.cumsum(dailylapsedtemp[22:])
+
+#redo PDD sum with 5 min values instead of daily values
+firsthalf = fielddates[0:6336]
+secondhalf = fielddates[6336:]
+
+firsthalf_PD = [] #positive days
+for i in lapsedtemps[0:6336]:
+    if i > 0:
+        firsthalf_PD.append(i)
+    else:
+        pass
+secondhalf_PD = []
+for i in lapsedtemps[6336:]:
+    if i > 0:
+        secondhalf_PD.append(i)
+    else:
+        pass
+    
+firsthalf_PDD = np.sum(firsthalf_PD) #no days below zero so can just do a straight sum
+secondhalf_PDD = np.sum(secondhalf_PD)
 
 #calculate the PDD weighted average debris thicknesses:
 debris_PDDaverage = np.zeros(len(debris_final))
@@ -838,11 +859,14 @@ for i in range(0,len(debris_final)):
 #FINAL CURVES USED TO DEFINE THE RELATIONSHIP B/W PEAK MELT & TRANSITION THICKNESS
 ##############################################################################
 deb_init_x, deb_init_y = univariatespline(debris_initial,5)[0], univariatespline(debris_initial,5)[1]
+#deb_avg_x_old, deb_avg_y_old = slprepcurve(debris_PDDaverage,k=3)[0],slprepcurve(debris_PDDaverage,k=3)[1] 
 deb_avg_x, deb_avg_y = slprepcurve(debris_PDDaverage,k=3)[0],slprepcurve(debris_PDDaverage,k=3)[1] 
 deb_fin_x, deb_fin_y = slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[0],slprepcurve(debris_final_increasingx,k=2,melt=newheights2)[1]
 
+
 #plt.plot(deb_init_x,deb_init_y)
 #plt.plot(deb_avg_x,deb_avg_y)
+#plt.plot(deb_avg_x_old,deb_avg_y_old)
 #plt.plot(deb_fin_x,deb_fin_y)
 
 #get reference values (peak melt thickness and transition thickness):
