@@ -13,8 +13,13 @@ transition thickness from a guassian distribution.
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
+import sys
 from scipy.interpolate import splrep
 from scipy.interpolate import splev
+sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
+from Model_functions_ver4 import regridXY_something
+
 
 #1. generate the original MF curve with the original params (linear to 2 cm, the eq(1) from 2 cm onwards)
 
@@ -218,7 +223,7 @@ def generate_hybrid_curve(cleaniceM,peakM,peakM_thickness,transition_thickness,b
     #verticalshift = cleaniceM - melt[3]
     #melt[3:] = melt[3:] + verticalshift
     
-    horizontal_shift = transition_thickness - debristhickness[3]
+    horizontal_shift = transition_thickness - h_curvestart
     debristhickness[3:] = debristhickness[3:] + horizontal_shift
     
     meltfactors = melt/cleaniceM
@@ -259,7 +264,6 @@ plt.figure(figsize=(10,10))
 plt.subplot(2,2,1)
 legend = []
 for i in np.linspace(peakthickness_ref-peakthickness_ref_unc,peakthickness_ref+peakthickness_ref_unc,8):
-    print(i*100)
     deb, m, mf = generate_hybrid_curve(cleaniceM,peakM,i,transition_ref)   
     plt.plot(deb,mf)
     legend.append(str(np.round(i*100,2)) + ' cm')
@@ -313,12 +317,96 @@ plt.title('Varying transition thickness \n Clean ice melt & peak melt = Observed
 plt.tight_layout()
 #plt.savefig('Hybridmeltcurves_ranges.png',bbox_inches = 'tight')
 
+
+###############################################################################
+# WRITE FUNCTIONS TO GENERATE DEBRIS PARAMS AND CALCULATE THE MELT FACTORS MASK
+###############################################################################
+# (work on the function here but eventually add to the model functions script)
+File_glacier_in = os.path.join('F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel','Kaskonly_deb.txt')
+glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
+Ix = glacier[:,3] 
+Iy = glacier[:,4] 
+Ih = glacier[:,2] 
+debris_array = glacier[:,6]
+
+#-------Turn vectors into 3D gridded inputs--------------------
+
+Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+nanlocs3 = np.where(np.isnan(Zgrid))
+
+#Setup debris mask for use in radiation parameters
+debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+debris_m = np.zeros(debris_grid.shape)
+debris_m[np.where(debris_grid > 100)] = 1
+debris_m[np.where(debris_grid <= 100)] = np.nan
+debris_m[nanlocs3] = np.nan
+
+plt.figure(figsize=(8,5))
+#plt.contourf(debristhickness_array, cmap = 'PuOr', levels = np.round(np.linspace(0,3,10),1))
+plt.contourf(np.flipud(debris_m), cmap = 'PuOr', levels = np.linspace(0,0.1,20))
+#plt.contourf((debris_m[:180,100:]), cmap = 'PuOr', levels = np.round(np.linspace(0,1,3),1))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Debris True / False', rotation=270,fontsize=14,labelpad=20)
+plt.tight_layout()
+plt.title('Kaskawulsh Boolean Debris Map',fontsize=14)
+#plt.savefig(os.path.join(Path2files,'KW_booleandebris.png'),bbox_inches = 'tight')
+
+#randomly populate the debris mask with thickness values
+for x in range(len(debris_m)):
+    for y in range(len(debris_m[0])):
+        debris_m[x,y] = (np.random.random())
+    
+def generate_meltfactors(debrismask,cleaniceM,peakM,peakM_thickness,transition_thickness,b0 = 11.0349260206858,k = 1.98717418666925):
+    '''
+    the final version of this function should always be in the Model Functions script
+    #function should take in:
+        # debris mask,
+        # cleanicemelt and peak melt value
+        # transition thickness and thickness at peak melt 
+        # Rounce et al. model params for the kaskawulsh
+    #function should return:
+        # 2D melt factors map with same shape as input debris mask. should be 1 in non debris areas
+    so that it doesnt change the melt of cleanice when multiplied with the melt array
+    '''
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+    #make an empty array of same shape as debris mask
+    #loop through each gridcell in debris mask
+    #if nan (ie no debris) place a 1 in the meltfactors array
+    #sort the debris cells by thickness and calculate corresponding MF, then place in melt array
+    
+    meltfactors = np.empty(debrismask.shape)
+    for x in range(len(debrismask)):
+        for y in range(len(debrismask[0])):
+            #print(debrismask[x,y])
+            if np.isnan(debrismask[x,y]):
+                meltfactors[x,y] = 1
+            elif debrismask[x,y] <= peakM_thickness:
+                Melt = (((peakM - cleaniceM)/peakM_thickness)*debrismask[x,y]) + cleaniceM
+                Meltfact = Melt/cleaniceM
+                meltfactors[x,y] = Meltfact
+                #print(str(debrismask[x,y]) + ' ,,, ' + str(Meltfact))
+                #calculate the melt factor on a linear line between clean ice melt and peak melt:
+            elif (debrismask[x,y] > peakM_thickness) and (debrismask[x,y] <= transition_thickness):
+                #print(debrismask[x,y])
+                yintercept = peakM - (((cleaniceM-peakM)/(transition_thickness-peakM_thickness))*peakM_thickness)
+                Melt = (((cleaniceM-peakM)/(transition_thickness-peakM_thickness))*debrismask[x,y]) + yintercept
+                Meltfact = Melt/cleaniceM
+                meltfactors[x,y] = Meltfact
+            elif debrismask[x,y] > transition_thickness:
+                #determine how much this part of the curve needs to be shifted over to meet the linear parts
+                h_curvestart = (b0-cleaniceM)/(cleaniceM*k*b0)
+                horizontal_shift = transition_thickness - h_curvestart
+                Melt = b0/(1+(k*b0*(debrismask[x,y]-horizontal_shift))) #calculate the melt on the original curve(take away the shift) so that you're actually getting the melt at the desired thickness
+                Meltfact = Melt/cleaniceM
+                meltfactors[x,y] = Meltfact
+            else:
+                print('debris thickness not accounted for in if statements')
+
+    return meltfactors 
     
     
     
+test = generate_meltfactors(debris_m,cleaniceM,peakM,peakthickness_ref,transition_ref)
     
-    
-    
-    
-    
-    
+# test it with the actual rounce et al. debris map
+'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\DebrisThickness'
