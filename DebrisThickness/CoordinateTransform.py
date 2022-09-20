@@ -303,7 +303,7 @@ plt.yticks(x3,OG_DR_partialdebrislabels, fontsize=14)
 plt.ylabel('Debris Thickness (m)',fontsize=14)
 plt.xlabel('Area (km$^2$)',fontsize=14)
 plt.tight_layout()
-#plt.savefig('DRdebris_thickness_vs_are.png',bbox_inches='tight')
+plt.savefig('DRdebris_thickness_vs_area.png',bbox_inches='tight')
 
 def Get_debris_lists_for_plotting(debrisarray,elevationarray):
     # make list of elevation and debris
@@ -486,7 +486,7 @@ def InverseDistance_Interp(searchradius,p,original_domain='CoordinateTablev2.csv
 
     return IDWA_map
 
-IDWAdebmap = InverseDistance_Interp(200,1)
+IDWAdebmap = InverseDistance_Interp(100,1)
 
 nodeblocs = np.where(IDWAdebmap == 0)
 IDWAdebmap[nodeblocs] = np.nan
@@ -502,27 +502,34 @@ plt.tight_layout()
 plt.title('Inverse Distance Weighted Average Resampling',fontsize=14)
 #plt.savefig('IDWA_resampled_debris.png',bbox_inches = 'tight')
 
-# INTERPOLATION METHOD 3: SPLINE INTERPOLATION ################################
+IDWA_debristhickness_list = Get_debris_lists_for_plotting(IDWAdebmap,Zgrid)[0]
+IDWA_debriselevation_list = Get_debris_lists_for_plotting(IDWAdebmap,Zgrid)[1]
+
+IDWA_volume_per_bin = DebrisVol_by_Elevation(IDWA_debristhickness_list,IDWA_debriselevation_list,200)[0]
+IDWA_thickness_per_bin = DebrisVol_by_Elevation(IDWA_debristhickness_list,IDWA_debriselevation_list,200)[1]
+
+IDWA_fulldebrisarea = debris_area_histogram(IDWA_debristhickness_list,0.2)[0]
+IDWA_partialdebrisarea = debris_area_histogram(IDWA_debristhickness_list,0.2)[2]
+
+# INTERPOLATION METHOD 3: SPLINE INTERPOLATION ###############################
 
 
 
 
 
-#
-#
-#
-#
-#
+
+
 # MASTER COMPARISON PLOT !!
 x = np.arange(len(zlabels))
-width = 0.4
+width = 0.25
 plt.figure(figsize=(10,6))
 plt.suptitle('Original DR Debris Map vs Nearest Neighbour Resampling',fontsize=14,y=1.01)
 plt.subplot(1,2,1)
 plt.title('Volume of Debris vs Elevation', fontsize=14)
-#plt.bar(x-width, tmean_shift30, width,color='gold')
-plt.barh(x-(0.5*width), OG_DR_volume_per_bin, width,color='turquoise')
-plt.barh(x+(0.5*width), NN_volume_per_bin, width,color='red')
+#plt.bar(x-0, tmean_shift30, width,color='gold')
+plt.barh(x-width, OG_DR_volume_per_bin, width,color='turquoise')
+plt.barh(x+width, NN_volume_per_bin, width,color='red')
+plt.barh(x, IDWA_volume_per_bin, width, color='orange')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
 plt.yticks(x,zlabels, fontsize=14)
 plt.ylabel('Elevation (m)',fontsize=14)
@@ -530,8 +537,9 @@ plt.xlabel('Volume of Debris (km$^3$)',fontsize=14)
 plt.subplot(1,2,2)
 plt.title('Mean Debris Thickness vs Elevation', fontsize=14)
 #plt.bar(x-width, tmean_shift30, width,color='gold')
-plt.barh(x-(0.5*width), OG_DR_thickness_per_bin, width,color='turquoise')
-plt.barh(x+(0.5*width), NN_thickness_per_bin, width,color='red')
+plt.barh(x-width, OG_DR_thickness_per_bin, width,color='turquoise')
+plt.barh(x+width, NN_thickness_per_bin, width,color='red')
+plt.barh(x, IDWA_thickness_per_bin, width, color='orange')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
 plt.yticks(x,zlabels, fontsize=14)
 plt.ylabel('Elevation (m)',fontsize=14)
@@ -541,13 +549,14 @@ plt.tight_layout()
 
 x2 = np.arange(len(OG_DR_fulldebrislabels))
 x3 = np.arange(len(OG_DR_partialdebrislabels))
-width = 0.4
+width = 0.25
 plt.figure(figsize=(10,6))
 plt.suptitle('Area vs Debris Thickness', fontsize=14,y=1.1)
 plt.subplot(1,2,1)
 #plt.bar(x-width, tmean_shift30, width,color='gold')
-plt.barh(x2+(0.5*width), OG_DR_fulldebrisarea, width,color='turquoise')
-plt.barh(x2-(0.5*width), NN_fulldebrisarea, width,color='red')
+plt.barh(x2-width, OG_DR_fulldebrisarea, width,color='turquoise')
+plt.barh(x2+width, NN_fulldebrisarea, width,color='red')
+plt.barh(x2, IDWA_fulldebrisarea, width, color='orange')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
 plt.yticks(x2,OG_DR_fulldebrislabels, fontsize=14)
 plt.ylabel('Debris Thickness (m)',fontsize=14)
