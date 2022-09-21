@@ -599,12 +599,36 @@ for i in range(0,len(NNdebmap)):
 
 # PLOT THE TWO DIFFERENT GRIDS! COMPARE
 plt.figure(figsize=(8,5))
-plt.scatter(easting_EY,northing_EY,color='k')
+plt.scatter(easting_EY,northing_EY,color='k',s=10)
 #plt.scatter(easting_EY,northing_EY,c=elevation_EY, cmap="RdYlBu")
 #legend = plt.colorbar()
-plt.scatter(easting_DR,northing_DR,color='turquoise')
-plt.scatter(easting_NN,northing_NN,color='red')
+plt.scatter(easting_DR,northing_DR,color='turquoise',s=10)
+plt.scatter(easting_NN,northing_NN,color='red',s=10)
 plt.legend(['EY Debris Cells','DR Debris Cells','NN resampled cells'],fontsize=12)
 plt.xlabel('Easting (m)',fontsize=12)
 plt.ylabel('Northing (m)',fontsize=12)
-#plt.savefig('EY_DR_debriscomparison.png')
+#plt.savefig('EY_DR_NN_debriscomparison.png')
+
+easting_IDWA = []
+northing_IDWA = []
+elevation_IDWA = []
+for i in range(0,len(IDWAdebmap)):
+    for j in range(0,len(IDWAdebmap[1])):
+        if np.isnan(IDWAdebmap[i,j]):
+            pass
+        else:
+            easting_IDWA.append(EY_Xgrid[i,j])
+            northing_IDWA.append(EY_Ygrid_flipped[i,j])
+            elevation_IDWA.append(Zgrid[i,j])
+
+# PLOT THE TWO DIFFERENT GRIDS! COMPARE
+plt.figure(figsize=(8,5))
+plt.scatter(easting_EY,northing_EY,color='k',s=10)
+#plt.scatter(easting_EY,northing_EY,c=elevation_EY, cmap="RdYlBu")
+#legend = plt.colorbar()
+plt.scatter(easting_DR,northing_DR,color='turquoise',s=10)
+plt.scatter(easting_IDWA,northing_IDWA,color='orange',s=10)
+plt.legend(['EY Debris Cells','DR Debris Cells','NN resampled cells'],fontsize=12)
+plt.xlabel('Easting (m)',fontsize=12)
+plt.ylabel('Northing (m)',fontsize=12)
+#plt.savefig('EY_DR_IDWA_debriscomparison.png')
