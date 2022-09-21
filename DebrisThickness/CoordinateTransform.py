@@ -382,6 +382,13 @@ def NearestNeighbourInterp(original_domain='CoordinateTablev2.csv',target_domain
                 closest_cell = np.where(distance == np.nanmin(distance))
                 distance_to_NN.append(np.nanmin(distance))
                 nearestneighbour_debris = debristhickness_array[closest_cell]
+                #try adding a contigency that if the 1st closest neighbour is NaN, look for the second closest neighbour:
+                if np.isnan(nearestneighbour_debris):
+                    distance[closest_cell] = 9999
+                    closest_cell = np.where(distance == np.nanmin(distance)) #new closest cell
+                    print('searching for second closest cell: distance = ' + str(np.nanmin(distance)))
+                    nearestneighbour_debris = debristhickness_array[closest_cell]
+                    
                 NN_map[i][j] = nearestneighbour_debris
     
     NN_map[nanlocs] = np.nan
@@ -514,7 +521,7 @@ IDWA_partialdebrisarea = debris_area_histogram(IDWA_debristhickness_list,0.2)[2]
 # INTERPOLATION METHOD 3: SPLINE INTERPOLATION ###############################
 
 
-
+###############################################################################
 
 
 
@@ -531,6 +538,7 @@ plt.barh(x-width, OG_DR_volume_per_bin, width,color='turquoise')
 plt.barh(x+width, NN_volume_per_bin, width,color='red')
 plt.barh(x, IDWA_volume_per_bin, width, color='orange')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.legend(['Orignal debris map (Rounce et al.)','Nearest neighbour resampling','Inverse distance weighted \n average resampling'])
 plt.yticks(x,zlabels, fontsize=14)
 plt.ylabel('Elevation (m)',fontsize=14)
 plt.xlabel('Volume of Debris (km$^3$)',fontsize=14)
@@ -545,7 +553,7 @@ plt.yticks(x,zlabels, fontsize=14)
 plt.ylabel('Elevation (m)',fontsize=14)
 plt.xlabel('Mean Debris Thickness (m)',fontsize=14)
 plt.tight_layout()
-#plt.savefig('DRdebris_volume_thickness_vs_z.png',bbox_inches='tight')
+#plt.savefig('resampleddebris_volume_thickness_vs_z.png',bbox_inches='tight')
 
 x2 = np.arange(len(OG_DR_fulldebrislabels))
 x3 = np.arange(len(OG_DR_partialdebrislabels))
@@ -558,16 +566,45 @@ plt.barh(x2-width, OG_DR_fulldebrisarea, width,color='turquoise')
 plt.barh(x2+width, NN_fulldebrisarea, width,color='red')
 plt.barh(x2, IDWA_fulldebrisarea, width, color='orange')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.legend(['Orignal debris map (Rounce et al.)','Nearest neighbour resampling','Inverse distance weighted \n average resampling'])
 plt.yticks(x2,OG_DR_fulldebrislabels, fontsize=14)
 plt.ylabel('Debris Thickness (m)',fontsize=14)
 plt.xlabel('Area (km$^2$)',fontsize=14)
 plt.subplot(1,2,2)
 #plt.bar(x-width, tmean_shift30, width,color='gold')
-plt.barh(x3+(0.5*width), OG_DR_partialdebrisarea, width,color='turquoise')
-plt.barh(x3-(0.5*width), NN_partialdebrisarea, width,color='red')
+plt.barh(x3-width, OG_DR_partialdebrisarea, width,color='turquoise')
+plt.barh(x3+width, NN_partialdebrisarea, width,color='red')
+plt.barh(x3, IDWA_partialdebrisarea, width, color='orange')
 #plt.bar(x+width, tmean_shift90, width,color='crimson')
+plt.legend(['Orignal debris map (Rounce et al.)','Nearest neighbour resampling','Inverse distance weighted \n average resampling'])
 plt.yticks(x3,OG_DR_partialdebrislabels, fontsize=14)
 plt.ylabel('Debris Thickness (m)',fontsize=14)
 plt.xlabel('Area (km$^2$)',fontsize=14)
 plt.tight_layout()
+#plt.savefig('resampleddebris_thicknessvsarea.png',bbox_inches='tight')
 
+#PLOT THE SPATIAL EXTENT OF THE RESAMPLED DEBRIS MAPS
+
+easting_NN = []
+northing_NN = []
+elevation_NN = []
+for i in range(0,len(NNdebmap)):
+    for j in range(0,len(NNdebmap[1])):
+        if np.isnan(NNdebmap[i,j]):
+            pass
+        else:
+            easting_NN.append(EY_Xgrid[i,j])
+            northing_NN.append(EY_Ygrid_flipped[i,j])
+            elevation_NN.append(Zgrid[i,j])
+
+# PLOT THE TWO DIFFERENT GRIDS! COMPARE
+plt.figure(figsize=(8,5))
+plt.scatter(easting_EY,northing_EY,color='k')
+#plt.scatter(easting_EY,northing_EY,c=elevation_EY, cmap="RdYlBu")
+#legend = plt.colorbar()
+plt.scatter(easting_DR,northing_DR,color='turquoise')
+plt.scatter(easting_NN,northing_NN,color='red')
+plt.legend(['EY Debris Cells','DR Debris Cells','NN resampled cells'],fontsize=12)
+plt.xlabel('Easting (m)',fontsize=12)
+plt.ylabel('Northing (m)',fontsize=12)
+#plt.savefig('EY_DR_debriscomparison.png')
