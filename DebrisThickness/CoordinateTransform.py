@@ -383,11 +383,17 @@ def NearestNeighbourInterp(original_domain='CoordinateTablev2.csv',target_domain
                 distance_to_NN.append(np.nanmin(distance))
                 nearestneighbour_debris = debristhickness_array[closest_cell]
                 #try adding a contigency that if the 1st closest neighbour is NaN, look for the second closest neighbour:
-                if np.isnan(nearestneighbour_debris):
+                if nearestneighbour_debris == 0:
                     distance[closest_cell] = 9999
                     closest_cell = np.where(distance == np.nanmin(distance)) #new closest cell
                     print('searching for second closest cell: distance = ' + str(np.nanmin(distance)))
-                    nearestneighbour_debris = debristhickness_array[closest_cell]
+                    if np.nanmin(distance) < 75:
+                        nearestneighbour_debris = debristhickness_array[closest_cell]
+                        print('Pass! second closest cell: distance = ' + str(np.nanmin(distance)))
+                    else:
+                        nearestneighbour_debris = 0
+                        print('Fail! second closest cell: distance = ' + str(np.nanmin(distance)))
+                    
                     
                 NN_map[i][j] = nearestneighbour_debris
     
@@ -493,7 +499,7 @@ def InverseDistance_Interp(searchradius,p,original_domain='CoordinateTablev2.csv
 
     return IDWA_map
 
-IDWAdebmap = InverseDistance_Interp(100,1)
+IDWAdebmap = InverseDistance_Interp(70,1)
 
 nodeblocs = np.where(IDWAdebmap == 0)
 IDWAdebmap[nodeblocs] = np.nan
@@ -603,7 +609,7 @@ plt.scatter(easting_EY,northing_EY,color='k',s=10)
 #plt.scatter(easting_EY,northing_EY,c=elevation_EY, cmap="RdYlBu")
 #legend = plt.colorbar()
 plt.scatter(easting_DR,northing_DR,color='turquoise',s=10)
-plt.scatter(easting_NN,northing_NN,color='red',s=10)
+plt.scatter(easting_NN,northing_NN,color='red',s=1)
 plt.legend(['EY Debris Cells','DR Debris Cells','NN resampled cells'],fontsize=12)
 plt.xlabel('Easting (m)',fontsize=12)
 plt.ylabel('Northing (m)',fontsize=12)
@@ -628,7 +634,30 @@ plt.scatter(easting_EY,northing_EY,color='k',s=10)
 #legend = plt.colorbar()
 plt.scatter(easting_DR,northing_DR,color='turquoise',s=10)
 plt.scatter(easting_IDWA,northing_IDWA,color='orange',s=10)
-plt.legend(['EY Debris Cells','DR Debris Cells','NN resampled cells'],fontsize=12)
+plt.legend(['EY Debris Cells','DR Debris Cells','IDWA resampled cells (radius = 70m)'],fontsize=12)
 plt.xlabel('Easting (m)',fontsize=12)
 plt.ylabel('Northing (m)',fontsize=12)
 #plt.savefig('EY_DR_IDWA_debriscomparison.png')
+
+
+# make boolean version of the chosen debris map ########
+#which map is better? NN or IDWA:
+#answer = NN (IDWA has holes in debris cover at the terminus)
+def booleandebmap(debmap):
+    '''
+    make a debris map that has the same exact shape and debris covered cells
+    as the variable thickness map, except all debris covered cells are boolean
+    0 (debris) or 1 (no debris)
+    '''
+    
+    debmapbool = np.ones(debmap.shape)
+    deblocs = np.where(debmap >= 0)
+    debmapbool[deblocs] = 0
+    
+    return debmapbool
+
+booleanmap = booleandebmap(NNdebmap)
+
+#np.save('debmap_variableh.npy',NNdebmap)
+#np.save('debmap_boolean.npy',booleanmap)
+
