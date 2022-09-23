@@ -343,7 +343,7 @@ debris_m[nanlocs3] = np.nan
 
 plt.figure(figsize=(8,5))
 #plt.contourf(debristhickness_array, cmap = 'PuOr', levels = np.round(np.linspace(0,3,10),1))
-plt.contourf(np.flipud(debris_m), cmap = 'PuOr', levels = np.linspace(0,0.1,20))
+plt.contourf(np.flipud(debris_m), cmap = 'PuOr', levels = np.linspace(0,1,3))
 #plt.contourf((debris_m[:180,100:]), cmap = 'PuOr', levels = np.round(np.linspace(0,1,3),1))
 legend = plt.colorbar()
 legend.ax.set_ylabel('Debris True / False', rotation=270,fontsize=14,labelpad=20)
@@ -351,10 +351,6 @@ plt.tight_layout()
 plt.title('Kaskawulsh Boolean Debris Map',fontsize=14)
 #plt.savefig(os.path.join(Path2files,'KW_booleandebris.png'),bbox_inches = 'tight')
 
-#randomly populate the debris mask with thickness values
-for x in range(len(debris_m)):
-    for y in range(len(debris_m[0])):
-        debris_m[x,y] = (np.random.random())
     
 def generate_meltfactors(debrismask,cleaniceM,peakM,peakM_thickness,transition_thickness,b0 = 11.0349260206858,k = 1.98717418666925):
     '''
@@ -409,4 +405,4 @@ def generate_meltfactors(debrismask,cleaniceM,peakM,peakM_thickness,transition_t
 test = generate_meltfactors(debris_m,cleaniceM,peakM,peakthickness_ref,transition_ref)
     
 # test it with the actual rounce et al. debris map
-'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\DebrisThickness'
+debmap = np.load('F:\Mass Balance Model\Kaskawulsh-Mass-Balance\DebrisThickness\debmap_variableh.npy')
