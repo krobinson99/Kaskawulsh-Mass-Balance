@@ -29,35 +29,28 @@ from Model_functions_ver4 import cold_content
 from Model_functions_ver4 import regridXY_something
 from Model_functions_ver4 import get_meanSP
 from Model_functions_ver4 import netcdf_container_gen
-# import debris functions
-sys.path.insert(1,'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/DebrisThickness')
-from DebrisFunctions import MeltFactors
+from Model_functions_ver4 import generate_meltfactors
 # import from the config file
 from MBMnamelist import glacier_id
 from MBMnamelist import params_filename
-from MBMnamelist import start_year
-from MBMnamelist import start_day
-from MBMnamelist import end_year
+from MBMnamelist import start_year, start_day, end_year
 from MBMnamelist import debris
 from MBMnamelist import time_step
 from MBMnamelist import Output_path
 from MBMnamelist import Rain_to_snow as R2S
 from MBMnamelist import Refreezing
-from MBMnamelist import T_inputs
-from MBMnamelist import P_inputs
-from MBMnamelist import SR_inputs
+from MBMnamelist import T_inputs, P_inputs, SR_inputs
 from MBMnamelist import Temp_shift
 from MBMnamelist import temp_shift_factor
 from MBMnamelist import Bias_CorrectionT as BC_T
 from MBMnamelist import Bias_CorrectionP as BC_P
 from MBMnamelist import Considering_Catchment
-from MBMnamelist import transition_thickness as tt
+from MBMnamelist import transition_thickness
 from MBMnamelist import Tuning
 from MBMnamelist import param_total
-from MBMnamelist import debris_treatment
-from MBMnamelist import debris_thickness_map
+from MBMnamelist import debris_treatment, debris_thickness_map
+from MBMnamelist import cleaniceM, peakM, peakM_thickness, transition_thickness, b0, k
 
-#from MBMnamelist import *
 
 #Initialize model (get parameterizations from the namelist)
 sim = -1
@@ -153,22 +146,27 @@ nanlocs = np.where(np.isnan(Zgrid))
 
 #Setup debris mask for use in radiation parameters
 if debris == True:
+    #if debris_treatment == 'Boolean': #EMY MAP VERSION
+        #debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+        #debris_m = np.zeros(debris_grid.shape)
+        #debris_m[np.where(debris_grid > 100)] = 0.
+        #debris_m[np.where(debris_grid <= 100)] = 1.
     if debris_treatment == 'Boolean':
-        debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
-        debris_m = np.zeros(debris_grid.shape)
-        debris_m[np.where(debris_grid > 100)] = 0.
-        debris_m[np.where(debris_grid <= 100)] = 1.
+        print('loading boolean debris map')
+        debris_m = np.load(debris_thickness_map) #ones on ice, 0's on debris
+        debris_m[nanlocs] = np.nan
     elif debris_treatment == 'Variable Thickness':
         #EDIT!! get melt factor array
+        print('loading debris thickness map, generating melt factors')
         debristhickness_array = np.load(debris_thickness_map)
-        subdebrismeltfactors = MeltFactors(debristhickness_array,tt)
-        debris_m = np.ones(Zgrid.shape)
+        debris_m = generate_meltfactors(debristhickness_array,cleaniceM,peakM,peakM_thickness,transition_thickness,b0 = 11.0349260206858,k = 1.98717418666925)
         debris_m[nanlocs] = np.nan 
-        print('edit!!!!!!!!!!!!!!!!!')
+        print('edit!!!!!!!!!!!!!!!!! need vals for cleanice and tt etc')
     else:
-        print('Invalid debris treatment option')
+        print('Invalid debris treatment option. Must be Boolean or Variable Thickness')
 else:
-    debris_m = np.ones(Zgrid.shape)
+    print('No debris')
+    debris_m = np.ones(Zgrid.shape) #no debris. 
     debris_m[nanlocs] = np.nan 
 
 
@@ -417,7 +415,7 @@ while sim<(len(MF_p)-1):
             
             #Multiply ice melt in debris covered cells by the melt enhancement factors
             if debris_treatment == 'Variable Thickness':
-                Icemelt = Icemelt * subdebrismeltfactors
+                Icemelt = Icemelt * debris_m
             else:
                 pass
             
