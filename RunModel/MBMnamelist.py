@@ -16,24 +16,37 @@ Considering_Catchment = False #are we simulating the whole catchment? (True) or 
 
 #parameterizations
 #debris
+###############################################################################################################
 debris = True  #turn debris on or off
 debris_treatment = 'Boolean' # or 'Variable Thickness'
+deb_uncertainty_test_peakMthickness = False #leave off (False) if using ref value only
+deb_uncertainty_test_transitionthickness = False #leave off (False) if using ref value only
+###############################################################################################################
+
+#don't edit these settings unless changing a reference value or path, otherwise keep the same for all simulations
+###############################################################################################################
+b0 = 11.0349260206858 #b0 and k are params fitted to KW from Rounce et al. (2021)
+k = 1.98717418666925 
 cleaniceM = 2.0277000000000003 #observed dirty ice melt #2.9200183038347 (DR) #m w.e.
 peakM = 2.1717000000000004 #observed peak melt #6.62306028549649 (DR) #m w.e.
-peakM_thickness = 0.006 # m (reference value)
-peakthickness_uncertainty = 0.003
+peakM_thickness_ref = 0.006 # m (reference value)
+transition_thickness_ref = 0.019 #m (reference value)
 
-transition_thickness = 0.019 #m (reference value)
-transitionthickness_uncertainty = 0.007
-
-b0 = 11.0349260206858 #b0 and k are params fitted to KW from Rounce et al. (2021)
-k = 1.98717418666925
+if deb_uncertainty_test_peakMthickness == True:
+    peakthickness_uncertainty = 0.003
+else:
+    peakthickness_uncertainty = 0
+    
+if deb_uncertainty_test_transitionthickness == True:
+    transitionthickness_uncertainty = 0.007
+else:
+    transitionthickness_uncertainty = 0
 
 if debris_treatment == 'Boolean':
     debris_thickness_map = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\debmap_boolean.npy' #path to map 
 elif debris_treatment == 'Variable Thickness': 
     debris_thickness_map = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\debmap_variableh.npy' #path to map 
-#transition_thickness = 0.04 #transition between melt-enhancing and melt-reducing debris, in meters
+###############################################################################################################
 
 Rain_to_snow = 1   #set the rain to snow threshold (line ~132)
 Refreezing = True
