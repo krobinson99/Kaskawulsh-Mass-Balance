@@ -45,12 +45,11 @@ from MBMnamelist import temp_shift_factor
 from MBMnamelist import Bias_CorrectionT as BC_T
 from MBMnamelist import Bias_CorrectionP as BC_P
 from MBMnamelist import Considering_Catchment
-from MBMnamelist import transition_thickness
 from MBMnamelist import Tuning
 from MBMnamelist import param_total
 from MBMnamelist import debris_treatment, debris_thickness_map
-from MBMnamelist import cleaniceM, peakM, peakM_thickness, transition_thickness, b0, k
-
+from MBMnamelist import cleaniceM, peakM, peakM_thickness_ref, transition_thickness_ref, b0, k
+from MBMnamelist import peakthickness_uncertainty, transitionthickness_uncertainty
 
 #Initialize model (get parameterizations from the namelist)
 sim = -1
@@ -66,7 +65,7 @@ Temp_input_path = T_inputs
 Precip_input_path = P_inputs
 Srad_input_path = SR_inputs
 
-#Load parameters 
+#Load radiation parameters 
 if Tuning == True:
     aice_p = np.zeros(param_total)
     asnow_p = np.zeros(param_total)
@@ -94,6 +93,17 @@ else:
     aice_p = params[0,:]
     asnow_p = params[1,:]
     MF_p = params[2,:]
+
+#Load debris parameters
+peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
+while peakM_thickness < 0:
+    peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
+    
+transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
+while transition_thickness < 0: 
+    transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
+
+np.savetxt(os.path.join(OUTPUT_PATH,'debris_params.csv'), [peakM_thickness,transition_thickness])
 
 ## set up time range ###
 years = []
@@ -159,7 +169,7 @@ if debris == True:
         #EDIT!! get melt factor array
         print('loading debris thickness map, generating melt factors')
         debristhickness_array = np.load(debris_thickness_map)
-        debris_m = generate_meltfactors(debristhickness_array,cleaniceM,peakM,peakM_thickness,transition_thickness,b0 = 11.0349260206858,k = 1.98717418666925)
+        debris_m = generate_meltfactors(debristhickness_array,cleaniceM,peakM,peakM_thickness,transition_thickness,b0,k)
         debris_m[nanlocs] = np.nan 
         print('edit!!!!!!!!!!!!!!!!! need vals for cleanice and tt etc')
     else:
