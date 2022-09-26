@@ -14,14 +14,18 @@ start_day = 1
 glacier_id = 'kaskonly'       #points to a specific glacier outline --> dont change this: it s the same for the kaskawulsh inputs and catchment inputs
 Considering_Catchment = False #are we simulating the whole catchment? (True) or just the Kask glacier (False)
 
-#physics/dynamics
+#parameterizations
+#debris
 debris = True  #turn debris on or off
-#debris_map = 'DR' # or 'EY'
 debris_treatment = 'Boolean' # or 'Variable Thickness'
-cleaniceM = 2.9200183038347 #m w.e.
-peakM = 6.62306028549649 #m w.e.
-peakM_thickness = 0.006 #m
-transition_thickness = 0.019 #m
+cleaniceM = 2.0277000000000003 #observed dirty ice melt #2.9200183038347 (DR) #m w.e.
+peakM = 2.1717000000000004 #observed peak melt #6.62306028549649 (DR) #m w.e.
+peakM_thickness = 0.006 # m (reference value)
+peakthickness_uncertainty = 0.003
+
+transition_thickness = 0.019 #m (reference value)
+transitionthickness_uncertainty = 0.007
+
 b0 = 11.0349260206858 #b0 and k are params fitted to KW from Rounce et al. (2021)
 k = 1.98717418666925
 
@@ -38,7 +42,7 @@ temp_shift_factor = 0 # what is the temperature shift. + is an increase in temp,
 Bias_CorrectionT = True #are you using bias corrected temp files as input (True) or not (False)
 Bias_CorrectionP = True #are you using bias corrected temp files as input (True) or not (False)
 
-Tuning = True
+Tuning = False
 param_total = 3 #how many parameter combinations to generate for the tuning process
 
 #file_names
