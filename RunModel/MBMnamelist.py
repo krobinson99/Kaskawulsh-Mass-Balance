@@ -18,7 +18,7 @@ Considering_Catchment = False #are we simulating the whole catchment? (True) or 
 #debris
 ###############################################################################################################
 debris = True  #turn debris on or off
-debris_treatment = 'Boolean' # or 'Variable Thickness'
+debris_treatment = 'Variable Thickness' # 'Boolean' or 'Variable Thickness'
 deb_uncertainty_test_peakMthickness = False #leave off (False) if using ref value only
 deb_uncertainty_test_transitionthickness = False #leave off (False) if using ref value only
 ###############################################################################################################
@@ -56,16 +56,17 @@ Bias_CorrectionT = True #are you using bias corrected temp files as input (True)
 Bias_CorrectionP = True #are you using bias corrected temp files as input (True) or not (False)
 
 Tuning = False
-param_total = 3 #how many parameter combinations to generate for the tuning process
+param_total = 10 #how many parameter combinations to generate for the tuning process
 
 #file_names
 #Input_path = .../.../… #tell the model where to find the input files
 params_filename = 'final_params_deb.csv' #tell the model which file contains the parameters we want to use for this run
 #where are the downscaled/bias corrected inputs stored
 #T_inputs = 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs'
-T_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs\\Kaskonly_R2S=1'
-P_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs\\Kaskonly_R2S=1'
+T_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+P_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
 SR_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
 #File_glacier_in = ?? #need to change so that debris/non-debris case is more clear
-Output_path = 'D:\TuningOutputs\Test_0628' #tell the model where to put the output netcdf files
+Output_path = 'D:\Model Runs\Debris Tests\VariableThicknessTest_2007-2018' #tell the model where to put the output netcdf files
+ref_file_path = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Ref_files'
 File_sufix = ".nc"
