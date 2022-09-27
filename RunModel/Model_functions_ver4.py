@@ -997,24 +997,27 @@ def MB_vectorized(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, CC_in):
 
 
     
-def MB_vectorized_discreteSnI(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, Topo, CC_in):   
+def MB_vectorized_discreteSnI(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, Topo, CC_in, meltfactors, debtreatment):   
 
 
-    Melt_list = np.empty(Thour.shape) #will track NET ablation (total melt - refreezing)
+    Melt_list = np.zeros(Thour.shape) #will track NET ablation (total melt - refreezing)
     #Total_ablation_list = np.empty(Thour.shape) #adding a new list to track TOTAL MELT
-    Snowmelt_list = np.empty(Thour.shape)
-    Icemelt_list = np.empty(Thour.shape)
-    Leftover_list = np.empty(Thour.shape)
-    MBhour = np.empty(Thour.shape)
+    Snowmelt_list = np.zeros(Thour.shape)
+    Icemelt_list = np.zeros(Thour.shape)
+    Leftover_list = np.zeros(Thour.shape)
+    MBhour = np.zeros(Thour.shape)
     nan_locs = np.isnan(Thour)
-    CC_out = np.empty(Thour.shape)
+    CC_out = np.zeros(Thour.shape)
 
     #ETIM melt model and snow tracker  
     
     #get indices of ice and snowmelt based on snow melt delta and T
     Melt_snow = (MF + asnow * SRhour) * Thour
     DDsnow = (Leftover_in + CC_in)/(MF + asnow * SRhour)
-    Melt_ice = (MF + aice * SRhour) * (Thour - DDsnow)
+    if debtreatment == 'Boolean':
+        Melt_ice = ((MF + aice * SRhour) * (Thour - DDsnow)) #aice should already be zero in debris covered cells
+    else:
+        Melt_ice = ((MF + aice * SRhour) * (Thour - DDsnow)) * meltfactors
     #Melt_ice_totalablation = (MF + aice * SRhour) * (Thour)
     
     #get indices of ice and snowmelt based on snow melt delta and T
