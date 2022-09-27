@@ -37,7 +37,7 @@ from MBMnamelist import params_filename
 from MBMnamelist import start_year, start_day, end_year
 from MBMnamelist import debris
 from MBMnamelist import time_step
-from MBMnamelist import Output_path
+from MBMnamelist import Output_path, ref_file_path
 from MBMnamelist import Rain_to_snow as R2S
 from MBMnamelist import Refreezing
 from MBMnamelist import T_inputs, P_inputs, SR_inputs
@@ -175,7 +175,6 @@ if debris == True:
         debristhickness_array = np.load(debris_thickness_map)
         debris_m = generate_meltfactors(debristhickness_array,cleaniceM,peakM,peakM_thickness,transition_thickness,b0,k)
         debris_m[nanlocs] = np.nan 
-        print('edit!!!!!!!!!!!!!!!!! need vals for cleanice and tt etc')
     else:
         print('Invalid debris treatment option. Must be Boolean or Variable Thickness')
 else:
@@ -185,7 +184,7 @@ else:
 
 
 #open a writeout file to keep track of the step the model is on
-rsl_file = open('writeout.txt','w')
+rsl_file = open(os.path.join(Output_path,'writeout.txt'),'w')
 print('number of simulations in total = ' + str(len(MF_p)))
 # begin looping through each simulation
 while sim<(len(MF_p)-1):
@@ -196,15 +195,15 @@ while sim<(len(MF_p)-1):
     
     #counter for simulations with tested param combinations
     sim+=1
-    #load param combinations for simulation    
-    aice = aice_p[sim]
-    asnow = asnow_p[sim]
-    MF = MF_p[sim]
     
-    aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying my debris_m makes aice = 0 in debris covered cells
+    if debris_treatment == 'Boolean':
+        aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying by debris_m (boolean case) makes aice = 0 in debris covered cells
+    elif debris_treatment == 'Variable Thickness':
+        aice_a = np.ones(Zgrid.shape) * aice_p[sim]
+        
     asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
     MF_a = np.ones(Zgrid.shape) * MF_p[sim]
-    MF_a[nanlocs] = np.nan #NEW LINE!! as above, trying to fix MB for non debris case
+    MF_a[nanlocs] = np.nan 
     
     for y in years:
         current_year = y
@@ -292,11 +291,6 @@ while sim<(len(MF_p)-1):
         
         
         # removed glacier vectors from this section
-        
-        #aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying my debris_m makes aice = 0 in debris covered cells
-        #asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
-        #MF_a = np.ones(Zgrid.shape) * MF_p[sim]
-        #MF_a[nanlocs] = np.nan #NEW LINE!! as above, trying to fix MB for non debris case
         
         if considering_catchment == True:
             Topo_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, sfc_type)
@@ -417,7 +411,7 @@ while sim<(len(MF_p)-1):
             
 
             ###calculate mass balance
-            MB, Melt, Leftover_list_out, Icemelt, Snowmelt, CC_out = MB_vectorized_discreteSnI(curT, curP, curS, Leftover_list, asnow_a, aice_a, MF_a, Topo, CC_list) #NEW LINE!! MF changed to MF_a
+            MB, Melt, Leftover_list_out, Icemelt, Snowmelt, CC_out = MB_vectorized_discreteSnI(curT, curP, curS, Leftover_list, asnow_a, aice_a, MF_a, Topo, CC_list, debris_m, debris_treatment) #NEW LINE!! MF changed to MF_a
                 
             deltaCC = CC_list - CC_out #calculate the change in CC over one time step
             #NEW LINE BELOW!!
@@ -428,10 +422,11 @@ while sim<(len(MF_p)-1):
                 pass
             
             #Multiply ice melt in debris covered cells by the melt enhancement factors
-            if debris_treatment == 'Variable Thickness':
-                Icemelt = Icemelt * debris_m
-            else:
-                pass
+            # this is already done in the MB_vectorized function above ^
+            #if debris_treatment == 'Variable Thickness':
+                #Icemelt = Icemelt * debris_m
+            #else:
+                #pass
             
             ###update leftoverlists
             Leftover_list = Leftover_list_out  
@@ -465,13 +460,13 @@ while sim<(len(MF_p)-1):
             np.save(output, MBhour)
 
         else:
-            netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year)
-            netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year)
-            netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year)
-            netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year)
-            netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year)
-            netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year)
-            netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year)
+            netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
 
         inT.close()
         inP.close()
