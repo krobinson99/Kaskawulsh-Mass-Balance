@@ -30,6 +30,7 @@ from Model_functions_ver4 import regridXY_something
 from Model_functions_ver4 import get_meanSP
 from Model_functions_ver4 import netcdf_container_gen
 from Model_functions_ver4 import generate_meltfactors
+from Model_functions_ver4 import write_config_file
 # import from the config file
 from MBMnamelist import glacier_id
 from MBMnamelist import params_filename
@@ -50,6 +51,9 @@ from MBMnamelist import param_total
 from MBMnamelist import debris_treatment, debris_thickness_map
 from MBMnamelist import cleaniceM, peakM, peakM_thickness_ref, transition_thickness_ref, b0, k
 from MBMnamelist import peakthickness_uncertainty, transitionthickness_uncertainty
+
+# save the namelist that was used here into a txt file that will go in the outputs directory
+write_config_file(Output_path,"MBMnamelist.py")
 
 #Initialize model (get parameterizations from the namelist)
 sim = -1
