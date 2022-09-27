@@ -1245,4 +1245,12 @@ def generate_meltfactors(debrismask,cleaniceM,peakM,peakM_thickness,transition_t
 
     return meltfactors 
 
-    
+def write_config_file(outputpath,scriptname):
+    with open(scriptname) as f:
+        data = f.read()
+        f.close()
+
+    txtfile = os.path.join(outputpath,"MBMnamelist.txt")    
+    with open(txtfile, mode="w") as f:
+        f.write(data)
+        f.close()
