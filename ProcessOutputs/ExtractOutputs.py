@@ -12,6 +12,8 @@ from matplotlib import pyplot as plt
 from netCDF4 import Dataset
 #import h5py
 import os
+import sys
+sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
 
 #---------------------------------------------------------------------
@@ -23,7 +25,7 @@ Calculate_NetAblation = False
 Calculate_DailyNetAblation = False
 
 Calculate_Accumulation = False
-Calculate_DailyAccumulation = True
+Calculate_DailyAccumulation = False
 Calculate_Monthly_Distributed_Snow = False
 
 Calculate_Refreezing = False
@@ -33,12 +35,12 @@ Calculate_Rain = False
 Calculate_DailyRain = False
 Calculate_Monthly_Distributed_Rain = False
 
-Calculate_DailyIceMelt = False
-Calculate_Distributed_IceMelt = False
-Calculate_DailySnowMelt = False
-Calculate_Distributed_SnowMelt = False
+Calculate_DailyIceMelt = True
+Calculate_Distributed_IceMelt = True
+Calculate_DailySnowMelt = True
+Calculate_Distributed_SnowMelt = True
 
-Table_of_MBvalues = False
+Table_of_MBvalues = True
 Print_all_runmeans = False
 
 Calculate_distributed_temp = True
@@ -57,11 +59,10 @@ Calculate_distributed_NARR_precip_withBC = False
 
 # inputs
 #where should the script get the model outputs from:
-FILEPATH = 'F:\\Mass Balance Model\\OUTPUTS\\Diagnostic\\DebrisFree'
-File_glacier_in = 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs\\kaskonly.txt'
-Case = 'DiagnosticDF'
+FILEPATH = 'D:\Model Runs\Debris Tests\VariableThicknessTest_2007-2018'
+File_glacier_in = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\kaskonly.txt'
 # where should the outputs of this script be stored
-OUTPUT_PATH =  'F:\\Mass Balance Model\\OUTPUTS\\Diagnostic\\DebrisFree'
+OUTPUT_PATH =  'D:\Model Runs\Debris Tests\VariableThicknessTest_2007-2018\ProcessedOutputs'
 NARR_PATH = 'F:\Mass Balance Model\BiasCorrectedInputs\Kaskonly_R2S=1'
 #'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs'
 domain = 'kaskonly'
@@ -71,7 +72,7 @@ start_year = 2006
 end_year = 2018
 
 # params
-Params_file = 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs\\final_params_deb.csv'
+Params_file = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/final_params_deb.csv'
 Catchment = False
 
 years = []
@@ -90,9 +91,9 @@ if Catchment == True:
     Iy = glacier[:,5] 
     Ih = glacier[:,6] 
 else:
-    Ix = glacier[:,2]
-    Iy = glacier[:,3] 
-    Ih = glacier[:,1]         
+    Ix = glacier[:,3] 
+    Iy = glacier[:,4] 
+    Ih = glacier[:,2]        
         
 Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
 
@@ -184,7 +185,7 @@ if Calculate_Mean_MB == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunMBs_' + Case + '.npy'
+    out_run_means = 'allrunMBs.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Mean MB calculated for all runs: Outputs are saved in: '+ str(out_allruns))
@@ -202,7 +203,7 @@ if Print_all_runmeans == True:
         meanMBx = np.nanmean(runMB,axis=1)
         #print(meanMBx.shape)
         meanMBy = np.nanmean(meanMBx,axis = 1)
-        print(meanMBy)
+        #print(meanMBy)
         allyearmeans.append(np.nanmean(meanMBy))
         
     
@@ -257,7 +258,7 @@ if Calculate_NetAblation == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunNetMelts_' + Case + '.npy'
+    out_run_means = 'allrunNetMelts.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Net Melt calculated for all runs: Outputs are saved in: '+ str(out_allruns))
@@ -308,7 +309,7 @@ if Calculate_Accumulation == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunAccumulations_' + Case + '.npy'
+    out_run_means = 'allrunAccumulations.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Accumulation calculated for all runs: Outputs are saved in: '+ str(out_allruns))
@@ -359,7 +360,7 @@ if Calculate_Rain == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunRains_' + Case + '.npy'
+    out_run_means = 'allrunRains.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Rain calculated for all runs: Outputs are saved in: '+ str(out_allruns))
@@ -410,7 +411,7 @@ if Calculate_Refreezing == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunRefreezings_' + Case + '.npy'
+    out_run_means = 'allrunRefreezings.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Refreezing calculated for all runs: Outputs are saved in: '+ str(out_allruns))
@@ -641,7 +642,7 @@ if Calculate_DailyRefreezing == True:
             #MB_empty_container[np.where(np.asarray(years) == year-1),:,:] = N_MB # np.asarray Converts the input to an array.
             Yearly_NetMelt_container[sim,:] = Daysum_meany
         
-        out_file_MB = 'Refreezing_' + str(Case) + '_' + str(year) + '.npy'
+        out_file_MB = 'Refreezing_' + str(year) + '.npy'
         MB_out_path = os.path.join(OUTPUT_PATH,out_file_MB)  
         np.save(MB_out_path, Yearly_NetMelt_container) #results in a file caled Net_MB1.npy for each simulation
     
@@ -651,6 +652,7 @@ else:
     
 
 if Table_of_MBvalues == True:
+    print('Calculating table of MB values')
     
     # Set up empty array to store all mean MB values in:
     MB_values = np.zeros((len(aice) + 1,len(aice) + 1))
@@ -662,7 +664,6 @@ if Table_of_MBvalues == True:
         sim += 1
         year += 1
     
-    FILEPATH = 'F:\\Mass Balance Model\\OUTPUTS\\BaselineDebris'
     def MB_byYearandSim(year,sim):
         # Import the model output file for a specific year and simulation
         MB_file_name = 'MB' + str(year) + str(sim) + '.nc'
@@ -705,6 +706,8 @@ if Table_of_MBvalues == True:
         
         smean = round(np.mean(MB_Table[1:,i]),2)
         sim_means.append(smean)
+else:
+    pass
 
 #---------------------------------------------------------------------------------
     
@@ -1083,7 +1086,7 @@ if Calculate_Distributed_IceMelt == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunIceMelts_' + Case + '.npy'
+    out_run_means = 'allrunIceMelts.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Ice Melt calculated for all runs: Outputs are saved in: '+ str(out_allruns))
@@ -1140,7 +1143,7 @@ if Calculate_Distributed_SnowMelt == True:
         allruns_MB[sim,:,:] = run_mean_MB
         
     #save output of run means
-    out_run_means = 'allrunSnowMelts_' + Case + '.npy'
+    out_run_means = 'allrunSnowMelts.npy'
     out_allruns = os.path.join(OUTPUT_PATH,out_run_means)
     np.save(out_allruns, allruns_MB)
     print('Snow Melt calculated for all runs: Outputs are saved in: '+ str(out_allruns))
