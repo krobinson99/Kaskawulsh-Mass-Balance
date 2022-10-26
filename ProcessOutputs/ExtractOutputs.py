@@ -18,11 +18,11 @@ from Model_functions_ver4 import regridXY_something
 
 #---------------------------------------------------------------------
 # WHAT DO WE WANT THE SCRIPT TO DO:
-Calculate_Mean_MB = False # calculate mean mass balance across all runs: only run this section if you don't already have an 'allrunMBs_Case' file
+Calculate_Mean_MB = True # calculate mean mass balance across all runs: only run this section if you don't already have an 'allrunMBs_Case' file
 Calculate_DailyMB = False
 
 Calculate_NetAblation = False
-Calculate_DailyNetAblation = False
+Calculate_DailyNetAblation = True
 
 Calculate_Accumulation = False
 Calculate_DailyAccumulation = False
@@ -32,22 +32,22 @@ Calculate_Refreezing = False
 Calculate_DailyRefreezing = False
 
 Calculate_Rain = False
-Calculate_DailyRain = False
+Calculate_DailyRain = True
 Calculate_Monthly_Distributed_Rain = False
 
 Calculate_DailyIceMelt = True
-Calculate_Distributed_IceMelt = True
+Calculate_Distributed_IceMelt = False
 Calculate_DailySnowMelt = True
-Calculate_Distributed_SnowMelt = True
+Calculate_Distributed_SnowMelt = False
 
-Table_of_MBvalues = True
+Table_of_MBvalues = False
 Print_all_runmeans = False
 
-Calculate_distributed_temp = True
-Calculate_daily_temp = True
-Calculate_Monthly_Distributed_Temp = True
+Calculate_distributed_temp = False
+Calculate_daily_temp = False
+Calculate_Monthly_Distributed_Temp = False
 
-Calculate_distributed_NARR_precip = True
+Calculate_distributed_NARR_precip = False
 Calculate_daily_NARR_precip = False
 Calculate_daily_BC_Rain = False
 Calculate_monthly_distributed_NARR_rain = False
@@ -59,10 +59,10 @@ Calculate_distributed_NARR_precip_withBC = False
 
 # inputs
 #where should the script get the model outputs from:
-FILEPATH = 'D:\Model Runs\Debris Tests\VariableThicknessTest_2007-2018'
-File_glacier_in = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\kaskonly.txt'
+FILEPATH = 'D:/Model Runs/Debris Tests/BooleanTest_2007-2018'
+File_glacier_in = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\kaskonly_deb.txt'
 # where should the outputs of this script be stored
-OUTPUT_PATH =  'D:\Model Runs\Debris Tests\VariableThicknessTest_2007-2018\ProcessedOutputs'
+OUTPUT_PATH =  'D:/Model Runs/Debris Tests/BooleanTest_2007-2018/ProcessedOutputs'
 NARR_PATH = 'F:\Mass Balance Model\BiasCorrectedInputs\Kaskonly_R2S=1'
 #'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs'
 domain = 'kaskonly'
@@ -96,13 +96,15 @@ else:
     Ih = glacier[:,2]        
         
 Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+nanlocs = np.isnan(Zgrid)
 
-# ----------------------------------------------------------------------------
-# calculated locations where the value is NaN:
-# nanlocs is an array of True/False booleans with shape (218,328)
-#File_temp_in = os.path.join(NARR_PATH,'Tempkaskonly_BC_2007.nc')
-#File_temp_in = 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs\\Tempkaskonly2007.nc'
-File_temp_in = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC\\Tempkaskonly2011.nc'
+# Get param combination 
+params = np.loadtxt(Params_file)
+aice = params[0,:]
+asnow = params[1,:]
+MF = params[2,:]
+
+File_temp_in = 'F:\Mass Balance Model\BiasCorrectedInputs_old\Kaskonly_R2S=1\Tempkaskonly_BC_2011.nc'
 #File_temp_in = 'F:\\Mass Balance Model\\BiasCorrectedInputs\\Catchment_R2S=1\\Tempkaskonly_BC_2007.nc'
 inT = Dataset(File_temp_in, "r")
 T_var = 'Temperature'
@@ -114,18 +116,6 @@ nanlocs = np.isnan(T_array[0,:,:])
 #T_array_file = 'Temperature_shifted-0.9.npy'
 #Tarray = os.path.join(OUTPUT_PATH,T_array_file)
 #np.save(Tarray, T_array_shifted_distributed)
-
-#---------------------------------------------------------------------------
-# Get param combination 
-params = np.loadtxt(Params_file)
-aice = params[0,:]
-asnow = params[1,:]
-MF = params[2,:]
-
-#just adding this to make the param list shorter -- delete when done. 
-#aice = aice[:23]
-#asnow = asnow[:23]
-#MF = MF[:23]
 
 
 # Creat Zgrid as a .npy array
@@ -725,7 +715,7 @@ if Calculate_DailyIceMelt == True:
             print('starting sim ' + str(sim))
         
             #MB_file_name = 'NetMelt' + str(year) + str(sim) + '.nc'
-            MB_file_name = 'IceMelt' + str(year) + str(sim) + '.nc'
+            MB_file_name = 'IceMelt' + str(int(year)) + str(sim) + '.nc'
             MB_File_in = os.path.join(FILEPATH,MB_file_name)
     
             MB_in = Dataset(MB_File_in, "r")
