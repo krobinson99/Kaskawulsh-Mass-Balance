@@ -42,7 +42,7 @@ for i in range(0,len(lat)):
 
 # get easting, northing, elevation, and accumulation data from Kask model domain
 #load easting, northing, elevation:
-Path2KWoutline = 'F:\Mass Balance Model\RawNARR_Catchment'
+Path2KWoutline = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel'
 File_glacier_in = os.path.join(Path2KWoutline,'kaskonly_deb.txt')
 glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
 Ix = glacier[:,3] 
@@ -637,22 +637,6 @@ plt.tight_layout()
 #plt.savefig('KWTributaries.png',bbox_inches = 'tight')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #####IMPORT THE NASA DATA FROM THE MATLAB FILE#################################
 #matfile = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03_001.mat' #from CSARP_layer
 matfile002 = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/Data_20210510_03_002.mat' #this one came from CSARP_qlook
@@ -692,13 +676,33 @@ surface041 = np.array(data)
 f = h5py.File(matfile041,'r')
 data = f.get('Time') 
 time041 = np.array(data)
+tb = f.get('Truncate_Bins')
+truncate_bins041 = np.array(tb)
 
 e = 1.53
 c = 3e8
 
 #D = (time[0,-1] - np.median(surface))*c/2/np.sqrt(e) 
 
-D002 = (time002[0] - np.median(surface002))*c/2/np.sqrt(e) #closest point to origin = D002[5071] = 2.73 m
-D009 = (time009[0] - np.median(surface009))*c/2/np.sqrt(e) #closest point to origin = D009[2803] = 0.37 m
-D041 = (time041[0] - np.median(surface041))*c/2/np.sqrt(e) #closest point to origin = D041[5967] = 1.32 m
+D002 = (time002[0] - np.median(surface002))*c/2/np.sqrt(e) #closest point to origin = D002[5071] = 0.0273 m
+D009 = (time009[0] - np.median(surface009))*c/2/np.sqrt(e) #closest point to origin = D009[2803] = 0.0037 m
+D041 = (time041[0] - np.median(surface041))*c/2/np.sqrt(e) #closest point to origin = D041[5967] = 0.0132 m
 
+picks_file = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/2021_Alaska_seasonal_snow.mat'
+seasonalsnow = scipy.io.loadmat(picks_file)
+elevs = seasonalsnow['Elev']
+lats = seasonalsnow['Lat']
+lons = seasonalsnow['Lon']
+thickness = seasonalsnow['Thickness']
+
+
+
+plt.figure()
+plt.scatter(lons[0],lats[0],c=thickness[0],cmap="BuPu", vmin = 0, vmax=5)
+plt.colorbar()
+
+kw_lats = []
+kw_lons = []
+kw_thickness = []
+
+        
