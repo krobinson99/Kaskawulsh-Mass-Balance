@@ -59,7 +59,7 @@ red_line = mlines.Line2D([], [], color='crimson', marker='|', linestyle='None',
                           markersize=10, label='Debris thickness measurement uncertainty')
 
 black_arrow = mlines.Line2D([], [], color='k', marker="^", linestyle='None',
-                          markersize=10, label='Arrows = Measurement\nuncertainties where ice surface\nwas not reached')
+                          markersize=10, label='Measurement\nuncertainties\nwhere ice surface\nwas not reached')
 
 blue_line = mlines.Line2D([], [], color='mediumblue', marker='|', linestyle='None',
                           markersize=10, label='Debris thickness measurement uncertainty')
@@ -68,7 +68,7 @@ orange_line = mlines.Line2D([], [], color='darkorange', marker='|', linestyle='N
                           markersize=10, label='Debris thickness measurement uncertainty')
 
 black_line = mlines.Line2D([], [], color='k', marker='|', linestyle='None',
-                          markersize=15, label='Error bars = Uncertainty on thickness\nmeasurements that did reach ice surface')
+                          markersize=15, label='Uncertainty on thickness\nmeasurements that did\nreach ice surface')
 
 bluedot = mlines.Line2D([], [], color='mediumblue', marker='.', linestyle='None',
                           markersize=10, label='Transect A')
@@ -80,7 +80,7 @@ orangedot = mlines.Line2D([], [], color='darkorange', marker='.', linestyle='Non
                           markersize=10, label='Transect B')
 
 blackstar = mlines.Line2D([], [], color='k', marker='*', linestyle='None',
-                          markersize=10, label='Measurements where ice surface\nwas not reached')
+                          markersize=10, label='Measurements\nwhere ice surface\nwas not reached')
 
 
 #ALL DATA POINTS: NO AVERAGING
@@ -172,8 +172,10 @@ plt.xlim(0,35)
 plt.ylim(0,35)
 plt.title('Transect C',fontsize=14)
 plt.plot([0,100],[0,100],color='grey',linestyle='--')
-plt.legend(handles=[black_arrow,blackstar,black_line],loc='lower left', bbox_to_anchor=(0.85,0.7),fontsize=12)
-plt.savefig('KW_debris_survey_3transects.png',bbox_inches = 'tight')
+#plt.legend(handles=[black_arrow,blackstar,black_line],loc='lower center', bbox_to_anchor=(0.85,0.7),fontsize=12)
+plt.figlegend(handles=[black_arrow,blackstar,black_line],loc='center right',fontsize=12)
+plt.tight_layout()
+#plt.savefig('KW_debris_survey_3transects.png',bbox_inches = 'tight')
 
 
 plt.figure(figsize=(8,8))
@@ -373,3 +375,34 @@ plt.ylabel('% Finer by Weight',fontsize=12)
 plt.grid()
 plt.legend(['DB01/DB02/DB03/DB04 Debris','MR07/KV04 Debris'],fontsize=12)
 #plt.savefig('KWgrainsizedistribution.png',bbox_inches = 'tight')
+
+###############################################################################
+#  MAKE FIGURES FOR DEBRIS ALBEDO (data from Matthew Sturm at UAlaska - in ASD SAND folder)
+###############################################################################
+albedodata = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/FieldWork2022/ASD SAND 8-11-22/Sand_Albedo_Plottable.csv'
+
+df = pd.read_csv(albedodata)
+arr = np.array(df)
+
+wavelength = arr[:,0]
+drysand1 = arr[:,1]
+drysand2 = arr[:,2]
+drysand3 = arr[:,3]
+wetsand1 = arr[:,4]
+wetsand2 = arr[:,5]
+
+plt.figure(figsize=(8,6))
+plt.plot(wavelength,drysand1)
+plt.plot(wavelength,drysand2)
+plt.plot(wavelength,drysand3)
+plt.plot(wavelength,wetsand1)
+plt.plot(wavelength,wetsand2)
+plt.ylim(0,1)
+plt.margins(x=0)
+plt.grid()
+plt.xlabel('Wavelength (nm)',fontsize=14)
+plt.ylabel('Albedo',fontsize=14)
+plt.legend(['Dry Debris 1','Dry Debris 2','Dry Debris 3','Wet Debris 1','Wet Debris 2'],fontsize=12)
+plt.savefig('debrisalbedo.png',bbox_inches = 'tight')
+
+
