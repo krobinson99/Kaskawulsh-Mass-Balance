@@ -12,6 +12,7 @@ transition thickness from a guassian distribution.
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import pandas as pd
 import os
 import sys
@@ -19,6 +20,7 @@ from scipy.interpolate import splrep
 from scipy.interpolate import splev
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
+
 
 
 #1. generate the original MF curve with the original params (linear to 2 cm, the eq(1) from 2 cm onwards)
@@ -257,6 +259,17 @@ plt.margins(x=1)
 plt.title('Clean ice melt & peak melt = Observed (field work) values',fontsize=9)
 #plt.savefig('Hybridmeltcurves.png',bbox_inches = 'tight')
 
+plt.figure(figsize=(5,5))
+plt.plot(debrisDR,meltDR/meltDR[0],linewidth=3,color='k')
+plt.plot(deb2,mf2,linewidth=3,color='blue')
+plt.xlim(-0.05,2)
+plt.xlabel('Debris Thickness (m)',fontsize=14)
+plt.ylabel('Melt Factor',fontsize=14)
+plt.margins(x=1)
+plt.legend(['Rounce et al. (2021) melt curve','Melt curve using site-specific values'],fontsize=12)
+plt.tight_layout()
+#plt.savefig('meltcurves_comparison.png',bbox_inches = 'tight')
+
 
 #plot 4 hybrid curves: top row: using DR values for peakM and cleaniceM, bottom row: using field values for peakM and cleaniceM
 # left column: changing peak melt thickness, right column: changing transition thickness
@@ -406,3 +419,97 @@ test = generate_meltfactors(debris_m,cleaniceM,peakM,peakthickness_ref,transitio
     
 # test it with the actual rounce et al. debris map
 debmap = np.load('F:\Mass Balance Model\Kaskawulsh-Mass-Balance\DebrisThickness\debmap_variableh.npy')
+
+meltfacts_test = generate_meltfactors(debmap,dirtyicemelt_obs,peakmelt_obs,peakthickness_ref,transition_ref)
+meltfacts_test[nanlocs3] = np.nan
+#meltfacts_test[np.where(meltfacts_test == 0)] = np.nan
+
+plt.figure(figsize=(8,5))
+#plt.contourf(debristhickness_array, cmap = 'PuOr', levels = np.round(np.linspace(0,3,10),1))
+#norm = mcolors.TwoSlopeNorm(vmin=0., vcenter=1.0, vmax=1.2)
+plt.contourf(np.flipud(meltfacts_test[:180,100:]),  cmap = 'coolwarm', levels = np.linspace(0,2,41))
+#plt.contourf((debris_m[:180,100:]), cmap = 'PuOr', levels = np.round(np.linspace(0,1,3),1))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Melt Factor', rotation=270,fontsize=14,labelpad=20)
+xticks = [0,50,100,150,200]
+xlabels = []
+for x in xticks:
+    km = int(x*0.2)
+    xlabels.append(km)
+plt.xticks(ticks=xticks,labels=xlabels)
+yticks = [0,50,100,150]
+ylabels = []
+for y in yticks:
+    km = int(y*0.2)
+    ylabels.append(km)
+plt.yticks(ticks=yticks,labels=ylabels)
+#roundedX = Xgrid+18
+#roundedY = Ygrid+15
+#plt.xticks(ticks=[0,50,100,150,200],labels=[int(roundedX[0][100:][0]),int(roundedX[0][100:][50]),int(roundedX[0][100:][100]),int(roundedX[0][100:][150]),int(roundedX[0][100:][200])],fontsize=12,rotation=20)
+#plt.yticks(ticks=[0,40,80,120,160],labels=[int(roundedY[:,0][:180][0]),int(roundedY[:,0][:180][40]),int(roundedY[:,0][:180][80]),int(roundedY[:,0][:180][120]),int(roundedY[:,0][:180][160])],fontsize=12,rotation=20)
+#plt.xlabel('Easting',fontsize=12)
+#plt.ylabel('Northing',fontsize=12)
+plt.xlabel('distance (km)',fontsize=12)
+plt.ylabel('distance (km)',fontsize=12)
+plt.title('Site-Specific Sub-Debris Melt Factors',fontsize=14)
+plt.tight_layout()
+plt.savefig('New_Meltfactors.png',bbox_inches = 'tight')
+
+deb = []
+mf = []
+for i in range(0,len(meltfacts_test)):
+    for j in range(0,len(meltfacts_test[0])):
+        if np.isnan(debmap[i,j]):
+            pass
+        else:
+            deb.append(debmap[i,j])
+            mf.append(meltfacts_test[i,j])
+            
+plt.figure(figsize=(6,5))
+plt.scatter(deb,mf,s=2)
+plt.xlim(-0.01,0.4)        
+
+oldKWmeltfacts = generate_meltfactors(debmap,cleaniceM,peakM,0.02,0.13)
+oldKWmeltfacts[nanlocs3] = np.nan
+#oldKWmeltfacts[np.where(oldKWmeltfacts == 0)] = np.nan
+
+plt.figure(figsize=(8,5))
+#plt.contourf(debristhickness_array, cmap = 'PuOr', levels = np.round(np.linspace(0,3,10),1))
+#norm = mcolors.TwoSlopeNorm(vmin=0., vcenter=1.0, vmax=1.2)
+plt.contourf(np.flipud(oldKWmeltfacts[:180,100:]),  cmap = 'coolwarm',levels = np.linspace(0,2,41)) #levels = np.round(np.linspace(0,2,9),1))
+#plt.contourf((debris_m[:180,100:]), cmap = 'PuOr', levels = np.round(np.linspace(0,1,3),1))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Melt Factor', rotation=270,fontsize=14,labelpad=20)
+xticks = [0,50,100,150,200]
+xlabels = []
+for x in xticks:
+    km = int(x*0.2)
+    xlabels.append(km)
+plt.xticks(ticks=xticks,labels=xlabels)
+yticks = [0,50,100,150]
+ylabels = []
+for y in yticks:
+    km = int(y*0.2)
+    ylabels.append(km)
+plt.yticks(ticks=yticks,labels=ylabels)
+plt.xlabel('distance (km)',fontsize=12)
+plt.ylabel('distance (km)',fontsize=12)
+plt.title('Rounce et al. (2021) Sub-Debris Melt Factors',fontsize=14)
+plt.tight_layout()
+plt.savefig('Old_Meltfactors.png',bbox_inches = 'tight')
+
+#calculate how much of the debris covered area is reducing melt
+gridcellarea = 0.2*0.2 # km
+alldebcells = len((np.where(debmap >= 0))[0])
+alldebarea = alldebcells * gridcellarea
+
+totalglaciercells = len((np.where(oldKWmeltfacts >= 0))[0])
+totalglacierarea = totalglaciercells * gridcellarea
+
+
+thindebcells = len((np.where(debmap <= transition_ref))[0])
+thindebarea = thindebcells * gridcellarea
+
+enhancedmeltarea = thindebarea/alldebarea*100
+
+enhancedmeltarea_gl = thindebarea/totalglacierarea*100
