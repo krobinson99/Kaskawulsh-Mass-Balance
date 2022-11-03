@@ -53,7 +53,7 @@ from MBMnamelist import cleaniceM, peakM, peakM_thickness_ref, transition_thickn
 from MBMnamelist import peakthickness_uncertainty, transitionthickness_uncertainty
 
 # save the namelist that was used here into a txt file that will go in the outputs directory
-write_config_file(Output_path,"MBMnamelist.py")
+#write_config_file(Output_path,"MBMnamelist.py")
 
 #Initialize model (get parameterizations from the namelist)
 sim = -1
@@ -421,6 +421,9 @@ while sim<(len(MF_p)-1):
             else:
                 pass
             
+            #print(str(fruit) + ' glacier wide avg icemelt: ' + str(np.nanmean(Icemelt)))
+            #print(str(fruit) + ' glacier wide avg snowmelt: ' + str(np.nanmean(Snowmelt)))
+            
             #Multiply ice melt in debris covered cells by the melt enhancement factors
             # this is already done in the MB_vectorized function above ^
             #if debris_treatment == 'Variable Thickness':
@@ -460,14 +463,20 @@ while sim<(len(MF_p)-1):
             np.save(output, MBhour)
 
         else:
-            netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-            netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            #THIS PART OF THE SCRIPT TAKES THE LONGEST TIME: SAVE AS .NPY ARRAY INSTEAD? OR NP.SAVEZ FOR .NPZ FORMAT
+            # CHECK WHICH ONE USES LEAST STORAGE
+            netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) # takes 3:13 s to run vs 52sec for np.savez(). np.save() takes 2:57
+            netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) #doing both MB and Accumulation takes 9min
             netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
             netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
             netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
             netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
             netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-
+        
+            #npzoutfile = os.path.join(OUTPUT_PATH,'ModelResults_' + str(current_year) + '.npz')
+            #print('saving outputs to: ' + str(npzoutfile))
+            #np.savez(npzoutfile, Acc=Acchour, MB=MBhour) #takes 1:43 min
+            
         inT.close()
         inP.close()
         inS.close()
