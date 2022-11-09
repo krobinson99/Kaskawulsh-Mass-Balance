@@ -14,9 +14,23 @@ import datetime as dt
 from netCDF4 import Dataset
 import sys
 import os
+import scipy.io
+from scipy.interpolate import interp1d
 sys.path.insert(1,'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel')
 from Model_functions_ver4 import regridXY_something
-from scipy.interpolate import interp1d
+from Model_functions_ver4 import KWtributaries
+
+sys.path.insert(2,'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021')
+from OIB_picked_data import tributary_accvselev #importing from another file runs the whole file in this console
+from OIB_picked_data import accumulationvselevation
+from OIB_picked_data import meanaccumulation_vs_z
+from OIB_picked_data import snow2021_bc_plussummersnow, snow2021_nobc_plussummersnow, kw_elevs, kw_snow_mwe
+from OIB_picked_data import tribarray
+
+
+
+    
+
 
 # from Young et al. (2021): At each location, we calculate the difference between 
 # measured (Cobs) and downscaled (Cds) seasonal accumulation on the date of measurement. 
@@ -113,35 +127,35 @@ def find_Cds(year1,year2,end_month,end_day,elevation):
     
     return snow_at_targetz, totalsnow    
     
-def meanaccumulation_vs_z(Zlist,snowlist,z_start,z_end,delta_z=100):
+#def meanaccumulation_vs_z(Zlist,snowlist,z_start,z_end,delta_z=100):
     '''
     calculate the mean accumulation in each elevation band and return a list of mean accumulation vs mean
     elevation, to be plotted on top of the scatter plots
     '''
-    Zarray = np.array(Zlist)
-    snowarray = np.array(snowlist)
-    mean_snow = []
+#    Zarray = np.array(Zlist)
+#    snowarray = np.array(snowlist)
+#    mean_snow = []
     
-    elevation_bins = []
-    z = z_start
-    while z <= z_end:
-        elevation_bins.append(z)
-        z += delta_z
+#    elevation_bins = []
+#    z = z_start
+#    while z <= z_end:
+#        elevation_bins.append(z)
+#        z += delta_z
         
-    for zbin in elevation_bins:
+#    for zbin in elevation_bins:
         #print(zbin)
-        z_bottom = zbin - (0.5*delta_z)
-        z_top = zbin + (0.5*delta_z)
+#        z_bottom = zbin - (0.5*delta_z)
+#        z_top = zbin + (0.5*delta_z)
         #print(z_bottom, z_top)
         #zrange = Zarray[(Zarray >= z_bottom) & (Zarray < z_top)]
-        zrange = (Zarray >= z_bottom) & (Zarray < z_top)
+#        zrange = (Zarray >= z_bottom) & (Zarray < z_top)
         #elevs = Zarray[zrange]
         #print(elevs)
         #print(np.min(elevs), np.max(elevs))
-        snow_in_zrange = snowarray[zrange]
-        mean_snow.append(np.nanmean(snow_in_zrange))
+#        snow_in_zrange = snowarray[zrange]
+#        mean_snow.append(np.nanmean(snow_in_zrange))
         
-    return mean_snow, elevation_bins
+#    return mean_snow, elevation_bins
     
 C_obs = []
 C_ds = []
@@ -211,7 +225,7 @@ plt.xlabel('(C$_{obs}$/C$_{ds}$)',fontsize=14)
 plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
 plt.xlim(0,6)
 plt.grid()
-plt.suptitle('All Snowpits',fontsize=14,y=1.01)
+plt.suptitle('All Snowpits \n Comparison by elevation (not location specific)',fontsize=14,y=1.03)
 plt.tight_layout()
 #plt.savefig('BC_allsnowpits.png',bbox_inches = 'tight')
 
@@ -280,7 +294,7 @@ plt.xlabel('(C$_{obs}$/C$_{ds}$)',fontsize=14)
 plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
 plt.xlim(0,6)
 plt.grid()
-plt.suptitle('Catchment Snowpits',fontsize=14,y=1.01)
+plt.suptitle('Catchment Snowpits \n Comparison by elevation (not location specific)',fontsize=14,y=1.04)
 plt.tight_layout()
 #plt.savefig('BC_KWcatchment_snowpits.png',bbox_inches = 'tight')
 
@@ -441,11 +455,155 @@ plt.grid()
 #plt.savefig('catchmentBC_vs_originalBC',bbox_inches = 'tight')
 
 ##################################################################################################
-### BIAS CORRECT NARR ACCUMULATION USING THIS NEW CATCHMENT FORM AND COMPARE WITH OIB DATA!
+##################################################################################################
+##################################################################################################
+### BIAS CORRECT NARR ACCUMULATION USING THIS NEW CATCHMENT FORM AND COMPARE WITH OIB DATA! ###
+##################################################################################################
+##################################################################################################
 ##################################################################################################
 
+#bias correct the downscaled narr for 2020-2021 using the catchment bias correction:
+def biascorrection(snow_array,Zgrid,DPvals):
+    '''
+    snow array should have shape (x,y) and be non bias corrected sum of accumulation for that season
+    Zgrid should have same shape as snow array
+    DPvals is the bias correction function
+    
+    returns the corrected snow array with same shape as the input snow_array
+    '''
+    nanlocs = np.where(np.isnan(snow_array))
+    
+    correctedsnow = np.zeros(snow_array.shape)
+    correctedsnow[nanlocs] = np.nan
+    
+    for x in range(len(Zgrid)):
+        for y in range(len(Zgrid[0])):
+            z = Zgrid[x][y] #find out the elevation at each x,y coordinate
+            C_ds = snow_array[x][y]
+            DeltaC = DPvals(z) # find the Bias Correction factor (DeltaC)
+            correctedsnow[x][y] = C_ds*DeltaC
+            
+    return correctedsnow
+    
+snow2021_catchmentBC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DPval_catchment)
+
+#get OIB data from each tributary (kw_snow_mwe and kw_elevs loaded from OIB_picked_data)
+NAs_OIB = kw_snow_mwe[0:7845]
+NAz_OIB = kw_elevs[0:7845]
+
+SAs_OIB = kw_snow_mwe[7850:12255]
+SAz_OIB = kw_elevs[7850:12255]
+
+CAs_OIB = kw_snow_mwe[12260:-1]
+CAz_OIB = kw_elevs[12260:-1]
 
 
+#get average accumulations and elevation
+avgsnow_noBC,zbins_noBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],500,4000,delta_z=10)
+avgsnow_BC,zbins_BC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],500,4000,delta_z=10)
+avgsnow_catchBC,zbins_catchBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_catchmentBC)[1],accumulationvselevation(Zgrid_kw,snow2021_catchmentBC)[0],500,4000,delta_z=10)
+avgsnow_OIB,zbins_OIB = meanaccumulation_vs_z(kw_elevs,kw_snow_mwe,1500,3000,delta_z=10)
 
+plt.figure(figsize=(6,8))
+plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],marker='.',color='orange')
+plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],marker='.',color='darkmagenta')
+plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_catchmentBC)[0],accumulationvselevation(Zgrid_kw,snow2021_catchmentBC)[1],marker='.',color='deepskyblue')
+plt.scatter(kw_snow_mwe,kw_elevs,marker='.',color='mediumaquamarine')
+plt.legend(['NARR Accumulation: Uncorrected','NARR Accumulation w/ Original Bias Correction','NARR Accumulation w/ New Bias Correction','OIB Snow Radar (May 2021)'],fontsize=12,loc='lower right')
+plt.plot(avgsnow_noBC,zbins_noBC,color='darkgoldenrod')
+plt.plot(avgsnow_BC,zbins_BC,color='indigo')
+plt.plot(avgsnow_OIB,zbins_OIB,color='darkcyan')
+plt.plot(avgsnow_catchBC,zbins_catchBC,color='blue')
+plt.title('Kaskawulsh Accumulation May 2021',fontsize=12)
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+plt.xlim(0,4.5)
+plt.ylim(500,3700)
+#plt.tight_layout()
+#plt.savefig('KW_BiasCorrection_comparisons.png',bbox_inches = 'tight')
 
+#calculate averages for each trib
+# BC = ORIGINAL BIAS CORRECTION
+# catchBC = NEW BIAS CORRECTION W CATCHMENT SNOWPITS ONLY
+avgsnow_noBC_SA,zbins_noBC_SA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[0][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[0][0],500,4000,delta_z=10)
+avgsnow_BC_SA,zbins_BC_SA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[0][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[0][0],500,4000,delta_z=10)
+avgsnow_catchBC_SA,zbins_catchBC_SA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[0][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[0][0],500,4000,delta_z=10)
+avgsnow_OIB_SA,zbins_OIB_SA = meanaccumulation_vs_z(SAz_OIB,SAs_OIB,500,4000,delta_z=10)
+
+avgsnow_noBC_SW,zbins_noBC_SW = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[1][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[1][0],500,4000,delta_z=10)
+avgsnow_BC_SW,zbins_BC_SW = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[1][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[1][0],500,4000,delta_z=10)
+avgsnow_catchBC_SW,zbins_catchBC_SW = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[1][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[1][0],500,4000,delta_z=10)
+#avgsnow_OIB_SA,zbins_OIB_SA = meanaccumulation_vs_z(SAz_OIB,SAs_OIB,500,4000,delta_z=10)
+
+avgsnow_noBC_CA,zbins_noBC_CA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[2][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[2][0],500,4000,delta_z=10)
+avgsnow_BC_CA,zbins_BC_CA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[2][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[2][0],500,4000,delta_z=10)
+avgsnow_catchBC_CA,zbins_catchBC_CA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[2][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[2][0],500,4000,delta_z=10)
+avgsnow_OIB_CA,zbins_OIB_CA = meanaccumulation_vs_z(CAz_OIB,CAs_OIB,500,4000,delta_z=10)
+
+avgsnow_noBC_NA,zbins_noBC_NA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[3][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[3][0],500,4000,delta_z=10)
+avgsnow_BC_NA,zbins_BC_NA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[3][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[3][0],500,4000,delta_z=10)
+avgsnow_catchBC_NA,zbins_catchBC_NA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[3][1],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[3][0],500,4000,delta_z=10)
+avgsnow_OIB_NA,zbins_OIB_NA = meanaccumulation_vs_z(NAz_OIB,NAs_OIB,500,4000,delta_z=10)
+
+plt.figure(figsize=(10,12))
+plt.subplot(2,2,1)
+plt.title('South Arm',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[0][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[0][1],color='darkmagenta')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[0][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[0][1],color='orange')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[0][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[0][1],color='deepskyblue')
+plt.scatter(SAs_OIB,SAz_OIB,color='mediumaquamarine')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR Accumulation: Uncorrected','NARR Accumulation w/ Original Bias Correction','NARR Accumulation w/ New Bias Correction','OIB Snow Radar (May 2021)'])
+plt.plot(avgsnow_noBC_SA,zbins_noBC_SA,color='darkgoldenrod')
+plt.plot(avgsnow_BC_SA,zbins_BC_SA,color='indigo')
+plt.plot(avgsnow_catchBC_SA,zbins_catchBC_SA,color='blue')
+plt.plot(avgsnow_OIB_SA,zbins_OIB_SA,color='darkcyan')
+plt.ylim(700,3700)
+plt.xlim(0,4.5)
+plt.subplot(2,2,2)
+plt.title('Stairway Glacier',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[1][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[1][1],color='darkmagenta')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[1][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[1][1],color='orange')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[1][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[1][1],color='deepskyblue')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR Accumulation: Uncorrected','NARR Accumulation w/ Original Bias Correction','NARR Accumulation w/ New Bias Correction','OIB Snow Radar (May 2021)'])
+plt.plot(avgsnow_noBC_SW,zbins_noBC_SW,color='darkgoldenrod')
+plt.plot(avgsnow_BC_SW,zbins_BC_SW,color='indigo')
+plt.plot(avgsnow_catchBC_SW,zbins_catchBC_SW,color='blue')
+plt.ylim(700,3700)
+plt.xlim(0,4.5)
+plt.subplot(2,2,3)
+plt.title('Central Arm',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[2][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[2][1],color='darkmagenta')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[2][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[2][1],color='orange')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[2][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[2][1],color='deepskyblue')
+plt.scatter(CAs_OIB,CAz_OIB,color='mediumaquamarine')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR Accumulation: Uncorrected','NARR Accumulation w/ Original Bias Correction','NARR Accumulation w/ New Bias Correction','OIB Snow Radar (May 2021)'])
+plt.plot(avgsnow_noBC_CA,zbins_noBC_CA,color='darkgoldenrod')
+plt.plot(avgsnow_BC_CA,zbins_BC_CA,color='indigo')
+plt.plot(avgsnow_catchBC_CA,zbins_catchBC_CA,color='blue')
+plt.plot(avgsnow_OIB_CA,zbins_OIB_CA,color='darkcyan')
+plt.ylim(700,3700)
+plt.xlim(0,4.5)
+plt.subplot(2,2,4)
+plt.title('North Arm',fontsize=14)
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[3][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_bc_plussummersnow)[3][1],color='darkmagenta')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[3][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_nobc_plussummersnow)[3][1],color='orange')
+plt.scatter(tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[3][0],tributary_accvselev(tribarray,Zgrid_kw,snow2021_catchmentBC)[3][1],color='deepskyblue')
+plt.scatter(NAs_OIB,NAz_OIB,color='mediumaquamarine')
+plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+plt.legend(['NARR Accumulation: Uncorrected','NARR Accumulation w/ Original Bias Correction','NARR Accumulation w/ New Bias Correction','OIB Snow Radar (May 2021)'])
+plt.plot(avgsnow_noBC_NA,zbins_noBC_NA,color='darkgoldenrod')
+plt.plot(avgsnow_BC_NA,zbins_BC_NA,color='indigo')
+plt.plot(avgsnow_catchBC_NA,zbins_catchBC_NA,color='blue')
+plt.plot(avgsnow_OIB_NA,zbins_OIB_NA,color='darkcyan')
+plt.ylim(700,3700)
+plt.xlim(0,4.5)
+plt.tight_layout()
+#plt.savefig('KW_BiasCorrection_Trib_comparisons.png',bbox_inches = 'tight')
 
