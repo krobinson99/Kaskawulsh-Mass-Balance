@@ -122,7 +122,7 @@ Ygrid_flipped = np.flipud(Ygrid)
 
 #Load final model accumulation field (averaged over all years, sims)
 KW_accumulation = 'F:/Mass Balance Model/OUTPUTS/Plots/BaselineDebris/allrunAccumulations_BaselineDebris.npy'
-uncorrected_accumulation_file = 'F:/Mass Balance Model/Kaskonly_Downscaled_NoBC/UncorrectedAccumulation.npy'
+uncorrected_accumulation_file = 'F:/Mass Balance Model/Downscaled_files/missing_trib/Kaskonly_Downscaled_NoBC/UncorrectedAccumulation.npy'
 
 # plotting code from the PlotOutputs.py file
 overall_Accumulation = np.load(KW_accumulation)
@@ -423,7 +423,7 @@ def meanaccumulation_vs_z(Zlist,snowlist,z_start,z_end,delta_z=100):
     elevation_bins = []
     z = z_start
     while z <= z_end:
-        elevation_bins.append(z)
+        elevation_bins.append(z+(0.5*delta_z))
         z += delta_z
         
     for zbin in elevation_bins:
