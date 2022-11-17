@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import pandas as pd
+from scipy.stats.stats import pearsonr  
 from generate_meltfactors import dirtyicemelt_obs,peakmelt_obs,peakthickness_ref,transition_ref
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\FieldWork2022')
 from debrissurvey import dr_estimate_avg as MODELLED_debris
@@ -90,4 +91,6 @@ plt.xlim(0,1.1)
 plt.ylim(0,1.1)
 plt.plot([0,1.1],[0,1.1],color='grey',linestyle='--',zorder=-2)
 #plt.savefig('modelledvsmeasured_MF.png',bbox_inches = 'tight')
+
+correlation = pearsonr(MEASURED_MF,MODELLED_MF)[0]
 
