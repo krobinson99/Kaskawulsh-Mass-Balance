@@ -615,10 +615,17 @@ plt.tight_layout()
    # move through those stds to create a "min" and "max" (least aggressive vs most aggresive?)
 
 #snow_bin100, z_bin100 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,100))
+snow_bin100, z_bin100 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,100))
 snow_bin150, z_bin150 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,150))
 snow_bin200, z_bin200 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,200))
 snow_bin250, z_bin250 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,250))
 snow_bin300, z_bin300 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,300))
+snow_bin350, z_bin350 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,350))
+snow_bin400, z_bin400 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,400))
+snow_bin450, z_bin450 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,450))
+snow_bin500, z_bin500 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,500))
+snow_bin550, z_bin550 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,550))
+snow_bin600, z_bin600 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,560))
 snow_bin2000, z_bin2000 = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1000,3000,2001))
 #OIBsnow_bin250,OIBz_bin250 = meanaccumulation_vs_z(kw_elevs,kw_snow_mwe,1000,3000,250)
 
@@ -639,10 +646,17 @@ def generate_BiasCorrection(snow_vals,elev_vals):
     
     return DPvals
 
+DP_bin100 = generate_BiasCorrection(snow_bin100,z_bin100)
 DP_bin150 = generate_BiasCorrection(snow_bin150,z_bin150)
 DP_bin200 = generate_BiasCorrection(snow_bin200,z_bin200)
 DP_bin250 = generate_BiasCorrection(snow_bin250,z_bin250)
 DP_bin300 = generate_BiasCorrection(snow_bin300,z_bin300)
+DP_bin350 = generate_BiasCorrection(snow_bin350,z_bin350)
+DP_bin400 = generate_BiasCorrection(snow_bin400,z_bin400)
+DP_bin450 = generate_BiasCorrection(snow_bin450,z_bin450)
+DP_bin500 = generate_BiasCorrection(snow_bin500,z_bin500)
+DP_bin550 = generate_BiasCorrection(snow_bin550,z_bin550)
+DP_bin600 = generate_BiasCorrection(snow_bin600,z_bin600)
 DP_bin2000 = generate_BiasCorrection(snow_bin2000,z_bin2000)
 
 elevs = np.linspace(1000,3000,2000)
@@ -758,24 +772,66 @@ fig.legend(fontsize=14,bbox_to_anchor=(0.99, 0.4))
 plt.tight_layout()
 #plt.savefig('C_diffbinsizes_subplots.png', dpi = 300, bbox_inches = 'tight')
 
+binsizes = [100,150,200,250,300,350,400,450,500,550,600,2000]
+i = 0
+subplot = 1
+fig = plt.figure(figsize=(12,11))
+plt.subplots_adjust(wspace= 0.25, hspace= 0.25)
+for BC in [DP_bin100,DP_bin150,DP_bin200,DP_bin250,DP_bin300,DP_bin350,DP_bin400,DP_bin450,DP_bin500,DP_bin550,DP_bin600,DP_bin2000]:
+    fig.add_subplot(3,4,subplot)
+    if subplot == 1:
+        plt.plot(OG_corrections,OG_elevations,c='slategray',linestyle='--',linewidth=3, label='Original Bias Correction')
+        plt.plot(BC(elevs),elevs,linewidth=3,c='k',label='New Bias Correction')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==1],Cz_KW[cluster_KW_NN==1],c='deeppink',label='GL1')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==4],Cz_KW[cluster_KW_NN==4],c='dodgerblue',label='GL4')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==18],Cz_KW[cluster_KW_NN==18],c='gold',label='KW 2018')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==22],Cz_KW[cluster_KW_NN==22],c='blueviolet',label='KW 2022')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==1000],Cz_KW[cluster_KW_NN==1000],c='cyan',label='Icefield')
+    else: 
+        plt.plot(OG_corrections,OG_elevations,c='slategray',linestyle='--',linewidth=3)
+        plt.plot(BC(elevs),elevs,linewidth=3,c='k')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==1],Cz_KW[cluster_KW_NN==1],c='deeppink')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==4],Cz_KW[cluster_KW_NN==4],c='dodgerblue')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==18],Cz_KW[cluster_KW_NN==18],c='gold')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==22],Cz_KW[cluster_KW_NN==22],c='blueviolet')
+        plt.scatter(NN_multipfact_KW[cluster_KW_NN==1000],Cz_KW[cluster_KW_NN==1000],c='cyan')
+    plt.xlabel('(C$_{obs}$/C$_{ds}$)',fontsize=12)
+    plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+    plt.title('bin size = ' + str(binsizes[i]) + ' m')
+    plt.xlim(0,5)
+    plt.ylim(1000,3000)
+    plt.grid()
+    i += 1
+    subplot+=1
+fig.legend(fontsize=10,bbox_to_anchor=(0.9, 0.025), ncol=8)
+plt.tight_layout()
+#plt.savefig('C_diffbinsizes_subplots_v2.png', dpi = 300, bbox_inches = 'tight')
+
 #bias correct the 2021 snow data and plot along with the OIB data (binned with the same bin size)
+snow2021_bin100BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin100)
 snow2021_bin150BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin150)
 snow2021_bin200BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin200)
 snow2021_bin250BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin250)
 snow2021_bin300BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin300)
+snow2021_bin350BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin350)
+snow2021_bin400BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin400)
+snow2021_bin450BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin450)
+snow2021_bin500BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin500)
+snow2021_bin550BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin550)
+snow2021_bin600BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin600)
 snow2021_bin2000BC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_bin2000)
 
-binsizes = [150,200,250,300,2000]
+binsizes = [100,150,200,250,300,350,400,450,500,550,600,2000]
 i = 0
 subplot = 1
-fig = plt.figure(figsize=(10,10))
+fig = plt.figure(figsize=(12,11))
 plt.subplots_adjust(wspace= 0.25, hspace= 0.25)
-for BC in [snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250BC,snow2021_bin300BC,snow2021_bin2000BC]:
+for BC in [snow2021_bin100BC,snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250BC,snow2021_bin300BC,snow2021_bin350BC,snow2021_bin400BC,snow2021_bin450BC,snow2021_bin500BC,snow2021_bin550BC,snow2021_bin600BC,snow2021_bin2000BC]:
     #print(str(BC), binsizes[i])
     #plt.figure(figsize=(6,8))
-    fig.add_subplot(2,3,subplot)
+    fig.add_subplot(3,4,subplot)
     
-    if binsizes[i] == 2000:
+    if subplot==1:
         avgsnow_noBC,zbins_noBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],-500,5000,delta_z=binsizes[i])
         avgsnow_BC,zbins_BC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],-500,5000,delta_z=binsizes[i])
         avgsnow_binnedBC,avgz_binnedBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,BC)[1],accumulationvselevation(Zgrid_kw,BC)[0],-500,5000,delta_z=binsizes[i])
@@ -793,20 +849,70 @@ for BC in [snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250BC,snow2021_bin300
         plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],marker='.',color='darkmagenta')
         plt.scatter(accumulationvselevation(Zgrid_kw,BC)[0],accumulationvselevation(Zgrid_kw,BC)[1],marker='.',color='deepskyblue')
         plt.scatter(kw_snow_mwe,kw_elevs,marker='.',color='mediumaquamarine')
+    
+    #RMSE = np.sqrt(np.nanmean(np.square(np.subtract(np.array(avgsnow_binnedBC),np.array(avgsnow_OIB)))))
+    #plt.text(1.75,1000,'RMSE = ' + str(np.round(RMSE,2)),fontsize=12)
     plt.plot(avgsnow_noBC,zbins_noBC,color='darkgoldenrod',linewidth=3)
     plt.plot(avgsnow_BC,zbins_BC,color='indigo',linewidth=3)
     plt.plot(avgsnow_OIB,zbins_OIB,color='darkcyan',linewidth=3)
     plt.plot(avgsnow_binnedBC,avgz_binnedBC,color='blue',linewidth=3)
-    plt.xlabel('Accumulation (m w.e.)',fontsize=14)
-    plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
-    plt.title('bin size = ' + str(binsizes[i]) + ' m',fontsize=14)
+    plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+    plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+    plt.title('bin size used in\nbias correction = ' + str(binsizes[i]) + ' m',fontsize=11)
     plt.xlim(0,4.5)
     plt.ylim(500,3700)
 
     i+=1
     subplot+=1
-fig.legend(fontsize=14,bbox_to_anchor=(0.99, 0.4))
+fig.legend(fontsize=10,bbox_to_anchor=(0.9, 0.025), ncol=8)
 plt.tight_layout()
 #plt.savefig('binnedBCs_appliedtoNARR.png',bbox_inches = 'tight')
+
+binsizes = [100,150,200,250,300,350,400,450,500,550,600,2000]
+i = 0
+subplot = 1
+fig = plt.figure(figsize=(12,11))
+plt.subplots_adjust(wspace= 0.25, hspace= 0.25)
+for BC in [snow2021_bin100BC,snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250BC,snow2021_bin300BC,snow2021_bin350BC,snow2021_bin400BC,snow2021_bin450BC,snow2021_bin500BC,snow2021_bin550BC,snow2021_bin600BC,snow2021_bin2000BC]:
+    #print(str(BC), binsizes[i])
+    #plt.figure(figsize=(6,8))
+    fig.add_subplot(3,4,subplot)
+    
+    dz = 100
+    avgsnow_noBC,zbins_noBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],500,5000,delta_z=dz)
+    avgsnow_BC,zbins_BC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],500,5000,delta_z=dz)
+    avgsnow_binnedBC,avgz_binnedBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,BC)[1],accumulationvselevation(Zgrid_kw,BC)[0],500,5000,delta_z=dz)
+    avgsnow_OIB,zbins_OIB = meanaccumulation_vs_z(kw_elevs,kw_snow_mwe,500,5000,delta_z=dz)
+    if subplot==1:
+        plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],marker='.',color='orange',label='Uncorrected NARR')
+        plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],marker='.',color='darkmagenta',label='Original Bias Correction')
+        plt.scatter(accumulationvselevation(Zgrid_kw,BC)[0],accumulationvselevation(Zgrid_kw,BC)[1],marker='.',color='deepskyblue',label='New Bias Correction')
+        plt.scatter(kw_snow_mwe,kw_elevs,marker='.',color='mediumaquamarine',label='OIB Snow Radar (May 2021)')
+    else:
+        plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],marker='.',color='orange')
+        plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],marker='.',color='darkmagenta')
+        plt.scatter(accumulationvselevation(Zgrid_kw,BC)[0],accumulationvselevation(Zgrid_kw,BC)[1],marker='.',color='deepskyblue')
+        plt.scatter(kw_snow_mwe,kw_elevs,marker='.',color='mediumaquamarine')
+        
+    #calculate RMSE:
+    RMSE = np.sqrt(np.nanmean(np.square(np.subtract(np.array(avgsnow_binnedBC),np.array(avgsnow_OIB)))))
+    
+    plt.text(1.75,1000,'RMSE = ' + str(np.round(RMSE,2)),fontsize=12)
+    plt.plot(avgsnow_noBC,zbins_noBC,color='darkgoldenrod',linewidth=2)
+    plt.plot(avgsnow_BC,zbins_BC,color='indigo',linewidth=2)
+    plt.plot(avgsnow_OIB,zbins_OIB,color='teal',linewidth=2)
+    plt.plot(avgsnow_binnedBC,avgz_binnedBC,color='blue',linewidth=2)
+    plt.xlabel('Accumulation (m w.e.)',fontsize=12)
+    plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
+    plt.title('bin size used in\nbias correction = ' + str(binsizes[i]) + ' m',fontsize=11)
+    plt.xlim(0,4.5)
+    plt.ylim(500,3700)
+    
+    i+=1
+    subplot+=1
+
+fig.legend(fontsize=10,bbox_to_anchor=(0.9, 0.025), ncol=8)
+plt.tight_layout()
+#plt.savefig('binnedBCs_appliedtoNARR_nosmoothing_dz100.png',bbox_inches = 'tight')
 
 
