@@ -856,20 +856,20 @@ snow2021_linearBC = biascorrection(snow2021_nobc_plussummersnow,Zgrid_kw,DP_line
 
 
 
-binsizes = [100,150,200,250,300,350,400,450,500,550,600,2000]
+binsizes = [100,150,200,250,300,350,400,450,500,550,10,2000]
 i = 0
 subplot = 1
 fig = plt.figure(figsize=(12,11))
 plt.subplots_adjust(wspace= 0.25, hspace= 0.25)
-for BC in [snow2021_bin100BC,snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250BC,snow2021_bin300BC,snow2021_bin350BC,snow2021_bin400BC,snow2021_bin450BC,snow2021_bin500BC,snow2021_bin550BC,snow2021_bin600BC,snow2021_bin2000BC]:
+for BC in [snow2021_bin100BC,snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250BC,snow2021_bin300BC,snow2021_bin350BC,snow2021_bin400BC,snow2021_bin450BC,snow2021_bin500BC,snow2021_bin550BC,snow2021_linearBC,snow2021_bin2000BC]:
     #print(str(BC), binsizes[i])
     #plt.figure(figsize=(6,8))
     fig.add_subplot(3,4,subplot)
     
     if subplot==1:
-        avgsnow_noBC,zbins_noBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],-500,5000,delta_z=binsizes[i])
-        avgsnow_BC,zbins_BC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],-500,5000,delta_z=binsizes[i])
-        avgsnow_binnedBC,avgz_binnedBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,BC)[1],accumulationvselevation(Zgrid_kw,BC)[0],-500,5000,delta_z=binsizes[i])
+        avgsnow_noBC,zbins_noBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],500,5000,delta_z=binsizes[i])
+        avgsnow_BC,zbins_BC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],500,5000,delta_z=binsizes[i])
+        avgsnow_binnedBC,avgz_binnedBC = meanaccumulation_vs_z(accumulationvselevation(Zgrid_kw,BC)[1],accumulationvselevation(Zgrid_kw,BC)[0],500,5000,delta_z=binsizes[i])
         avgsnow_OIB,zbins_OIB = meanaccumulation_vs_z(kw_elevs,kw_snow_mwe,500,5000,delta_z=binsizes[i])
         plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_nobc_plussummersnow)[1],marker='.',color='orange',label='Uncorrected NARR')
         plt.scatter(accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid_kw,snow2021_bc_plussummersnow)[1],marker='.',color='darkmagenta',label='Original Bias Correction')
@@ -885,15 +885,18 @@ for BC in [snow2021_bin100BC,snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250
         plt.scatter(accumulationvselevation(Zgrid_kw,BC)[0],accumulationvselevation(Zgrid_kw,BC)[1],marker='.',color='deepskyblue')
         plt.scatter(kw_snow_mwe,kw_elevs,marker='.',color='mediumaquamarine')
     
-    #RMSE = np.sqrt(np.nanmean(np.square(np.subtract(np.array(avgsnow_binnedBC),np.array(avgsnow_OIB)))))
-    #plt.text(1.75,1000,'RMSE = ' + str(np.round(RMSE,2)),fontsize=12)
+    RMSE = np.sqrt(np.nanmean(np.square(np.subtract(np.array(avgsnow_binnedBC),np.array(avgsnow_OIB)))))
+    plt.text(1.75,1000,'RMSE = ' + str(np.round(RMSE,2)),fontsize=12)
     plt.plot(avgsnow_noBC,zbins_noBC,color='darkgoldenrod',linewidth=3)
     plt.plot(avgsnow_BC,zbins_BC,color='indigo',linewidth=3)
     plt.plot(avgsnow_OIB,zbins_OIB,color='darkcyan',linewidth=3)
     plt.plot(avgsnow_binnedBC,avgz_binnedBC,color='blue',linewidth=3)
     plt.xlabel('Accumulation (m w.e.)',fontsize=12)
     plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
-    plt.title('bin size used in\nbias correction = ' + str(binsizes[i]) + ' m',fontsize=11)
+    if binsizes[i] == 10:
+        plt.title('linear bias correction',fontsize = 11)
+    else:
+        plt.title('bin size used in\nbias correction = ' + str(binsizes[i]) + ' m',fontsize=11)
     plt.xlim(0,4.5)
     plt.ylim(500,3700)
 
@@ -901,7 +904,7 @@ for BC in [snow2021_bin100BC,snow2021_bin150BC,snow2021_bin200BC,snow2021_bin250
     subplot+=1
 fig.legend(fontsize=10,bbox_to_anchor=(0.9, 0.025), ncol=8)
 plt.tight_layout()
-#plt.savefig('binnedBCs_appliedtoNARR.png',bbox_inches = 'tight')
+plt.savefig('binnedBCs_appliedtoNARR.png',bbox_inches = 'tight')
 
 binsizes = [100,150,200,250,300,350,400,450,500,550,999,2000]
 i = 0
