@@ -295,6 +295,32 @@ plt.ylabel('Northing',fontsize=14)
 plt.title('CReSIS Snow Radar (May2021) Compared to \n Bias-Corrected NARR Accumulation (Aug2020-May2021)',fontsize=14)
 #plt.savefig('NARR_CReSIS_2021_samecolours.png',bbox_inches = 'tight')
 
+plt.figure(figsize=(13,7))
+plt.scatter(easting_EY,northing_EY,c=elevation_EY,cmap="bone",vmin = 800, vmax=3000)
+legend = plt.colorbar()
+legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
+plt.scatter(easting_OIB,northing_OIB,c=kw_snow_mwe, cmap="BuPu",marker='o',linewidth=3, vmin = 0, vmax=2) #levels = np.linspace(0,4.5,19))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Accumulation (m w.e. $a^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.title('Operation IceBridge Snow Radar (May2021)',fontsize=14)
+plt.tight_layout()
+#plt.savefig('OIBpicks_over_Zgrid.png',bbox_inches = 'tight')
+
+highacc = np.where(np.array(kw_snow_mwe) > 1.5)
+plt.figure(figsize=(13,7))
+plt.scatter(easting_EY,northing_EY,c=elevation_EY,cmap="bone",vmin = 800, vmax=3000)
+legend = plt.colorbar()
+legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
+plt.scatter(np.array(easting_OIB)[highacc],np.array(northing_OIB)[highacc],c=np.array(kw_snow_mwe)[highacc], cmap="BuPu",marker='o',linewidth=3, vmin = 0, vmax=2) #levels = np.linspace(0,4.5,19))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Accumulation (m w.e. $a^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.title('Operation IceBridge Snow Radar (May2021)',fontsize=14)
+plt.tight_layout()
+
 #################################################################################
 #PLOT INDIVIDUAL TRIBUTARIES!!!!
 #################################################################################
@@ -533,4 +559,54 @@ plt.xlim(0,4.5)
 plt.tight_layout()
 #plt.savefig('Tributaries_SnowvsZ_v2.png',bbox_inches = 'tight')
 
+###############################################################################
+# CALCULATE RMSE BASED ON CO-LOCATED GRIDCELLS, NOT BY BINNED ELEVATIONS
+    # bin OIB cells into nearest NARR gridcell. Save into an array of shape Zgrid 
+        #(in the corresponding cell)
+###############################################################################
+
+#for each point in the OIB data, find the closest model gridcell
+# gridcell must be within np.sqrt(100**2 + 100**2) = 141.42 m for it to be
+# within a NARR gridcell. if the closest cell is > 141.42m then its outside of the model domain.
+
+# add OIB snowdpeth to that gridcell it corresponds to,
+#also track the number of OIB gridcells that correspond to each NARR gridcell
+# use these two arrays to calculate mean snowdepth.
+Xgrid[nanlocs] = np.nan
+Ygrid_flipped[nanlocs] = np.nan
+mindist = []
+Colocated_snow_sum = np.zeros(Zgrid.shape)
+Colocated_numberofcells = np.zeros(Zgrid.shape) #number of OIB cells corresponding to each NARR gridcell
+for i in range(0,len(kw_snow_mwe)):
+    x_OIB = easting_OIB[i]
+    y_OIB = northing_OIB[i]
+    OIB_snow = kw_snow_mwe[i]
     
+    x_dists = Xgrid - x_OIB
+    y_dists = Ygrid_flipped - y_OIB
+    distance = np.sqrt((x_dists**2)+(y_dists**2))
+    if np.nanmin(distance) <= np.sqrt(100**2 + 100**2):
+        mindist.append(np.nanmin(distance))
+        closest_cell = np.where(distance == np.nanmin(distance))
+        Colocated_snow_sum[closest_cell] += OIB_snow #add the snow to the corresponding gridcell
+        Colocated_numberofcells[closest_cell] += 1
+    else:
+        pass
+Colocated_avg_OIBsnow = Colocated_snow_sum/Colocated_numberofcells
+    
+
+Colocated_avg_OIBsnow[nanlocs] = np.nan   
+#yields 573 colocated cells! 
+
+plt.figure()
+plt.contourf(np.flipud(Colocated_avg_OIBsnow))
+plt.colorbar()
+
+
+
+
+
+
+
+
+
