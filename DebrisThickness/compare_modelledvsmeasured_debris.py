@@ -15,9 +15,15 @@ import pandas as pd
 from scipy.stats.stats import pearsonr  
 from generate_meltfactors import dirtyicemelt_obs,peakmelt_obs,peakthickness_ref,transition_ref
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\FieldWork2022')
-from debrissurvey import dr_estimate_avg as MODELLED_debris
-from debrissurvey import debthickness_obs_avg as MEASURED_debris
-from debrissurvey import reachedice_avg as reached_ice
+#import ALL debris measurements (no averaging b/w cells)
+from debrissurvey import dr_estimate as MODELLED_debris
+from debrissurvey import debthickness_obs as MEASURED_debris
+from debrissurvey import reachedice
+#import the averaged debris measurements
+from debrissurvey import dr_estimate_avg as MODELLED_debris_avg
+from debrissurvey import debthickness_obs_avg as MEASURED_debris_avg
+from debrissurvey import reachedice_avg
+
 
 
 #params
@@ -66,31 +72,67 @@ def meltfactor(dh,cleaniceM=dirtyicemelt_obs,peakM=peakmelt_obs,peakM_thickness=
 
     return meltfactor 
     
-h = 0.006
+h = 1.9
 MF = meltfactor(h)
 print(MF)
 
+MODELLED_MF_avg = []
+MEASURED_MF_avg = []
+for i in range(0,len(MODELLED_debris_avg[:49])):
+    MODELLED_MF_avg.append(meltfactor(MODELLED_debris_avg[i]))
+    MEASURED_MF_avg.append(meltfactor(MEASURED_debris_avg[i]))
+    
+correlation_avg = pearsonr(np.array(MEASURED_MF_avg)[reachedice_avg[:49]==1],np.array(MODELLED_MF_avg)[reachedice_avg[:49]==1])[0]    
+    
+plt.figure(figsize=(6,6))
+plt.title('Averaged Debris Survey Data')
+plt.scatter(MEASURED_MF_avg[:18],MODELLED_MF_avg[:18],color='mediumblue',label='Transect A',s=60,edgecolor='k')
+plt.scatter(MEASURED_MF_avg[18:38],MODELLED_MF_avg[18:38],color='darkorange',label='Transect B',s=60,edgecolor='k')
+plt.scatter(MEASURED_MF_avg[38:],MODELLED_MF_avg[38:],color='crimson',label='Transect C',s=60,edgecolor='k')
+plt.scatter(np.array(MEASURED_MF_avg[:18])[reachedice_avg[:18]==0],np.array(MODELLED_MF_avg[:18])[reachedice_avg[:18]==0],color='white',s=60,edgecolor='mediumblue')
+plt.scatter(np.array(MEASURED_MF_avg[18:38])[reachedice_avg[18:38]==0],np.array(MODELLED_MF_avg[18:38])[reachedice_avg[18:38]==0],color='white',s=60,edgecolor='darkorange')
+plt.scatter(np.array(MEASURED_MF_avg[38:])[reachedice_avg[38:49]==0],np.array(MODELLED_MF_avg[38:])[reachedice_avg[38:49]==0],color='white',s=60,edgecolor='crimson')
+plt.scatter(MEASURED_MF_avg[0],MODELLED_MF_avg[0],color='white',edgecolor='k',s=60,zorder=-1,label='Measurement did not\nreach ice surface') #fake point used to add empty circle to legend, zorder hides it behind a blue point
+plt.legend(fontsize=12)
+plt.xlabel('Melt factor of measured debris',fontsize=14)
+plt.ylabel('Melt factor of modelled debris',fontsize=14)
+plt.xlim(0,1.1)
+plt.ylim(0,1.1)
+plt.text(0.4, 0.1, 'correlation coefficient = ' + str(np.round(correlation_avg,2)) + '\n(for sites that reached the ice only)', color='k', 
+        bbox=dict(facecolor='none', edgecolor='k', pad=10.0))
+plt.plot([0,1.1],[0,1.1],color='grey',linestyle='--',zorder=-2)
+#plt.savefig('modelledvsmeasured_MF_avg.png',bbox_inches = 'tight')
+
+###############################################################################
+# NOW CONSIDER ALL POINTS (IE. NO AVERAGING AMONGST GRIDCELLS
+############################################################################### 
+
 MODELLED_MF = []
 MEASURED_MF = []
-for i in range(0,len(MODELLED_debris[:49])):
+for i in range(0,len(MODELLED_debris)):
     MODELLED_MF.append(meltfactor(MODELLED_debris[i]))
     MEASURED_MF.append(meltfactor(MEASURED_debris[i]))
     
+correlation = pearsonr(np.array(MEASURED_MF)[reachedice==1],np.array(MODELLED_MF)[reachedice==1])[0]    
+    
 plt.figure(figsize=(6,6))
-plt.scatter(MEASURED_MF[:18],MODELLED_MF[:18],color='mediumblue',label='Transect A',s=60,edgecolor='k')
-plt.scatter(MEASURED_MF[18:38],MODELLED_MF[18:38],color='darkorange',label='Transect B',s=60,edgecolor='k')
-plt.scatter(MEASURED_MF[38:],MODELLED_MF[38:],color='crimson',label='Transect C',s=60,edgecolor='k')
-plt.scatter(np.array(MEASURED_MF[:18])[reached_ice[:18]==0],np.array(MODELLED_MF[:18])[reached_ice[:18]==0],color='white',s=60,edgecolor='mediumblue')
-plt.scatter(np.array(MEASURED_MF[18:38])[reached_ice[18:38]==0],np.array(MODELLED_MF[18:38])[reached_ice[18:38]==0],color='white',s=60,edgecolor='darkorange')
-plt.scatter(np.array(MEASURED_MF[38:])[reached_ice[38:49]==0],np.array(MODELLED_MF[38:])[reached_ice[38:49]==0],color='white',s=60,edgecolor='crimson')
+plt.title('All Debris Survey Data')
+plt.scatter(MEASURED_MF[:29],MODELLED_MF[:29],color='mediumblue',label='Transect A',s=60,edgecolor='k')
+plt.scatter(MEASURED_MF[29:51],MODELLED_MF[29:51],color='darkorange',label='Transect B',s=60,edgecolor='k')
+plt.scatter(MEASURED_MF[51:],MODELLED_MF[51:],color='crimson',label='Transect C',s=60,edgecolor='k')
+plt.scatter(np.array(MEASURED_MF[:29])[reachedice[:29]==0],np.array(MODELLED_MF[:29])[reachedice[:29]==0],color='white',s=60,edgecolor='mediumblue')
+plt.scatter(np.array(MEASURED_MF[29:51])[reachedice[29:51]==0],np.array(MODELLED_MF[29:51])[reachedice[29:51]==0],color='white',s=60,edgecolor='darkorange')
+plt.scatter(np.array(MEASURED_MF[51:])[reachedice[51:]==0],np.array(MODELLED_MF[51:])[reachedice[51:]==0],color='white',s=60,edgecolor='crimson')
 plt.scatter(MEASURED_MF[0],MODELLED_MF[0],color='white',edgecolor='k',s=60,zorder=-1,label='Measurement did not\nreach ice surface') #fake point used to add empty circle to legend, zorder hides it behind a blue point
 plt.legend(fontsize=12)
 plt.xlabel('Melt factor of measured debris',fontsize=14)
 plt.ylabel('Melt factor of modelled debris',fontsize=14)
 plt.xlim(0,1.1)
 plt.ylim(0,1.1)
+plt.text(0.4, 0.1, 'correlation coefficient = ' + str(np.round(correlation,2)) + '\n(for sites that reached the ice only)', color='k', 
+        bbox=dict(facecolor='none', edgecolor='k', pad=10.0))
 plt.plot([0,1.1],[0,1.1],color='grey',linestyle='--',zorder=-2)
 #plt.savefig('modelledvsmeasured_MF.png',bbox_inches = 'tight')
 
-correlation = pearsonr(MEASURED_MF,MODELLED_MF)[0]
+
 
