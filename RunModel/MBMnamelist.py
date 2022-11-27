@@ -18,7 +18,7 @@ Considering_Catchment = False #are we simulating the whole catchment? (True) or 
 #debris
 ###############################################################################################################
 debris = True  #turn debris on or off
-debris_treatment = 'Variable Thickness' # 'Boolean' or 'Variable Thickness'
+debris_treatment = 'Boolean' # 'Boolean' or 'Variable Thickness'
 deb_uncertainty_test_peakMthickness = False #leave off (False) if using ref value only
 deb_uncertainty_test_transitionthickness = False #leave off (False) if using ref value only
 ###############################################################################################################
@@ -53,20 +53,37 @@ Refreezing = True
 Temp_shift = False # do you want to change the entire temperature array up or down by a uniform constant? True = yes 
 temp_shift_factor = 0 # what is the temperature shift. + is an increase in temp, - is a decrease
 Bias_CorrectionT = True #are you using bias corrected temp files as input (True) or not (False)
-Bias_CorrectionP = True #are you using bias corrected temp files as input (True) or not (False)
+Bias_CorrectionP = True #are you using bias corrected precip files as input (True) or not (False)
 
-Tuning = False
-param_total = 10 #how many parameter combinations to generate for the tuning process
+Tuning = True
+param_total = 1000 #how many parameter combinations to generate for the tuning process
+JointProbabilityDistribution = True #true: select parameters from joint probability distribution, if false, select from full distribution 
+#mean parameter values and covariance matrix, needed for generating the multivariate gaussian distribution: defined in Tuning/JointProbabilityDistribution.py
+means_debriscase = [2.97570389e-04, 2.44364946e-06, 1.02574550e-06]
+covariance_debriscase = [ 8.59048888e-09, -3.10636027e-11, -3.39930610e-11],[-3.10636027e-11,  1.88881027e-13,  1.20383794e-13],[-3.39930610e-11,  1.20383794e-13,  1.45712997e-13]
+
 
 #file_names
 #Input_path = .../.../… #tell the model where to find the input files
 params_filename = 'final_params_deb.csv' #tell the model which file contains the parameters we want to use for this run
 #where are the downscaled/bias corrected inputs stored
 #T_inputs = 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs'
-T_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
-P_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
-SR_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
+
 #File_glacier_in = ?? #need to change so that debris/non-debris case is more clear
-Output_path = 'D:\Model Runs\Debris Tests\VariableThicknessTest_2007-2018' #tell the model where to put the output netcdf files
+Output_path = 'D:/TuningOutputs/JPDtest' #tell the model where to put the output netcdf files
 ref_file_path = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Ref_files'
 File_sufix = ".nc"
+
+#######################################################################################################
+if Bias_CorrectionT == True:
+    T_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+else:
+    T_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
+
+if Bias_CorrectionP == True:
+    P_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+else:
+    P_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
+
+SR_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
+
