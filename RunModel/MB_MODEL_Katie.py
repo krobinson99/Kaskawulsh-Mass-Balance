@@ -46,14 +46,14 @@ from MBMnamelist import temp_shift_factor
 from MBMnamelist import Bias_CorrectionT as BC_T
 from MBMnamelist import Bias_CorrectionP as BC_P
 from MBMnamelist import Considering_Catchment
-from MBMnamelist import Tuning
+from MBMnamelist import Tuning, JointProbabilityDistribution, means_debriscase, covariance_debriscase
 from MBMnamelist import param_total
 from MBMnamelist import debris_treatment, debris_thickness_map
 from MBMnamelist import cleaniceM, peakM, peakM_thickness_ref, transition_thickness_ref, b0, k
 from MBMnamelist import peakthickness_uncertainty, transitionthickness_uncertainty
 
 # save the namelist that was used here into a txt file that will go in the outputs directory
-#write_config_file(Output_path,"MBMnamelist.py")
+write_config_file(Output_path,"MBMnamelist.py")
 
 #Initialize model (get parameterizations from the namelist)
 sim = -1
@@ -71,24 +71,31 @@ Srad_input_path = SR_inputs
 
 #Load radiation parameters 
 if Tuning == True:
-    aice_p = np.zeros(param_total)
-    asnow_p = np.zeros(param_total)
-    MF_p = np.zeros(param_total)
-    for i in range(0,param_total):
-        aice = np.random.normal(0.000003396, 0.00000265) 
-        while aice < 0:
-            aice = np.random.normal(0.000003396, 0.00000265) #OG spread was = 4.38e-6
-        asnow = np.random.normal(0.000001546,0.00000085) 
-        while asnow < 0:
+    if JointProbabilityDistribution == True:
+        JPD = np.random.multivariate_normal(means_debriscase, covariance_debriscase, param_total).T
+        MF_p = JPD[0]
+        aice_p = JPD[1]
+        asnow_p = JPD[2]
+    else:
+        # origina/full parameter distribution, defined in Young et al. (2021)
+        aice_p = np.zeros(param_total)
+        asnow_p = np.zeros(param_total)
+        MF_p = np.zeros(param_total)
+        for i in range(0,param_total):
+            aice = np.random.normal(0.000003396, 0.00000265) 
+            while aice < 0:
+                aice = np.random.normal(0.000003396, 0.00000265) #OG spread was = 4.38e-6
             asnow = np.random.normal(0.000001546,0.00000085) 
-        MF = np.random.normal(0.0002707,0.0001632) 
-        while MF < 0:
-            MF = np.random.normal(0.0002707,0.0001632)
-        
-        aice_p[i] = aice
-        asnow_p[i] = asnow
-        MF_p[i] = MF
-        
+            while asnow < 0:
+                asnow = np.random.normal(0.000001546,0.00000085) 
+            MF = np.random.normal(0.0002707,0.0001632) 
+            while MF < 0:
+                MF = np.random.normal(0.0002707,0.0001632)
+            
+            aice_p[i] = aice
+            asnow_p[i] = asnow
+            MF_p[i] = MF
+            
     #add line to save the params to an xls or npy or txt file
     np.savetxt(os.path.join(OUTPUT_PATH,'initial_params.csv'), [aice_p,asnow_p,MF_p])
         
