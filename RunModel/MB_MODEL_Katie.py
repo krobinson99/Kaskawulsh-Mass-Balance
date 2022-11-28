@@ -105,17 +105,6 @@ else:
     asnow_p = params[1,:]
     MF_p = params[2,:]
 
-#Load debris parameters
-peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
-while peakM_thickness < 0:
-    peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
-    
-transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
-while transition_thickness < 0: 
-    transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
-
-np.savetxt(os.path.join(OUTPUT_PATH,'debris_params.csv'), [peakM_thickness,transition_thickness])
-
 ## set up time range ###
 years = []
 year = start_year
@@ -177,7 +166,14 @@ if debris == True:
         debris_m = np.load(debris_thickness_map) #ones on ice, 0's on debris
         debris_m[nanlocs] = np.nan
     elif debris_treatment == 'Variable Thickness':
-        #EDIT!! get melt factor array
+        #Load debris parameters
+        peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
+        while peakM_thickness < 0:
+            peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
+        transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
+        while transition_thickness < 0: 
+            transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
+        np.savetxt(os.path.join(OUTPUT_PATH,'debris_params.csv'), [peakM_thickness,transition_thickness])
         print('loading debris thickness map, generating melt factors')
         debristhickness_array = np.load(debris_thickness_map)
         debris_m = generate_meltfactors(debristhickness_array,cleaniceM,peakM,peakM_thickness,transition_thickness,b0,k)
