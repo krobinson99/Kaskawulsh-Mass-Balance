@@ -12,7 +12,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy import interpolate
-from matplotlib import pyplot as plt
 import netCDF4
 from pyproj import Proj
 from netCDF4 import Dataset
@@ -27,7 +26,7 @@ import sys
 import os 
 
 #Import parameters from config file
-from DOWNSCALINGnamelist import *
+#from DOWNSCALINGnamelist import *
 from DOWNSCALINGnamelist import start_year
 from DOWNSCALINGnamelist import end_year
 from DOWNSCALINGnamelist import glacier_id
@@ -44,7 +43,7 @@ from DOWNSCALINGnamelist import delta_t
 from DOWNSCALINGnamelist import cfactor
 from DOWNSCALINGnamelist import snowfactor
 from DOWNSCALINGnamelist import downscaled_outputs
-from DOWNSCALINGnamelist import Glacier_outline
+from DOWNSCALINGnamelist import glacier_outline
 from DOWNSCALINGnamelist import considering_kaskonly
 from DOWNSCALINGnamelist import rawnarr_inputs
 from DOWNSCALINGnamelist import solar_in
@@ -63,11 +62,9 @@ while year <= end_year:
 
 for year in years:
                  #######INPUT Parameters#######
-                 
-    #Prefix used for most inputs (NARR/Solar/etc): kasktopo/kaskice for current runs
-    Glacier_id = glacier_id #from namelist 
-    
-    print ("Glacier ID is: " + Glacier_outline)
+
+
+    print ("Glacier ID is: " + glacier_outline)
     sys.stdout.flush()
     
     #Boolean for whether on ice or off ice
@@ -139,13 +136,13 @@ for year in years:
     File_temp_in = os.path.join(rawnarr_inputs,'kaskair.' + str(current_year) + '.nc')
     File_precip_in = os.path.join(rawnarr_inputs,'kaskapcp.' + str(current_year) + '.nc')
     File_CoarseElev_in = 'kaskCE.nc'
-    File_glacier_in = Glacier_outline + '.txt' 
+    File_glacier_in = glacier_outline + '.txt' 
     if Debris_cover == True:
-        File_debris_in = Glacier_id + '_deb.txt'
+        File_debris_in =  glacier_outline + '.txt'
     else:
         pass
     if snow_start == False:
-        File_snow_in = Glacier_id + 'snow' + str(current_year) + '.txt'
+        File_snow_in = 'kaskonlysnow' + str(current_year) + '.txt'
     else:
         pass
 
@@ -172,7 +169,7 @@ for year in years:
     
     #Solar data prefixes for current run
     if considering_kaskonly == True:
-        solar_prefix = 'fixed' + Glacier_id + '_' #GLright/left/mid, Kaskice, kasktopo
+        solar_prefix = 'fixed' + glacier_id + '_' #GLright/left/mid, Kaskice, kasktopo
         solar_suffix = 'DS.txt'
     else:
         solar_prefix = 'fixed' + 'kask' + '_' #GLright/left/mid, Kaskice, kasktopo
@@ -212,32 +209,32 @@ for year in years:
     ###Prep output file and variables
     
     #Prep non-averaged time step outputs
-    File_out1 = open( 'Melt' + Glacier_id + str(current_year) + '_dd.txt', 'w')
-    File_out2 = open( 'Melt' + Glacier_id + str(current_year) + '_edd.txt', 'w')
+    File_out1 = open( 'Melt' + glacier_id + str(current_year) + '_dd.txt', 'w')
+    File_out2 = open( 'Melt' + glacier_id + str(current_year) + '_edd.txt', 'w')
     
     #Prep non-averaged time step outputs
-    File_out4 = open( 'MBG' + Glacier_id + str(current_year) + '_dd.txt', 'w')
-    File_out5 = open( 'MBG' + Glacier_id + str(current_year) + '_edd.txt', 'w')
+    File_out4 = open( 'MBG' + glacier_id + str(current_year) + '_dd.txt', 'w')
+    File_out5 = open( 'MBG' + glacier_id + str(current_year) + '_edd.txt', 'w')
     
     #Outputs of downscaled params
     #TEMPERATURE:
-    Temp_outfile_name = 'Temp' + Glacier_id + str(current_year) + '.txt'
+    Temp_outfile_name = 'Temp' + glacier_id + str(current_year) + '.txt'
     Temp_output_path = os.path.join(OUTPUT_PATH,Temp_outfile_name)
     File_out3 = open(Temp_output_path, 'w')
     
     #SOLAR RADIATION:
-    Srad_outfile_name = 'Srad' + Glacier_id + str(current_year) + '.txt'
+    Srad_outfile_name = 'Srad' + glacier_id + str(current_year) + '.txt'
     Srad_output_path = os.path.join(OUTPUT_PATH,Srad_outfile_name)
     File_out7 = open(Srad_output_path, 'w')
     
     #ACCUMULATION:
-    netSnow_outfile_name = 'netSnow' + Glacier_id + str(current_year) + '.txt'
+    netSnow_outfile_name = 'netSnow' + glacier_id + str(current_year) + '.txt'
     netSnow_output_path = os.path.join(OUTPUT_PATH,netSnow_outfile_name)
     File_out11 = open(netSnow_output_path, 'w')
     
-    File_out8 = open('AccSnow' + Glacier_id + str(current_year) + '_dd.txt', 'w')
-    File_out9 = open('AccSnow' + Glacier_id + str(current_year) + '_edd.txt', 'w')
-    File_out10 = open('precip' + Glacier_id + str(current_year) + '.txt', 'w')
+    File_out8 = open('AccSnow' + glacier_id + str(current_year) + '_dd.txt', 'w')
+    File_out9 = open('AccSnow' + glacier_id + str(current_year) + '_edd.txt', 'w')
+    File_out10 = open('precip' + glacier_id + str(current_year) + '.txt', 'w')
     
                 #######SETUP Model domain#######
     
@@ -275,15 +272,6 @@ for year in years:
     
     #Extract grid geometry, correcting for dem/shapefile non-overlaps
     if considering_kaskonly == True:
-        IH = glacier[:,5]
-        #Ih[Ih==-9999]=np.nan
-        inval_loc = np.where(IH == -9999)
-        Ih =np.delete(IH, inval_loc)
-        Ix = glacier[:,3]
-        Iy = glacier[:,4]
-        TOPO = glacier[:,7]
-        ELA = glacier[:,3]
-    else:
         IH = glacier[:,6]
         #Ih[Ih==-9999]=np.nan
         inval_loc = np.where(IH == -9999)
@@ -291,8 +279,17 @@ for year in years:
         Ix = glacier[:,4]
         Iy = glacier[:,5]
         TOPO = glacier[:,8]
-        ELA = glacier[:,10]
-        
+        ELA = glacier[:,10] #ELA is just an array with same shape as Zgrid, where all non-NaN cells are 0. 
+    else:
+        IH = glacier[:,2]
+        #Ih[Ih==-9999]=np.nan
+        inval_loc = np.where(IH == -9999)
+        Ih = np.delete(IH, inval_loc)
+        Ix = glacier[:,3]
+        Iy = glacier[:,4]
+        TOPO = glacier[:,8]
+        #ELA = glacier[:,10] #ELA is just an array with same shape as Ih, all vals are 0 
+        ELA = np.zeros(Ih.shape)
         
     
     #Create ELA array
@@ -639,8 +636,8 @@ for year in years:
     inP.close()
     
     if Generate_snow == True:
-        np.savetxt(Glacier_id + 'snow' + str(current_year+1) + '.txt', Leftover_listSR_arc)
-        print('Snow profile is saved as:' + Glacier_id + 'snow' + str(current_year+1) + '.txt')
+        np.savetxt(glacier_id + 'snow' + str(current_year+1) + '.txt', Leftover_listSR_arc)
+        print('Snow profile is saved as:' + glacier_id + 'snow' + str(current_year+1) + '.txt')
         
-    print(Glacier_id + 'Complete')
+    print(glacier_id + 'Complete')
     
