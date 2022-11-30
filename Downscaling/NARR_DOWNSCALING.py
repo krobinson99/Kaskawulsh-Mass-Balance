@@ -287,8 +287,9 @@ for year in years:
         Ih = np.delete(IH, inval_loc)
         Ix = glacier[:,3]
         Iy = glacier[:,4]
-        TOPO = glacier[:,8]
-        #ELA = glacier[:,10] #ELA is just an array with same shape as Ih, all vals are 0 
+        #TOPO = glacier[:,8] #TOPO is just an array with same shape as Ih, all vals are 0 
+        #ELA = glacier[:,10] #ELA is also an array with same shape as Ih, all vals are 0 
+        TOPO = np.zeros(Ih.shape)
         ELA = np.zeros(Ih.shape)
         
     
