@@ -30,12 +30,13 @@ import os
 from DOWNSCALINGnamelist import start_year
 from DOWNSCALINGnamelist import end_year
 from DOWNSCALINGnamelist import glacier_id
+from DOWNSCALINGnamelist import glacier_outline
 from DOWNSCALINGnamelist import Topo_param
 from DOWNSCALINGnamelist import Debris
 from DOWNSCALINGnamelist import UTM
 #from DOWNSCALINGnamelist import ELA
-from DOWNSCALINGnamelist import SNOW_START
-from DOWNSCALINGnamelist import gen_snow
+from DOWNSCALINGnamelist import snow_start
+from DOWNSCALINGnamelist import save_snow
 from DOWNSCALINGnamelist import NARR_subregions
 from DOWNSCALINGnamelist import D_T
 from DOWNSCALINGnamelist import D_P
@@ -43,7 +44,6 @@ from DOWNSCALINGnamelist import delta_t
 from DOWNSCALINGnamelist import cfactor
 from DOWNSCALINGnamelist import snowfactor
 from DOWNSCALINGnamelist import downscaled_outputs
-from DOWNSCALINGnamelist import glacier_outline
 from DOWNSCALINGnamelist import considering_kaskonly
 from DOWNSCALINGnamelist import rawnarr_inputs
 from DOWNSCALINGnamelist import solar_in
@@ -76,9 +76,8 @@ for year in years:
         print ("On ice grid,")
     
     #Boolean for whether to include debris cover map and no melt condition
-    Debris_cover = Debris
     
-    if Debris_cover == False:
+    if Debris == False:
         print ("No debris cover considered,")
     else:
         print ("Debris cover considered")
@@ -92,17 +91,11 @@ for year in years:
     
     #Boolean for whether initial snow profile exists or start with no snow condition
     #Followed by boolean for whether to generate snow.txt output
-    snow_start = SNOW_START
-    Generate_snow = gen_snow
     
     if snow_start == True:
         print ("Snow initial condition is 0 m.w.e.,")
     else:
         print ("Snow initial condition is carried over from previous year") 
-    
-    #Indices of subregions used for precip downscaling, picked manually to omit 
-    #points on opposite side of divide
-    NARR_indices = NARR_subregions
     
     #Set year for simulation run
     current_year = year
@@ -137,7 +130,7 @@ for year in years:
     File_precip_in = os.path.join(rawnarr_inputs,'kaskapcp.' + str(current_year) + '.nc')
     File_CoarseElev_in = 'kaskCE.nc'
     File_glacier_in = glacier_outline + '.txt' 
-    if Debris_cover == True:
+    if Debris == True:
         File_debris_in =  glacier_outline + '.txt'
     else:
         pass
@@ -169,10 +162,10 @@ for year in years:
     
     #Solar data prefixes for current run
     if considering_kaskonly == True:
-        solar_prefix = 'fixed' + glacier_id + '_' #GLright/left/mid, Kaskice, kasktopo
+        solar_prefix = 'fixed' + 'kaskonly' + '_' #GLright/left/mid, Kaskice, kasktopo #glacier solar files
         solar_suffix = 'DS.txt'
     else:
-        solar_prefix = 'fixed' + 'kask' + '_' #GLright/left/mid, Kaskice, kasktopo
+        solar_prefix = 'fixed' + 'kask' + '_' #GLright/left/mid, Kaskice, kasktopo #catchment solar files 
         solar_suffix = 'DS.txt'
     
     #Get values arrays from binary files
@@ -195,7 +188,7 @@ for year in years:
         pass
     
     if Topo == 0:
-        if Debris_cover == True:
+        if Debris == True:
             debris_mask = np.genfromtxt(File_debris_in, skip_header=1, delimiter=',')
         else:
             pass
@@ -278,7 +271,7 @@ for year in years:
         Ih =np.delete(IH, inval_loc)
         Ix = glacier[:,4]
         Iy = glacier[:,5]
-        TOPO = glacier[:,8]
+        TOPO = glacier[:,8] #topo is 0 if on-ice, 1 if off-ice
         ELA = glacier[:,10] #ELA is just an array with same shape as Zgrid, where all non-NaN cells are 0. 
     else:
         IH = glacier[:,2]
@@ -287,7 +280,7 @@ for year in years:
         Ih = np.delete(IH, inval_loc)
         Ix = glacier[:,3]
         Iy = glacier[:,4]
-        #TOPO = glacier[:,8] #TOPO is just an array with same shape as Ih, all vals are 0 
+        #TOPO = glacier[:,8] #TOPO is just an array with same shape as Ih, all vals are 0 (since all cells are on-ice)
         #ELA = glacier[:,10] #ELA is also an array with same shape as Ih, all vals are 0 
         TOPO = np.zeros(Ih.shape)
         ELA = np.zeros(Ih.shape)
@@ -332,7 +325,7 @@ for year in years:
     
     #Control for iffy debris cover input, courtesy of esri
     if Topo == 0:
-        if Debris_cover == 1:
+        if Debris == 1:
             debris_mask[:,1], debris_mask[:,5] = zip(*sorted(zip(debris_mask[:,1], debris_mask[:,5])))
             debris_raw = debris_mask[:,5]
             debris_m = np.zeros(debris_raw.shape) + debris_raw
@@ -435,9 +428,9 @@ for year in years:
                 
             #Apply precip funk to get multivariate based downscaling of precip values
             if i == 0:
-                W1, Pfunk, I0 = rainy_day_funk(elev.ravel()[NARR_indices], \
-                    curP.ravel()[NARR_indices], UTMx_list[NARR_indices], \
-                        UTMy_list[NARR_indices]) 
+                W1, Pfunk, I0 = rainy_day_funk(elev.ravel()[NARR_subregions], \
+                    curP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], \
+                        UTMy_list[NARR_subregions]) 
             else:
                 pass           
             
@@ -636,7 +629,7 @@ for year in years:
     inE.close()
     inP.close()
     
-    if Generate_snow == True:
+    if save_snow == True:
         np.savetxt(glacier_id + 'snow' + str(current_year+1) + '.txt', Leftover_listSR_arc)
         print('Snow profile is saved as:' + glacier_id + 'snow' + str(current_year+1) + '.txt')
         
