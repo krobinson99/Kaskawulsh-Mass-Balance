@@ -69,18 +69,18 @@ def get_array_from_tif(file):
     
     return array
 
-DEM1977_resampled = get_array_from_tif('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SurfaceZ/1977/1977DEM_regridded_average.tif') 
+DEM1977_resampled = get_array_from_tif('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SurfaceZ/Coregistered_DEMs/gdal/1977DEM_coregistered_regridded_average.tif') 
 DEM1977_resampled[nanlocs] = np.nan
 
 plt.figure(figsize=(10,6))
-plt.contourf(Xgrid,Ygrid,DEM1977_resampled,cmap = 'Greys_r',levels=np.linspace(600,5000,45))
+plt.contourf(Xgrid,Ygrid,DEM1977_resampled,cmap = 'viridis',levels=np.linspace(600,5000,85))
 legend = plt.colorbar()
 plt.axis('equal') 
 legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
 plt.title('1977 DEM')
 plt.xlabel('Easting',fontsize=14)
 plt.ylabel('Northing',fontsize=14)
-#plt.savefig('1977DEM_resampled.png')
+plt.savefig('1977DEM_resampledd_coregistered.png')
 
 DEM2018_resampled = get_array_from_tif('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SurfaceZ/Coregistered_DEMs/gdal/2018DEM_coregistered_regridded_average.tif')
 DEM2018_resampled[nanlocs] = np.nan
@@ -107,7 +107,9 @@ legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,l
 plt.title('1977-2018 dh/dt (Coregistered)')
 plt.xlabel('Easting',fontsize=14)
 plt.ylabel('Northing',fontsize=14)
-#plt.savefig('1977-2018_dhdt_resampled_coregistered.png')
+plt.text(570000,6710000,'Mean off-glacier dh/dt = ' + str(np.round(np.nanmean((dhdt1977_2018_resampled)[offglacier]),2)) + ' m a$^{-1}$')
+plt.text(570000,6705000,'Mean on-glacier dh/dt = ' + str(np.round(np.nanmean((dhdt1977_2018_resampled)[onglacier]),2)) +' m a$^{-1}$')
+plt.savefig('1977-2018_dhdt_resampled_coregistered.png')
 
 print(np.nanmean(dhdt1977_2018_resampled[onglacier]))
 # -0.51
@@ -136,7 +138,7 @@ plt.contourf(Xgrid,Ygrid,DEMdifference_2018to1977,cmap = 'RdYlBu',levels=np.lins
 legend = plt.colorbar()
 plt.axis('equal') 
 legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
-plt.title('B. 2018 DEM (coregistered from E.B.) - 1977 DEM (not sure if coregistered)')
+plt.title('B. 2018 DEM (coregistered from E.B.) - 1977 DEM (coregistered from E.B.)')
 plt.xlabel('Easting',fontsize=14)
 plt.ylabel('Northing',fontsize=14)
 plt.text(570000,6710000,'Off glacier dh/dt = ' + str(np.round(np.nanmean(DEMdifference_2018to1977[offglacier]),2)) + ' m a$^{-1}$')
@@ -159,7 +161,55 @@ plt.ylabel('Northing',fontsize=14)
 plt.text(570000,6710000,'Off glacier difference = ' + str(np.round(np.nanmean(methods_difference[offglacier]),2)) + ' m a$^{-1}$')
 plt.text(570000,6705000,'On glacier difference = ' + str(np.round(np.nanmean(methods_difference[onglacier]),2)) + ' m a$^{-1}$')
 plt.tight_layout()
-plt.savefig('differencebw_dhdt_methods.png')
+#plt.savefig('differencebw_dhdt_methods.png')
+
+
+plt.figure(figsize=(10,6))
+plt.contourf(Xgrid,Ygrid,DEMdifference_2018to1977*42,cmap = 'RdYlBu',levels=np.linspace(-120,120,41))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m)', rotation=270,fontsize=14,labelpad=20)
+plt.title('Total elevation change 1977-2018')
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.text(570000,6710000,'Off-glacier avg change = ' + str(np.round(np.nanmean((DEMdifference_2018to1977*42)[offglacier]),2)) + ' m')
+plt.text(570000,6705000,'On-glacier avg change = ' + str(np.round(np.nanmean((DEMdifference_2018to1977*42)[onglacier]),2)) + ' m')
+plt.tight_layout()
+#plt.savefig('Total_dh_1977-2018.png')
+
+dhdt0718_resampled = get_array_from_tif('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SurfaceZ/2007/dhdt_2007-2018_regridded_average.tif') #has No NaNs - completely gap-filled
+#gapsdhdt = np.where(np.isnan(dhdt0718_resampled))
+#dhdt0718_resampled[gapsdhdt] = 0 # need to fill with something else..
+dhdt0718_resampled[nanlocs] = np.nan
+
+plt.figure(figsize=(10,6))
+#plt.contourf(np.flipud(Sfc_grid), cmap = 'GnBu')
+plt.contourf(Xgrid,Ygrid,dhdt0718_resampled,cmap = 'RdYlBu',levels=np.linspace(-3,3,21))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('2007-2018 dh/dt')
+plt.text(570000,6710000,'Off-glacier dh/dt = ' + str(np.round(np.nanmean(dhdt0718_resampled[offglacier]),2)) + ' m')
+plt.text(570000,6705000,'On-glacier dh/dt = ' + str(np.round(np.nanmean(dhdt0718_resampled[onglacier]),2)) + ' m')
+plt.tight_layout()
+plt.savefig('2017-2018dhdt_resampled.png')
+
+dhdt0718_resampled = get_array_from_tif('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SurfaceZ/2007/dhdt_2007-2018_regridded_average.tif') #has No NaNs - completely gap-filled
+gapsdhdt = np.where(np.isnan(dhdt0718_resampled))
+dhdt0718_resampled[gapsdhdt] = 0 # need to fill with something else..
+dhdt0718_resampled[nanlocs] = np.nan
+
+plt.figure(figsize=(10,6))
+#plt.contourf(np.flipud(Sfc_grid), cmap = 'GnBu')
+plt.contourf(Xgrid,Ygrid,dhdt0718_resampled,cmap = 'RdYlBu',levels=np.linspace(-3,3,21))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('2007-2018 dh/dt')
+plt.text(570000,6710000,'Off-glacier dh/dt = ' + str(np.round(np.nanmean(dhdt0718_resampled[offglacier]),2)) + ' m')
+plt.text(570000,6705000,'On-glacier dh/dt = ' + str(np.round(np.nanmean(dhdt0718_resampled[onglacier]),2)) + ' m')
+plt.tight_layout()
+
 
 ###############################################################################
 ###############################################################################
@@ -167,7 +217,7 @@ plt.savefig('differencebw_dhdt_methods.png')
 
 # trust the 2018 DEM and the 1977-2018 dh/dt (most recently sent by Etienne)
 #subtract the dh/dt map from 2018 to get 2017 and so on
-def dynamic_surface():
+def dynamic_surface_linear():
     years = np.arange(2022,1978,-1)
     Zgrid_dynamic = np.empty((len(years),Zgrid.shape[0],Zgrid.shape[1]))
     
@@ -178,8 +228,8 @@ def dynamic_surface():
     
     i = -1
     for y in years:
-        print(y)
-        print(i)
+        #print(y)
+        #print(i)
         if y >= 2018:
             Zgrid_dynamic[i,:,:] = DEM2018_resampled
         else:
@@ -191,8 +241,98 @@ def dynamic_surface():
         
     return Zgrid_dynamic
 
-Zgrid_dynamic = dynamic_surface()
+Zgrid_dynamic_linear1977to2018 = dynamic_surface_linear()
   
-#np.save('Zgrid_dynamic.npy',Zgrid_dynamic)
+#np.save('Zgrid_dynamic_linear1977to2018.npy',Zgrid_dynamic_linear1977to2018)
+
+def dynamic_surface_2phases():
+    years = np.arange(2022,1978,-1)
+    Zgrid_dynamic = np.empty((len(years),Zgrid.shape[0],Zgrid.shape[1]))
+    
+    yy = 1979
+    for i in range (len(years)):
+        Zgrid_dynamic[i,0,0] = yy
+        yy+=1
+    
+    i = -1
+    for y in years:
+        #print(y)
+        #print(i)
+        if y >= 2018:
+            Zgrid_dynamic[i,:,:] = DEM2018_resampled
+        elif y >= 2007 and y < 2018:
+            #print(y)
+            Zgrid_dynamic[i,:,:] = Zgrid_dynamic[i+1,:,:] - dhdt0718_resampled
+        elif y == 2006:
+            dhdt1977_2007 = (Zgrid_dynamic[i+1,:,:] - DEM1977_resampled)/((2007-1977)+1)
+            Zgrid_dynamic[i,:,:] = Zgrid_dynamic[i+1,:,:] - dhdt1977_2007
+        elif y < 2006:
+            Zgrid_dynamic[i,:,:] = Zgrid_dynamic[i+1,:,:] - dhdt1977_2007
+            
+        i += -1
+        
+    for i in range(0,len(years)):
+        Zgrid_dynamic[i,:,:][offglacier] = Zgrid[offglacier]
+        
+    return Zgrid_dynamic, dhdt1977_2007
 
 
+Zgrid_dynamic_2phases, dhdt1977_2007_inferred = dynamic_surface_2phases()
+
+plt.figure(figsize=(16,5))
+plt.subplot(1,2,1)
+plt.contourf(Xgrid,Ygrid,dhdt0718_resampled,cmap = 'RdYlBu',levels=np.linspace(-4,4,81))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('2007-2018 dh/dt')
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.text(570000,6710000,'Off glacier dh/dt = ' + str(np.round(np.nanmean(dhdt0718_resampled[offglacier]),2)) + ' m a$^{-1}$')
+plt.text(570000,6705000,'On glacier dh/dt = ' + str(np.round(np.nanmean(dhdt0718_resampled[onglacier]),2)) + ' m a$^{-1}$')
+plt.subplot(1,2,2)
+plt.contourf(Xgrid,Ygrid,dhdt1977_2007_inferred,cmap = 'RdYlBu',levels=np.linspace(-4,4,81))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('1977-2007 dh/dt')
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.text(570000,6710000,'Off glacier dh/dt = ' + str(np.round(np.nanmean(dhdt1977_2007_inferred[offglacier]),2)) + ' m a$^{-1}$')
+plt.text(570000,6705000,'On glacier dh/dt = ' + str(np.round(np.nanmean(dhdt1977_2007_inferred[onglacier]),2)) + ' m a$^{-1}$')
+plt.tight_layout()
+#plt.savefig('1977-2007-2018_dhdtmaps.png')
+
+plt.figure(figsize=(16,5))
+plt.subplot(1,2,1)
+plt.contourf(Xgrid,Ygrid,Zgrid_dynamic_linear1977to2018[0],cmap = 'Purples',levels=np.linspace(700,4000,34))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('1979 Surface (derived from 1977-2018 dh/dt)')
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.subplot(1,2,2)
+plt.contourf(Xgrid,Ygrid,Zgrid_dynamic_2phases[0],cmap = 'Purples',levels=np.linspace(700,4000,34))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('1979 Surface (derived from 2007-2018 dh/dt and 1977-2007 dh/dt)')
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.tight_layout()
+#plt.savefig('1979Zgrid_2methods.png')
+
+difference_1979Zgrids = Zgrid_dynamic_linear1977to2018[0] - Zgrid_dynamic_2phases[0]
+
+plt.figure(figsize=(10,6))
+#plt.contourf(np.flipud(Sfc_grid), cmap = 'GnBu')
+plt.contourf(Xgrid,Ygrid,difference_1979Zgrids,cmap = 'RdBu',levels=np.linspace(-10,10,101))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m a$^{-1}$)', rotation=270,fontsize=14,labelpad=20)
+plt.title('1979 Surface Elevation difference for 1977-2018 dh/dt minus 2007-2018 and 1977-2007 dh/dt')
+plt.text(570000,6710000,'Mean off-glacier difference = ' + str(np.round(np.nanmean(difference_1979Zgrids[offglacier]),2)) + ' m')
+plt.text(570000,6705000,'Mean on-glacier difference = ' + str(np.round(np.nanmean(difference_1979Zgrids[onglacier]),2)) + ' m')
+plt.tight_layout()
+plt.savefig('difference_1979_Zgrids.png')
