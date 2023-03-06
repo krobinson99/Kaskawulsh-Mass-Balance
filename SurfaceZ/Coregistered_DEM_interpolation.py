@@ -15,6 +15,7 @@ import utm
 from dbfread import DBF
 import PIL
 from PIL import Image
+from mpl_toolkits.mplot3d import Axes3D
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import regridXY_something
 
@@ -278,6 +279,7 @@ def dynamic_surface_2phases():
 
 
 Zgrid_dynamic_2phases, dhdt1977_2007_inferred = dynamic_surface_2phases()
+#np.save('Zgrid_dynamic_2phases.npy',Zgrid_dynamic_2phases)
 
 plt.figure(figsize=(16,5))
 plt.subplot(1,2,1)
@@ -335,4 +337,55 @@ plt.title('1979 Surface Elevation difference for 1977-2018 dh/dt minus 2007-2018
 plt.text(570000,6710000,'Mean off-glacier difference = ' + str(np.round(np.nanmean(difference_1979Zgrids[offglacier]),2)) + ' m')
 plt.text(570000,6705000,'Mean on-glacier difference = ' + str(np.round(np.nanmean(difference_1979Zgrids[onglacier]),2)) + ' m')
 plt.tight_layout()
-plt.savefig('difference_1979_Zgrids.png')
+#plt.savefig('difference_1979_Zgrids.png')
+
+#plot area vs elevation
+def area_vs_elev_curve(Zgrid,binnum):
+    counts, bins = np.histogram(Zgrid[onglacier],bins=binnum,range=(600,4000))
+    #with 12 bins the bin width is 300m
+    area = counts*(0.2*0.2) #multiplied by area per gridcell in units km^2
+    elevs = bins[1:] #bins are the upper bound (corresponds to total area under that elev.)
+    return area,elevs
+
+plt.figure(figsize=(5,7))
+for i in range(0,len(Zgrid_dynamic_2phases)):  
+    area, elev = area_vs_elev_curve(Zgrid_dynamic_2phases[i],24)
+    plt.plot(area,elev)
+plt.xlabel('Area (km$^2$)')
+plt.ylabel('Elevation (m a.s.l.)')
+
+plt.figure(figsize=(4,8))
+area_i, elev_i = area_vs_elev_curve(Zgrid_dynamic_2phases[0],24)
+plt.plot(area_i,elev_i,label='1979')
+area_f, elev_f = area_vs_elev_curve(Zgrid_dynamic_2phases[-1],24)
+plt.plot(area_f,elev_f,label='2022')
+plt.legend()
+plt.xlabel('Area (km$^2$)')
+plt.ylabel('Elevation (m a.s.l.)')
+
+area_i, elev_i = area_vs_elev_curve(Zgrid_dynamic_2phases[0],17)
+area_f, elev_f = area_vs_elev_curve(Zgrid_dynamic_2phases[-1],17)
+x = np.arange(len(elev_i))
+width = 0.4
+plt.figure(figsize=(4,8))
+plt.barh(x+0.2, area_i, width,color='deeppink')
+plt.barh(x-0.2, area_f, width,color='cornflowerblue')
+plt.legend(['1979','2022'],fontsize=14)
+plt.yticks(x,elev_i, fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+plt.xlabel('Area (km$^2$)',fontsize=14)
+#plt.savefig('Hypsometry_1979vs2022.png')
+
+plt.figure(figsize=(10,6))
+plt.contourf(Xgrid,Ygrid,Zgrid_dynamic_2phases[-1]-Zgrid_dynamic_2phases[0],cmap = 'RdBu',levels=np.linspace(-120,120,41))
+legend = plt.colorbar()
+plt.axis('equal') 
+legend.ax.set_ylabel('Elevation change (m)', rotation=270,fontsize=14,labelpad=20)
+plt.title('Total elevation change 1977-2018')
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.text(570000,6710000,'Off-glacier avg change = ' + str(np.round(np.nanmean((Zgrid_dynamic_2phases[-1]-Zgrid_dynamic_2phases[0])[offglacier]),2)) + ' m')
+plt.text(570000,6705000,'On-glacier avg change = ' + str(np.round(np.nanmean((Zgrid_dynamic_2phases[-1]-Zgrid_dynamic_2phases[0])[onglacier]),2)) + ' m')
+plt.tight_layout()
+
+    
