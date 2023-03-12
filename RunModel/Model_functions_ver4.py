@@ -479,6 +479,7 @@ def MB_341_office(Thour, Phour, Pmelt, Pmelt_SRarc, SRhour_arc, MFi, MFs, asnow,
                 
                 
                 
+
 def regridXY_something(Ix, Iy, something):
 
     ###Regrid array into 3d, like meshgrid but supports third variable###
@@ -489,11 +490,11 @@ def regridXY_something(Ix, Iy, something):
     grid_spacex = np.diff(xr)
     grid_spacey = np.diff(yr)
     norm_gridx = np.mean(grid_spacex).round(-2)
-    norm_gridy = np.mean(grid_spacey).round(-2)
+    norm_gridy = np.mean(grid_spacey).round(-2) #Get grid spacing (= 200m)
     
-    if np.mean(grid_spacex) == norm_gridx:
+    if np.mean(grid_spacex) == norm_gridx: #check that delta x = delta y (200 m each)
         pass
-    else:
+    else: # if not equal, make a correction (this whole loop is skipped since all cells have 200x200m res.)
         holes = np.where(grid_spacex > norm_gridx)
         d = grid_spacex[holes]
         vals = xr[holes]
@@ -504,7 +505,7 @@ def regridXY_something(Ix, Iy, something):
                 new_val = v + (i * norm_gridx)
                 xr = np.insert(xr, 0, new_val)
         
-    if np.mean(grid_spacey) == norm_gridy:
+    if np.mean(grid_spacey) == norm_gridy: #they are equal, so this loop is also skipped
         pass
     else:
         holes = np.where(grid_spacey > norm_gridy)
@@ -522,22 +523,19 @@ def regridXY_something(Ix, Iy, something):
     x = np.linspace(np.min(Ix), np.max(Ix), len(xr))
     y = np.linspace(np.min(Iy), np.max(Iy), len(yr))
     
-    X, Y = np.meshgrid(x, y)
+    X, Y = np.meshgrid(x, y) #X is Xgrid, Y is Ygrid
         
     hold = np.empty(X.shape)
     hold[:] = np.nan
         
     XYZ = np.empty(X.shape)    
-    XYZ[:] = np.ones(X.shape) * hold
+    XYZ[:] = np.ones(X.shape) * hold # an array of all nans the size of the domain
     
         
     for i in range(0, len(X)):
-        #print 'i = '
-        #print i
+
         for j in range(0, len(X[i])):
-            #print 'j = '
-            #print j
-         
+
             locx = np.where(Ix == X[i,j])            
             locy = np.where(Iy[locx] == Y[i,j])
             loc = locx[0][locy]
@@ -555,6 +553,8 @@ def regridXY_something(Ix, Iy, something):
 
                 
     return xyz, X, Y, x, y
+
+
     
     
 
@@ -1253,7 +1253,7 @@ def write_config_file(outputpath,scriptname):
         data = f.read()
         f.close()
 
-    txtfile = os.path.join(outputpath,"MBMnamelist.txt")    
+    txtfile = os.path.join(outputpath,"namelist.txt")    
     with open(txtfile, mode="w") as f:
         f.write(data)
         f.close()
