@@ -561,11 +561,12 @@ def regridXY_something(Ix, Iy, something):
     
 
 #get closest node to a point from a list of nodes
-def closest_node(node, nodes):
+def closest_node(downscaledcell, NARRcells):
     
-    dist_2 = np.sum((nodes - node)**2, axis=0)
-    node_pos = np.argmin(dist_2)
-    #closest_index = distance.cdist([node], nodes).argmin()
+    x_dist = downscaledcell[0] - NARRcells[0]
+    y_dist = downscaledcell[1] - NARRcells[1]
+    dist = np.sqrt(x_dist**2 + y_dist**2)
+    node_pos = np.argmin(dist)
     
     return node_pos
     
