@@ -1158,7 +1158,7 @@ def Check_out_that_MB(flat_netMB, flat_z, ELA):
         
     return means, stds, medians
 
-def KWtributaries(coordinatefile,Zgrid):
+def KWtributaries():
     """
     balance flux codes:
     0 = KW0
