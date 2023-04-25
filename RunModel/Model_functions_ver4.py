@@ -1160,45 +1160,46 @@ def Check_out_that_MB(flat_netMB, flat_z, ELA):
 
 def KWtributaries(coordinatefile,Zgrid):
     """
-    codes:
-    nontrib = 0
+    balance flux codes:
+    0 = KW0
+    1 = NA
+    2 = CA
+    3 = SW
+    4 = SA
+    5 = KW5
+    6 = KW4
+    7 = KW3
+    8 = KW2
+    9 = KW1
+    tributary codes:
     SA = 1
     SW = 2
     CA = 3
     NA = 4
     Trunk = 5
     """
-    #get nanlocs
-    #nanlocs = np.where(np.isnan(Zgrid))
+    Path2KWoutline = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel'
+    File_glacier_in = os.path.join(Path2KWoutline,'kaskonly_deb.txt')
+    glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
+    Ix = glacier[:,3] 
+    Iy = glacier[:,4] 
+    balancefluxes = glacier[:,5]
+
+    #-------Turn vectors into 2D gridded inputs--------------------
+
+    BalFluxes, Xgrid_KW, Ygrid_KW, xbounds, ybounds = regridXY_something(Ix, Iy, balancefluxes)
+    nanlocs = np.where(np.isnan(BalFluxes))
+    tribarray = np.zeros(BalFluxes.shape)
+    tribarray[nanlocs] = np.nan
     
-    #load .csv file with tributary codes
-    df = pd.read_csv(coordinatefile)
-    #df['Tributary'].astype('Int64')
-    arr = np.array(df)
+    tribarray[np.where(BalFluxes >= 5)] = 5 # Trunk
+    tribarray[np.where(BalFluxes == 0)] = 5 # Trunk
+    tribarray[np.where(BalFluxes == 1)] = 4 # NA
+    tribarray[np.where(BalFluxes == 2)] = 3 # CA
+    tribarray[np.where(BalFluxes == 3)] = 2 # SW
+    tribarray[np.where(BalFluxes == 4)] = 1 # SA
     
-    tribs = arr[:,3]
-    
-    ones = np.where(tribs == 'SA')
-    twos = np.where(tribs == 'SW')
-    threes = np.where(tribs == 'CA')
-    fours = np.where(tribs == 'NorthArm')
-    fives = np.where(tribs == 'Tr') # trunk
-    zeros = np.where(pd.isna(tribs))
-    
-    tribs[ones] = 1
-    tribs[twos] = 2
-    tribs[threes] = 3
-    tribs[fours] = 4
-    tribs[fives] = 5
-    tribs[zeros] = 0
-        
-    #reshape tribcodes list in Zgrid.shape
-    tribarray = np.reshape(tribs,(Zgrid.shape))
-    
-    tribarray_f = np.flipud(tribarray)
-    #tribarray[nanlocs] = np.nan
-    
-    return tribarray_f
+    return tribarray
 
     
 def generate_meltfactors(debrismask,cleaniceM,peakM,peakM_thickness,transition_thickness,b0 = 11.0349260206858,k = 1.98717418666925):
