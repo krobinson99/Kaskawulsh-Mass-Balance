@@ -37,12 +37,31 @@ all_lons = seasonalsnow['Lon'][0]
 thickness = seasonalsnow['Thickness'][0]
 time = seasonalsnow['GPS_time'][0]
 
-plt.figure()
+plt.figure(figsize=(10,10))
 plt.title('2021 Alaska Seasonal Snow Picks')
 plt.xlabel('Lon')
 plt.ylabel('Lat')
 #plt.scatter(all_lons,all_lats,c=elevs,cmap="BuPu", vmin = 1000, vmax=3000)
-plt.scatter(all_lons,all_lats,c=thickness,cmap="BuPu", vmin = 0, vmax=5)
+plt.scatter(all_lons,all_lats,c=thickness,cmap="BuPu", vmin = 0, vmax=5,s=5)
+plt.colorbar()
+
+kwlon_l = np.where(all_lons<-139.8)
+kwlat_l = np.where(all_lats<60.45)
+kwlon_u = np.where(all_lons>-138.7)
+kwlat_u = np.where(all_lats>60.85)
+
+#all_lons[kwlon_l] = np.nan
+#all_lons[kwlat_l] = np.nan
+#all_lons[kwlon_u] = np.nan
+#all_lons[kwlat_u] = np.nan
+
+
+plt.figure(figsize=(10,10))
+plt.title('2021 Alaska Seasonal Snow Picks')
+plt.xlabel('Lon')
+plt.ylabel('Lat')
+#plt.scatter(all_lons,all_lats,c=elevs,cmap="BuPu", vmin = 1000, vmax=3000)
+plt.scatter(all_lons,all_lats,c=thickness,cmap="BuPu", vmin = 0, vmax=5,s=1)
 plt.colorbar()
 
 ###############################################################################
@@ -146,6 +165,33 @@ plt.yticks(ticks=[0,50,100,150,200],labels=[int(Ygrid[:,0][0]),int(Ygrid[:,0][50
 plt.title('Downscaled & Bias Corrected NARR Accumulation (2007-2018)',fontsize=14)
 #plt.savefig('NARRAccumulation.png',bbox_inches = 'tight')
 
+easting_OIB_test = []
+northing_OIB_test = []
+for i in range(0,len(all_lons)):
+    x = utm.from_latlon(all_lats[i],all_lons[i])
+    easting_OIB_test.append(x[0])
+    northing_OIB_test.append(x[1])
+easting_OIB_test = np.array(easting_OIB_test)
+northing_OIB_test = np.array(northing_OIB_test)
+
+    
+easting_OIB_test[kwlon_l] = np.nan
+easting_OIB_test[kwlat_l] = np.nan
+easting_OIB_test[kwlon_u] = np.nan
+easting_OIB_test[kwlat_u] = np.nan
+
+plt.figure(figsize=(10,6))
+plt.contourf(Xgrid,Ygrid_flipped,distributed_accumulation, cmap = 'BuPu', levels = np.linspace(0,4,41))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Thickness (m)', rotation=270,fontsize=14,labelpad=20)
+plt.xlabel('Easting',fontsize=14)
+plt.ylabel('Northing',fontsize=14)
+plt.axis('equal')                     # This scales the x/y axes equally
+plt.title('Picks from data/misc/Alaska_seasonal_snow/2021_Alaska_seasonal_snow.mat',fontsize=14)
+plt.scatter(easting_OIB_test,northing_OIB_test,c=thickness, cmap = 'BuPu',s=0.1,marker='o')#linewidth=0.5,edgecolor='black')
+plt.clim(0,4)  
+plt.tight_layout()
+#plt.savefig('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2021/TestsforMichaelDaniel/2021_Alaska_seasonal_snow_on_KW.pdf')
 ################################################################################
 
 def seasonalaccumulation(year1,year2,BC):
@@ -326,7 +372,7 @@ plt.tight_layout()
 #################################################################################
 
 # segment the NASA data into the diff tributaries:
-tribarray = KWtributaries('file:///F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KWTributaries.csv',Zgrid)
+tribarray = KWtributaries()
 nanlocs = np.where(np.isnan(Zgrid))
 tribarray[nanlocs] = np.nan
 
@@ -488,6 +534,23 @@ plt.xlim(0,4.5)
 plt.ylim(500,4000)
 #plt.savefig('NARRCresis2021_AccvsElev_summersnowinclv2.png',bbox_inches = 'tight')
 
+plt.figure(figsize=(6,8))
+plt.scatter(accumulationvselevation(Zgrid,snow2021_nobc_plussummersnow)[0],accumulationvselevation(Zgrid,snow2021_nobc_plussummersnow)[1],marker='.',color='orange')
+plt.scatter(accumulationvselevation(Zgrid,snow2021_bc_plussummersnow)[0],accumulationvselevation(Zgrid,snow2021_bc_plussummersnow)[1],marker='.',color='darkmagenta')
+plt.scatter(kw_snow_mwe,kw_elevs,marker='.',color='turquoise')
+plt.legend(['Uncorrected NARR','Original Bias Corrected NARR','OIB Snow Radar (May 2021)'],fontsize=15)
+plt.plot(avgsnow_noBC,zbins_noBC,color='darkgoldenrod')
+plt.plot(avgsnow_BC,zbins_BC,color='indigo')
+plt.plot(avgsnow_OIB,zbins_OIB,color='darkcyan')
+#plt.title('Kaskawulsh Accumulation',fontsize=12)
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+plt.xlim(0,4.5)
+plt.ylim(500,4000)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
+#plt.savefig('OIBvsNARRvsElev.png',bbox_inches = 'tight')
+
 #calculate averages for each trib
 avgsnow_noBC_SA,zbins_noBC_SA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[0][1],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[0][0],500,4000,delta_z=10)
 avgsnow_BC_SA,zbins_BC_SA = meanaccumulation_vs_z(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[0][1],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[0][0],500,4000,delta_z=10)
@@ -511,53 +574,62 @@ plt.title('South Arm',fontsize=14)
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[0][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[0][1],color='darkmagenta')
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[0][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[0][1],color='orange')
 plt.scatter(SAs_OIB,SAz_OIB,color='turquoise')
-plt.xlabel('Accumulation (m w.e.)',fontsize=12)
-plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
-plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+#plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
 plt.plot(avgsnow_noBC_SA,zbins_noBC_SA,color='darkgoldenrod')
 plt.plot(avgsnow_BC_SA,zbins_BC_SA,color='indigo')
 plt.plot(avgsnow_OIB_SA,zbins_OIB_SA,color='darkcyan')
-plt.ylim(700,3700)
+plt.ylim(1000,3700)
 plt.xlim(0,4.5)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 plt.subplot(2,2,2)
 plt.title('Stairway Glacier',fontsize=14)
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[1][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[1][1],color='darkmagenta')
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[1][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[1][1],color='orange')
-plt.xlabel('Accumulation (m w.e.)',fontsize=12)
-plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
-plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+#plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
 plt.plot(avgsnow_noBC_SW,zbins_noBC_SW,color='darkgoldenrod')
 plt.plot(avgsnow_BC_SW,zbins_BC_SW,color='indigo')
-plt.ylim(700,3700)
+plt.ylim(1000,3700)
 plt.xlim(0,4.5)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 plt.subplot(2,2,3)
 plt.title('Central Arm',fontsize=14)
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[2][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[2][1],color='darkmagenta')
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[2][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[2][1],color='orange')
 plt.scatter(CAs_OIB,CAz_OIB,color='turquoise')
-plt.xlabel('Accumulation (m w.e.)',fontsize=12)
-plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
-plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+#plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
 plt.plot(avgsnow_noBC_CA,zbins_noBC_CA,color='darkgoldenrod')
 plt.plot(avgsnow_BC_CA,zbins_BC_CA,color='indigo')
 plt.plot(avgsnow_OIB_CA,zbins_OIB_CA,color='darkcyan')
-plt.ylim(700,3700)
+plt.ylim(1000,3700)
 plt.xlim(0,4.5)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 plt.subplot(2,2,4)
 plt.title('North Arm',fontsize=14)
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[3][0],tributary_accvselev(tribarray,Zgrid,snow2021_bc_plussummersnow)[3][1],color='darkmagenta')
 plt.scatter(tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[3][0],tributary_accvselev(tribarray,Zgrid,snow2021_nobc_plussummersnow)[3][1],color='orange')
 plt.scatter(NAs_OIB,NAz_OIB,color='turquoise')
-plt.xlabel('Accumulation (m w.e.)',fontsize=12)
-plt.ylabel('Elevation (m a.s.l.)',fontsize=12)
-plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
+plt.xlabel('Accumulation (m w.e.)',fontsize=14)
+plt.ylabel('Elevation (m a.s.l.)',fontsize=14)
+#plt.legend(['NARR (Aug2020-May2021) Bias Corrected','NARR (Aug2020-May2021) Uncorrected','CReSIS Snow Radar (2021)'])
 plt.plot(avgsnow_noBC_NA,zbins_noBC_NA,color='darkgoldenrod')
 plt.plot(avgsnow_BC_NA,zbins_BC_NA,color='indigo')
 plt.plot(avgsnow_OIB_NA,zbins_OIB_NA,color='darkcyan')
-plt.ylim(700,3700)
+plt.ylim(1000,3700)
 plt.xlim(0,4.5)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 plt.tight_layout()
 #plt.savefig('Tributaries_SnowvsZ_v2.png',bbox_inches = 'tight')
+plt.savefig('Tributaries_SnowvsZ_v3.png',bbox_inches = 'tight')
 
 ###############################################################################
 # CALCULATE RMSE BASED ON CO-LOCATED GRIDCELLS, NOT BY BINNED ELEVATIONS
