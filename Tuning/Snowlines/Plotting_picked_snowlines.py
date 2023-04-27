@@ -496,13 +496,17 @@ def rasterize_observed_snowline(date):
         
     if len(np.where(snowline_name == date + '_TR_U')[0]) == 0:
         TRu = np.nan
+        TRu_min = np.nan
     else:
         TRu = np.nanmean(elevation[np.where(snowline_name == date + '_TR_U')[0][0]])
+        TRu_min = np.nanmin(elevation[np.where(snowline_name == date + '_TR_U')[0][0]])
         
     if len(np.where(snowline_name == date + '_TR_L')[0]) == 0:
         TRl = np.nan
+        TRl_min = np.nan
     else:
         TRl = np.nanmean(elevation[np.where(snowline_name == date + '_TR_L')[0][0]])
+        TRl_min = np.nanmin(elevation[np.where(snowline_name == date + '_TR_L')[0][0]])
     
     obs_snowline = np.empty(Zgrid_KW.shape)
     obs_snowline[:] = -0.5
@@ -511,91 +515,86 @@ def rasterize_observed_snowline(date):
     # 0 = ice
     # nan = off glacier
     # -0.5 = NO INFORMATION - DO NOT COUNT IN MOD VS OBS COMPARISON
-    
-    U_L_bounds = [SAl,SAu,SWl,SWu,CAl,CAu,NAl,NAu,TRl,TRu]
-    
-    for i in range(0,len(Zgrid_KW)):
+
+    for i in range(0,len(Zgrid_KW)): # For every cell in the domain
         for j in range(0,len(Zgrid_KW[1])):
-            # off-grid cells:
-            if np.isnan(tribarray[i][j]):
-                lowerbound = np.nan
-                upperbound = np.nan
-            # get upper/lower bounds for whichever trib the loop is currently on:
-            elif tribarray[i][j] == 1: #SA
-                lowerbound = U_L_bounds[0]
-                upperbound = U_L_bounds[1]
-                # special case: no upper bound on SA, but there is an upper bound on TR.
-                # Set SA_U = TR_U
-                if np.isnan(upperbound):
-                    if ~np.isnan(U_L_bounds[9]):
-                        if (U_L_bounds[9] < np.min(Zgrid_KW[tribarray==1])):
-                            upperbound = U_L_bounds[9]
+            if np.isnan(tribarray[i][j]): # If the cell is off glacier, skip.
+                pass
+            
+            elif tribarray[i][j] == 1: #If the cell is in South Arm:
+                upperbound = SAu
+                if np.isnan(upperbound): # If there's no upper bound on SA but there is on TR:
+                    if ~np.isnan(TRu): 
+                        if (TRu_min < np.min(Zgrid_KW[tribarray==1])): # And if the min elev of TR_U is < than SA:
+                            upperbound = TRu_min  # Set SA_U = TR_U
                     else:
                         pass
                 else:
                     pass
-                # special case: no lower bound on SA, but there is an lower bound on TR.
+                
+                
+                lowerbound = SAl
                 if np.isnan(lowerbound):
-                    if ~np.isnan(U_L_bounds[8]):
-                        if (U_L_bounds[8] < np.min(Zgrid_KW[tribarray==1])):
-                            lowerbound = U_L_bounds[8]
+                    if ~np.isnan(TRl):
+                        if (TRl < np.min(Zgrid_KW[tribarray==1])):
+                            lowerbound = TRl
                     else:
                         pass
                 else:
                     pass                
                 
             elif tribarray[i][j] == 2: #SW
-                lowerbound = U_L_bounds[2]
-                upperbound = U_L_bounds[3]
+                lowerbound = SWl
+                upperbound = SWu
                 # special case: no upper bound on SW, but there is an upper bound on TR.
                 # Set SW_U = TR_U
                 if np.isnan(upperbound):
-                    if ~np.isnan(U_L_bounds[9]):
-                        if (U_L_bounds[9] < np.min(Zgrid_KW[tribarray==2])):
-                            upperbound = U_L_bounds[9]
+                    if ~np.isnan(TRu):
+                        if (TRu < np.min(Zgrid_KW[tribarray==2])):
+                            upperbound = TRu
                     else:
                         pass
                 else:
                     pass
                 # special case: no lower bound on SW, but there is an lower bound on TR.
                 if np.isnan(lowerbound):
-                    if ~np.isnan(U_L_bounds[8]):
-                        if (U_L_bounds[8] < np.min(Zgrid_KW[tribarray==2])):
-                            lowerbound = U_L_bounds[8]
+                    if ~np.isnan(TRl):
+                        if (TRl < np.min(Zgrid_KW[tribarray==2])):
+                            lowerbound = TRl
                     else:
                         pass
                 else:
                     pass                     
                 
             elif tribarray[i][j] == 3: #CA
-                lowerbound = U_L_bounds[4]
-                upperbound = U_L_bounds[5] 
+                lowerbound = CAl
+                upperbound = CAu 
                 # special case: no upper bound on CA, but there is an upper bound on TR.
                 # Set CA_U = TR_U
                 if np.isnan(upperbound):
-                    if ~np.isnan(U_L_bounds[9]):
-                        upperbound = U_L_bounds[9]
+                    if ~np.isnan(TRu):
+                        upperbound = TRu
                     else:
                         pass
                 else:
                     pass
             elif tribarray[i][j] == 4: #NA
-                lowerbound = U_L_bounds[6]
-                upperbound = U_L_bounds[7] 
+                lowerbound = NAl
+                upperbound = NAu 
                 # special case: no upper bound on NA, but there is an upper bound on TR.
                 # Set CA_U = TR_U
                 if np.isnan(upperbound):
-                    if ~np.isnan(U_L_bounds[9]):
-                        upperbound = U_L_bounds[9]
+                    if ~np.isnan(TRu):
+                        upperbound = TRu
                     else:
                         pass
                 else:
                     pass
                 # special case: no lower bound on SA, but there is an lower bound on TR.
                 if np.isnan(lowerbound):
-                    if ~np.isnan(U_L_bounds[8]):
-                        if (U_L_bounds[8] < np.min(Zgrid_KW[tribarray==4])):
-                            lowerbound = U_L_bounds[8]
+                    if ~np.isnan(TRl):
+                        if (TRl < np.min(Zgrid_KW[tribarray==4])):
+                            lowerbound = TRl
                     else:
                         pass
                 else:
@@ -603,16 +602,16 @@ def rasterize_observed_snowline(date):
                 
                 
             elif tribarray[i][j] == 5: # TRUNK
-                lowerbound = U_L_bounds[8]
-                upperbound = U_L_bounds[9]
+                lowerbound = TRl
+                upperbound = TRu
                 # special case for if there is no upper or lower bound for trunk:
                 if np.isnan(lowerbound): 
                     if np.isnan(upperbound):
                         # if there is a lower bound of CA or NA, assume that LB on trunk is the min of the CA or NA lower bounds.
-                        if ~np.isnan(U_L_bounds[4]):
-                            lowerbound = np.min([U_L_bounds[4],U_L_bounds[6]])
-                        elif ~np.isnan(U_L_bounds[6]):
-                            lowerbound = np.min([U_L_bounds[4],U_L_bounds[6]])
+                        if ~np.isnan(CAl):
+                            lowerbound = np.min([CAl,NAl])
+                        elif ~np.isnan(NAl):
+                            lowerbound = np.min([CAl,NAl])
                     else:
                         pass
                 else:
