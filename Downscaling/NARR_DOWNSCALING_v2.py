@@ -181,12 +181,12 @@ for year in years:
     lats = inE.variables['lat'][:]
     
     myProj = Proj('+proj=utm +zone=' + UTM + ', +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
-    UTMy, UTMx = myProj(lons, lats)  # converts lat/lons of coarse NARR grid to easting, northing on WGS84 projection.
+    UTMx, UTMy = myProj(lons, lats)  # converts lat/lons of coarse NARR grid to easting, northing on WGS84 projection.
     
     #create list of array positions ungridded
     UTMx_list = UTMx.ravel()
     UTMy_list = UTMy.ravel()
-    grid_pts = np.stack((UTMx_list, UTMy_list)) #KR_note: not needed, can be replaced with UTM_xlist/ylist further down in code
+    grid_pts = np.stack((UTMy_list, UTMx_list)) #KR_note: not needed, can be replaced with UTM_xlist/ylist further down in code
         
                       #######MODEL#######
 
@@ -260,8 +260,8 @@ for year in years:
                 NARR_cell = closest_node(downscaled_cell, grid_pts) #Finds which NARR gridcell (36 total) is closest to the gridcell being downscaled.
             
                 #use index to get nearest grid point in u, w notation
-                u = int(np.where(UTMx == grid_pts[0][NARR_cell])[0])
-                w = int(np.where(UTMy == grid_pts[1][NARR_cell])[1])
+                u = int(np.where(UTMy == grid_pts[0][NARR_cell])[0])
+                w = int(np.where(UTMx == grid_pts[1][NARR_cell])[1])
                 
                 #KR_note: edit/move these comments when done.
                 #find downscaled value at every grid point. If outside bounds, 
