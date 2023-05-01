@@ -237,12 +237,12 @@ for year in years:
             # See Young et al. (2021) supplementary material for more info.
             
             if i == 0: #Only need to do once per day
-                r_beta2, b_coeffs, b0 = rainy_day_funk(elev.ravel()[NARR_subregions], hourlyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
+                r_beta2, b_coeffs, b0 = rainy_day_funk(elev.ravel()[NARR_subregions], hourlyP.ravel()[NARR_subregions], UTMy_list[NARR_subregions], UTMx_list[NARR_subregions]) 
                 if normalized_XYZ == True:
                     Xmax = np.max(UTMx_list[NARR_subregions])
                     Ymax = np.max(UTMy_list[NARR_subregions])
                     Zmax = np.max(elev.ravel()[NARR_subregions])
-                    r_beta2, b_coeffs, b0 = rainy_day_funk(elev.ravel()[NARR_subregions]/Zmax, dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions]/Xmax, UTMy_list[NARR_subregions]/Ymax)     
+                    r_beta2, b_coeffs, b0 = rainy_day_funk(elev.ravel()[NARR_subregions]/Zmax, dailyP.ravel()[NARR_subregions], UTMy_list[NARR_subregions]/Ymax, UTMx_list[NARR_subregions]/Xmax)     
                 else:
                     pass
             else:
