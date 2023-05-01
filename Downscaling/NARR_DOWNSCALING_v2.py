@@ -22,11 +22,8 @@ from scipy import interpolate
 import netCDF4
 from pyproj import Proj
 from netCDF4 import Dataset
-#import datetime as dt
+
 from Model_functions_ver3 import T_downscale_funkfest
-#from Model_functions_ver3 import Precip_2_Snow
-#from Model_functions_ver3 import MB_341_debris
-#from Model_functions_ver3 import MB_341_office
 from Model_functions_ver3 import rainy_day_funk
 from Model_functions_ver3 import closest_node
 import sys
@@ -35,15 +32,14 @@ sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import write_config_file
 
 #Import parameters from config file
-#from DOWNSCALINGnamelist import *
 from DOWNSCALINGnamelist import start_year
 from DOWNSCALINGnamelist import end_year
 from DOWNSCALINGnamelist import glacier_id
 from DOWNSCALINGnamelist import glacier_outline
 from DOWNSCALINGnamelist import static_surface
-from DOWNSCALINGnamelist import dynamic_surface
 from DOWNSCALINGnamelist import UTM
 from DOWNSCALINGnamelist import NARR_subregions
+from DOWNSCALINGnamelist import normalized_XYZ
 from DOWNSCALINGnamelist import delta_t
 from DOWNSCALINGnamelist import downscaled_outputs
 from DOWNSCALINGnamelist import catchment
@@ -86,13 +82,9 @@ if static_surface == True:
         Iy = glacier[:,5]
     print('Static Surface Loaded')
 else:
-    Ih = np.loadtxt(dynamic_surface)
-    Ix = glacier[:,4]
-    Iy = glacier[:,5]
-    print('Dynamic Surface Loaded')
+    pass
     
-
-print('Domain loaded')
+#print('Domain loaded')
 
  # KR_note: the key here will be figuring out how regridXYsomething takes Ih, Ix, Iy and makes Zgrid
  # then do the reverse on the new Zgrids to make them compatible with this code. 
@@ -109,7 +101,14 @@ years = np.arange(start_year,end_year+1)
 
 for year in years:
     print(year)
-     
+    if static_surface == False:
+        Ih_file = 'Ih_' + str(year) + '.txt'
+        Ih = np.loadtxt(Ih_file)
+        Ix = glacier[:,4]
+        Iy = glacier[:,5]
+        print('Dynamic Surface Loaded')
+    else:
+        pass
     #load inputs:
     
     File_elev_in = os.path.join(rawnarr_inputs,'kaskhgt.' + str(year) + '.nc')
@@ -239,6 +238,13 @@ for year in years:
             
             if i == 0: #Only need to do once per day
                 r_beta2, b_coeffs, b0 = rainy_day_funk(elev.ravel()[NARR_subregions], hourlyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
+                if normalized_XYZ == True:
+                    Xmax = np.max(UTMx_list[NARR_subregions])
+                    Ymax = np.max(UTMy_list[NARR_subregions])
+                    Zmax = np.max(elev.ravel()[NARR_subregions])
+                    r_beta2, b_coeffs, b0 = rainy_day_funk(elev.ravel()[NARR_subregions]/Zmax, dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions]/Xmax, UTMy_list[NARR_subregions]/Ymax)     
+                else:
+                    pass
             else:
                 pass    
             
@@ -278,7 +284,13 @@ for year in years:
                     Plocal = (b0 + (b_coeffs[0] * Ix[z]) + (b_coeffs[1] * Iy[z]) + (b_coeffs[2] \
                         * Ix[z] * Iy[z]) + (b_coeffs[3] * Ix[z]**2) + (b_coeffs[4] * \
                             Iy[z]**2) + (b_coeffs[5] * Ih[z]))*r_beta2 
-                    
+                
+                    if normalized_XYZ == True:
+                        Plocal = (b0 + (b_coeffs[0] * (Ix[z]/Xmax)) + (b_coeffs[1] * (Iy[z]/Ymax)) + (b_coeffs[2] \
+                        * (Ix[z]/Xmax) * (Iy[z]/Ymax)) + (b_coeffs[3] * (Ix[z]/Xmax)**2) + (b_coeffs[4] * \
+                            (Iy[z]/Ymax)**2) + (b_coeffs[5] * (Ih[z]/Zmax)))*r_beta2 
+                        
+
                     # Correct for negative precip values in areas where statistical model predicts less than zero value on mx + b regression curve
                     if Plocal < 0:
                         Plocal = 0.
