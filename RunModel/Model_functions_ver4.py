@@ -1259,3 +1259,23 @@ def write_config_file(outputpath,scriptname):
     with open(txtfile, mode="w") as f:
         f.write(data)
         f.close()
+        
+def model_domain(catchment):
+    if catchment == True:
+        File_glacier_in = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\kask_catchment.txt'
+        glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
+                
+        Ix = glacier[:,4] 
+        Iy = glacier[:,5] 
+        Ih = glacier[:,6]  
+    else:
+        File_glacier_in_KW = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\kaskonly_deb.txt'
+        glacier_KW = np.genfromtxt(File_glacier_in_KW, skip_header=1, delimiter=',')
+                    
+        Ix = glacier_KW[:,3] 
+        Iy = glacier_KW[:,4] 
+        Ih = glacier_KW[:,2]       
+        
+    Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
+    return Xgrid,Ygrid,Zgrid
+
