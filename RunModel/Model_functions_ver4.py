@@ -1277,5 +1277,5 @@ def model_domain(catchment):
         Ih = glacier_KW[:,2]       
         
     Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
-    return Xgrid,Ygrid,Zgrid
+    return Zgrid, Xgrid, Ygrid, xbounds, ybounds
 
