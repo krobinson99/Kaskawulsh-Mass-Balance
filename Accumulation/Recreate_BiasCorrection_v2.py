@@ -84,6 +84,7 @@ snowpits = df['Snowpit']
 sp_z = df['Elevation']
 sp_easting = df['Easting']
 sp_northing = df['Northing']
+sp_depth = df['Depth (m)']
 sp_mwe = df['Snow water eq. (m w.e.)']
 sp_dates = df['Date']
 sp_usealldata = df['Use all data']
@@ -95,7 +96,7 @@ sp_2022 = df['2022']
 sim_dates365 = pd.date_range(start="2007-01-01 00:00:00",end="2007-12-31 21:00:00",freq='3H')
 
 
-def find_Cds(year1,year2,end_month,end_day,elevation):
+def find_Cds(year1,year2,end_month,end_day,elevation,start='Sept'):
     
     year1_file = 'D:/Downscaled_files/Catchment/DynamicSurface/FinalDownscaling_1979-2022/netSnowkaskonly' + str(year1) + '.nc'
     year2_file = 'D:/Downscaled_files/Catchment/DynamicSurface/FinalDownscaling_1979-2022/netSnowkaskonly' + str(year2) + '.nc'
@@ -107,7 +108,10 @@ def find_Cds(year1,year2,end_month,end_day,elevation):
     inF2 = Dataset(year2_file,'r')
     snowyr2 = inF2.variables[Fvar2][:] # has shape (time,y,x)
     
-    snowstart = (np.where(sim_dates365 == np.datetime64(dt.datetime(2007,9,1))))[0][0]
+    if start=='Sept':
+        snowstart = (np.where(sim_dates365 == np.datetime64(dt.datetime(2007,9,1))))[0][0]
+    elif start=='Aug':
+        snowstart = (np.where(sim_dates365 == np.datetime64(dt.datetime(2007,8,1))))[0][0]
     digging_index = (np.where(sim_dates365 == np.datetime64(dt.datetime(2007,end_month,end_day,12,00))))[0][0]
     
     snowaug = np.nansum(snowyr1[snowstart:,:,:],axis=0) #units are m.w.e.
@@ -347,6 +351,24 @@ mean_Cz_NN = np.array(meanaccumulation_vs_z(Cz_KW,NN_bias_KW,1100,2700,200)[1])
 nanmask_NN = np.isfinite(mean_NNbias_KW)
 
 mean_NNmultifact_KW = np.array(meanaccumulation_vs_z(Cz_KW,NN_multipfact_KW,1100,2700,200)[0])
+
+# Calculate how much C_ds (snow_to_date increases by if summed from august 1 instead of sept 1):
+# =============================================================================
+# mean_difference = []
+# for year in range(2007,2022+1):
+#     print(year)
+#     
+#     month = 5
+#     day = 10
+#     
+#     snow_to_date_sept = find_Cds(year-1,year,month,day,targetelev,start='Sept')[1]
+#     snow_to_date_aug = find_Cds(year-1,year,month,day,targetelev,start='Aug')[1]
+#     diff = snow_to_date_aug - snow_to_date_sept
+#     mean_difference.append(np.nanmean(diff))
+#     print(np.nanmean(diff))
+# =============================================================================
+
+
 
 plt.figure(figsize=(7,7))
 #for i in range(0,len(Cz_KW)):
@@ -1616,16 +1638,19 @@ radardata = np.loadtxt('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SnowRadar2
 lat = radardata[:,0][:-1]
 lon = radardata[:,1][:-1]
 elevation = radardata[:,4][:-1]
-depth = radardata[:,6][:-1]*0.3/100 #corrected with snow density 0.3 g/cm3 --> units = m w.e.
+depth = radardata[:,6][:-1]*0.3378/100 #corrected with snow density 0.3 g/cm3 --> units = m w.e.
 frame = radardata[:,5][:-1]
 
 # convert lat/lon to easting/northing:
-easting = []
-northing = []
+east = []
+north = []
 for i in range(0,len(lat)):
     x = utm.from_latlon(lat[i],lon[i])
-    easting.append(x[0])
-    northing.append(x[1])
+    east.append(x[0])
+    north.append(x[1])
+    
+easting = np.array(east)
+northing = np.array(north)
     
 Zgrid_kw, Xgrid_kw, Ygrid_kw, xbounds, ybounds, Sfc_kw = model_domain(catchment=False)
     
@@ -1634,7 +1659,7 @@ blackdot = mlines.Line2D([], [], color='k', marker='.', linestyle='None',
                           markersize=20, label='OIB Flight Path (May 10 2021)')
 
 purpledot = mlines.Line2D([], [], color='lightblue', marker='.', linestyle='None',
-                          markersize=20, label='Picked Data (Li et al., 2023)',alpha=1)
+                          markersize=20, label='Picked Data (Li et al. 2023)',alpha=1)
 
 blackdash = mlines.Line2D([], [], color='k', linestyle='dashed',
                           markersize=20, label='Catchment Outline')
@@ -1645,7 +1670,7 @@ legend = plt.colorbar()
 legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
 plt.contour(Xgrid,np.flipud(Ygrid),Sfc,levels=0,colors='k',linestyles='dashed')
 plt.axis('equal')
-plt.ylabel('Northin (m)',fontsize=14)
+plt.ylabel('Northing (m)',fontsize=14)
 plt.xlabel('Easting (m)',fontsize=14)
 legend.ax.tick_params(labelsize=14)
 plt.scatter(easting,northing,c='k',s=5,label='Flight path')
@@ -1655,3 +1680,116 @@ legend2.ax.set_ylabel('Accumulation (m w.e.)', rotation=270,fontsize=14,labelpad
 legend2.ax.tick_params(labelsize=14)
 plt.legend(handles=[blackdot,purpledot,blackdash],loc='lower left',fontsize=14)
 #plt.savefig('OIBtracks.pdf',bbox_inches='tight')
+
+################################################################################
+# PLOT DENSITIES OF ALL SNOWPITS IN THE CATCHMENT
+################################################################################
+sp_mwe_catchment = []
+for i in sp_mwe[sp_catchmentdata==1]:
+    sp_mwe_catchment.append(float(i))
+    
+density = np.array(sp_mwe_catchment)/np.array(sp_depth)[sp_catchmentdata==1]
+
+
+plt.figure(figsize=(13,6))
+plt.contourf(Xgrid,np.flipud(Ygrid),Zgrid, cmap = 'Greys_r',levels=np.linspace(600,4800,22))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
+#plt.contour(Xgrid,np.flipud(Ygrid),Sfc,levels=0,colors='k',linestyles='dashed')
+plt.axis('equal')
+plt.ylabel('Northing (m)',fontsize=14)
+plt.xlabel('Easting (m)',fontsize=14)
+legend.ax.tick_params(labelsize=14)
+plt.scatter(np.array(sp_easting)[np.where(sp_catchmentdata == 1)],np.array(sp_northing)[np.where(sp_catchmentdata == 1)],c=density*1000,cmap='GnBu',s=140,edgecolor='black',linewidth=0.5,vmin=250,vmax=450)
+legend2 = plt.colorbar()
+legend2.ax.set_ylabel('Density (kg m$^{-3}$)', rotation=270,fontsize=14,labelpad=20)
+legend2.ax.tick_params(labelsize=14)
+#plt.savefig('Snowpit_density.pdf',bbox_inches='tight')
+
+################################################################################
+# PLOT Cobs/Cds at each location
+################################################################################
+
+plt.figure(figsize=(13,6))
+#plt.subplot(1,2,1)
+plt.contourf(Xgrid,np.flipud(Ygrid),Zgrid, cmap = 'Greys_r',levels=np.linspace(600,4800,22))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
+#plt.contour(Xgrid,np.flipud(Ygrid),Sfc,levels=0,colors='k',linestyles='dashed')
+plt.axis('equal')
+plt.ylabel('Northing (m)',fontsize=14)
+plt.xlabel('Easting (m)',fontsize=14)
+legend.ax.tick_params(labelsize=14)
+plt.scatter(np.array(sp_easting)[np.where(sp_catchmentdata == 1)],np.array(sp_northing)[np.where(sp_catchmentdata == 1)],c=NN_multipfact_KW,cmap='RdPu',s=140,edgecolor='black',linewidth=0.5)
+legend2 = plt.colorbar()
+legend2.ax.set_ylabel('C$_{obs}$/C$_{ds}$', rotation=270,fontsize=16,labelpad=20)
+legend2.ax.tick_params(labelsize=14)
+
+#plt.subplot(1,2,2)
+#plt.scatter
+
+plt.savefig('Cobs_Cds.pdf',bbox_inches='tight')
+
+################################################################################
+# PLOT EXAMPLE ECHOGRAMS: Frame 39 & 41
+################################################################################
+frame_base = 2021051003000
+
+CAsnowline_lat = 60.6970
+CAsnowline_lon = -139.3633
+CA_snowline = utm.from_latlon(CAsnowline_lat,CAsnowline_lon)
+
+NAsnowline_lat = 60.7501
+NAsnowline_lon = -139.3066
+NA_snowline = utm.from_latlon(NAsnowline_lat,NAsnowline_lon)
+
+SAsnowline_lat = 60.524
+SAsnowline_lon = -138.806
+SA_snowline = utm.from_latlon(SAsnowline_lat,SAsnowline_lon)
+
+# estimating the elevation of the SA snowline (NA and CA are given in Table 4 of Li et al)
+closestlat = np.min(np.abs(lat[frame==frame_base+23]-SAsnowline_lat))
+np.where(np.abs(lat[frame==frame_base+23]-SAsnowline_lat)<=closestlat)
+
+elevation[frame==frame_base+23][703] # 703 is closest to the latitude of the point, 711 is closest to the longitude, both have an elev of 2298
+
+lightblue = mlines.Line2D([], [], color='lightblue', marker='.', linestyle='None',markersize=15, label='Radar section',alpha=1)
+pink = mlines.Line2D([], [], color='pink', marker='.', linestyle='None',markersize=20, label='South Arm\n(CReSIS data frames 022-024)',alpha=1)
+navy = mlines.Line2D([], [], color='navy', marker='.', linestyle='None',markersize=20, label='North Arm\n(CReSIS data frames 002-005)',alpha=1)
+snowline =  mlines.Line2D([], [], color='snow', marker='.', linestyle='None',markersize=15,markeredgecolor ='k',label='Equilibrium line location',alpha=1)
+flightstart = mlines.Line2D([], [], color='k', marker='.', linestyle='None',markersize=22,markeredgecolor ='lightgrey',label='Start of radar section',alpha=1)
+
+plt.figure(figsize=(8,4))
+cont = plt.contourf(Xgrid_kw,np.flipud(Ygrid_kw),Zgrid_kw, cmap = 'Greys_r',levels=np.linspace(600,4800,22))
+legend = plt.colorbar()
+legend.ax.set_ylabel('Elevation (m a.s.l.)', rotation=270,fontsize=14,labelpad=20)
+#plt.contour(Xgrid,np.flipud(Ygrid),Sfc,levels=0,colors='k',linestyles='dashed')
+plt.axis('equal')
+plt.ylabel('Northing (m)',fontsize=14)
+plt.xlabel('Easting (m)',fontsize=14)
+legend.ax.tick_params(labelsize=14)
+#plt.axis('off')
+plt.scatter(easting[frame==frame_base+2],northing[frame==frame_base+2],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+3],northing[frame==frame_base+3],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+4],northing[frame==frame_base+4],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+5],northing[frame==frame_base+5],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+5][-1],northing[frame==frame_base+5][-1],c='k',s=100,edgecolor='lightgrey')
+#plt.scatter(easting[frame==frame_base+2][0],northing[frame==frame_base+2][0],c='lightblue',s=250,marker=(3,0,235))
+plt.scatter(NA_snowline[0],NA_snowline[1],s=90,c='snow',edgecolor='black',linewidth=0.5)
+
+plt.scatter(easting[frame==frame_base+39],northing[frame==frame_base+39],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+40],northing[frame==frame_base+40],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+41],northing[frame==frame_base+41],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+39][0],northing[frame==frame_base+39][0],c='k',s=100,edgecolor='lightgrey')
+#plt.scatter(easting[frame==frame_base+41][-1],northing[frame==frame_base+41][-1],c='lightblue',s=250,marker=(3,0,220))
+plt.scatter(CA_snowline[0],CA_snowline[1],s=90,c='snow',edgecolor='black',linewidth=0.5)
+
+plt.scatter(easting[frame==frame_base+22],northing[frame==frame_base+22],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+23],northing[frame==frame_base+23],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+24],northing[frame==frame_base+24],c='lightblue',s=8)
+plt.scatter(easting[frame==frame_base+22][0],northing[frame==frame_base+22][0],c='k',s=100,edgecolor='lightgrey')
+#plt.scatter(easting[frame==frame_base+24][-1],northing[frame==frame_base+24][-1],c='lightblue',s=250,marker=(3,0,70))
+plt.scatter(SA_snowline[0],SA_snowline[1],s=90,c='snow',edgecolor='black',linewidth=0.5)
+
+plt.legend(handles=[flightstart,lightblue,snowline],loc='lower left',fontsize=12)
+plt.savefig('RadarSnowlinePaths.pdf',bbox_inches='tight')
