@@ -115,10 +115,10 @@ def T_downscale_funkfest(T, E, UTMx_list, UTMy_list):
         # Lfunc = interpolate.Rbf(UTMx_list, UTMy_list, L_list, function='linear', smooth = 0)
         # Lfunc_inver = interpolate.Rbf(UTMx_list, UTMy_list, L_list_inver, function='linear', smooth = 0)
      #use scipy.griddata
-        y0func = interpolate.bisplrep(UTMx_list, UTMy_list, y0_list)
-        y0func_inver = interpolate.bisplrep(UTMx_list, UTMy_list, y0_list_inver)
-        Lfunc = interpolate.bisplrep(UTMx_list, UTMy_list, L_list)
-        Lfunc_inver = interpolate.bisplrep(UTMx_list, UTMy_list, L_list_inver)
+        y0func = interpolate.bisplrep(UTMy_list, UTMx_list, y0_list)
+        y0func_inver = interpolate.bisplrep(UTMy_list, UTMx_list, y0_list_inver)
+        Lfunc = interpolate.bisplrep(UTMy_list, UTMx_list, L_list)
+        Lfunc_inver = interpolate.bisplrep(UTMy_list, UTMx_list, L_list_inver)
                           
                     
         return      xi_list, yi_list, xi_list_inver, yi_list_inver, \
@@ -1268,14 +1268,20 @@ def model_domain(catchment):
         Ix = glacier[:,4] 
         Iy = glacier[:,5] 
         Ih = glacier[:,6]  
+        sfc_type = glacier[:,8] 
+        Sfc, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, sfc_type)
     else:
         File_glacier_in_KW = 'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel\kaskonly_deb.txt'
         glacier_KW = np.genfromtxt(File_glacier_in_KW, skip_header=1, delimiter=',')
                     
         Ix = glacier_KW[:,3] 
         Iy = glacier_KW[:,4] 
-        Ih = glacier_KW[:,2]       
+        Ih = glacier_KW[:,2]    
+        Sfc = np.nan
         
     Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
-    return Zgrid, Xgrid, Ygrid, xbounds, ybounds
+    
+    return Zgrid, Xgrid, Ygrid, xbounds, ybounds, Sfc
+
+
 
