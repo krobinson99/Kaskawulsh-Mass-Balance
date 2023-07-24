@@ -1,8 +1,8 @@
 import numpy as np
-from scipy.spatial import distance
+#from scipy.spatial import distance
 from sklearn import linear_model
-from scipy.stats import linregress
-import math
+#from scipy.stats import linregress
+#import math
 from scipy import interpolate
 from netCDF4 import Dataset
 import netCDF4
@@ -698,13 +698,13 @@ def get_meanSP(year_list, Glacier_id,R2S,BiasCorrectionT,BiasCorrectionP,T_path,
     for y in year_list:
         
         if BiasCorrectionT == True:
-            File_temp_in_future = 'Temp' + Glacier_id + '_BC_' + str(y) + '.nc'
+            File_temp_in_future = 'Temp_' + 'kaskawulsh' + '_BC_' + str(y) + '.nc'
         else:
             File_temp_in_future = 'Temp' + Glacier_id + str(y) + '.nc'
             
         if BiasCorrectionP == True:
-            File_precip_in_future = 'Prcp' + Glacier_id + '_BC_' + str(y) + '.nc'
-            P_var = 'Net snow'
+            File_precip_in_future = 'Snow_' + 'kaskawulsh' + '_BC_' + str(y) + '.nc'
+            P_var = 'Snow'
         else:
             File_precip_in_future = 'netSnow' + Glacier_id + str(y) + '.nc'
             P_var = 'Temperature'
@@ -753,7 +753,7 @@ def cold_content(This_year_is, year_list, P_array, T_array, Glacier_id, DHval, B
     
     #Total snow pack
     if BC_P == True:
-        File_precip_in_future = 'Prcp' + Glacier_id + '_BC_' + str(This_year_is) + '.nc'
+        File_precip_in_future = 'Snow_' + 'kaskawulsh' + '_BC_' + str(This_year_is) + '.nc'
     else:
         File_precip_in_future = 'netSnow' + Glacier_id + str(This_year_is + 1) + '.nc'
     
@@ -761,7 +761,7 @@ def cold_content(This_year_is, year_list, P_array, T_array, Glacier_id, DHval, B
     
     infut = Dataset(File_p_in, "r")
     if BC_P == True:
-        P_var = 'Net snow'
+        P_var = 'Snow'
     else:
         P_var = 'Temperature'
     P_array_fut = infut.variables[P_var][:]
