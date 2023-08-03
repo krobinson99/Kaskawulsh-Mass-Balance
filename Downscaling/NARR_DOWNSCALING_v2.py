@@ -30,6 +30,7 @@ import sys
 import os 
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import write_config_file
+from Model_functions_ver4 import model_domain
 
 #Import parameters from config file
 from DOWNSCALINGnamelist import start_year, end_year
@@ -54,6 +55,7 @@ coarse_elev =  NARR_DEM.variables['hgt'][0,:,:] # surface geopotential height (t
 
 lons = NARR_DEM.variables['lon'][:]
 lats = NARR_DEM.variables['lat'][:]
+units = NARR_DEM.variables['time'].units
 sys.stdout.flush()
 
 Projection = Proj('+proj=utm +zone=' + UTM + ', +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
@@ -71,33 +73,11 @@ print("Coarse NARR grid loaded")
 # =============================================================================
 Xgrid = np.loadtxt(Easting_grid)
 Ygrid = np.loadtxt(Northing_grid)
-print('Model grid loaded')
+print('Model coordinates loaded.')
 # =============================================================================
 
-# Load model domain:
-File_glacier_in = glacier_outline + '.txt' 
-glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
 
-#Extract grid geometry, correcting for dem/shapefile non-overlaps
-# KR_note: delete all this stuff once downscaling is set up for arrays
-if static_surface == True:
-    if catchment == False:
-        IH = glacier[:,2]
-        inval_loc = np.where(IH == -9999)
-        Ih =np.delete(IH, inval_loc)
-        Ix = glacier[:,3]
-        Iy = glacier[:,4]
-    else:
-        IH = glacier[:,6]
-        inval_loc = np.where(IH == -9999)
-        Ih = np.delete(IH, inval_loc)
-        Ix = glacier[:,4]
-        Iy = glacier[:,5]
-    print('Static Surface Loaded')
-else:
-    pass
-
-# Setting-up time scale and timesteps
+# Setting-up time period and timesteps
 # =============================================================================
 years = np.arange(start_year,end_year+1)
 time_steps = np.arange(0,24,delta_t)
@@ -108,131 +88,90 @@ print('Downscaling years:',list(years))
 # Begin looping through years: 
 # =============================================================================
 for year in years:
-    print(year)
-    # KR_note: delete once downscaling is set yp for arrays, but keep option to have static vs dynamic surface
-    if static_surface == False:
-        Ih_file = 'Ih_' + str(year) + '.txt'
-        Ih = np.loadtxt(Ih_file)
-        Ix = glacier[:,4]
-        Iy = glacier[:,5]
-        print('Dynamic Surface Loaded')
-    else:
-        pass
+    print('Starting downscaling for:',year)
+
     
-    # Load DEM: 
-    Zgrid = np.loadtxt('Ih_' + str(year) + '.txt') #KR_note: replace this with 2d DEM array for each year: use consistent naming convention
+    # Load inputs for downscaling (DEM, Temp, Precip, Geopotential Height) 
+    # =========================================================================
+    #Zgrid = np.loadtxt('DEM_' + str(Glacier_ID) + str(year) + '.txt') #KR_note: replace this with 2d DEM array for each year: use consistent naming convention
+    Zgrid, Xgrid2, Ygrid2, xbounds2, ybounds2, Sfc2 = model_domain(catchment=True)
+    nanlocs = np.where(np.isnan(Zgrid))
+    print("Model DEM loaded.") 
     
     File_elev_in = os.path.join(Climate_inputs,str(Glacier_ID) + '_hgt.' + str(year) + '.nc')
     File_temp_in = os.path.join(Climate_inputs,str(Glacier_ID) + '_air.' + str(year) + '.nc')
     File_precip_in = os.path.join(Climate_inputs,str(Glacier_ID) + '_apcp.' + str(year) + '.nc')
     
-    # Load NARR inputs:
-    inE = Dataset(File_elev_in, "r")
+    # Geopotential Height:
+    inH = Dataset(os.path.join(Climate_inputs,str(Glacier_ID) + '_hgt.' + str(year) + '.nc'), "r")
     sys.stdout.flush()
-    E_array = inE.variables['hgt'][:]
+    H_array = inH.variables['hgt'][:]
     
+    # Temperature:
     inT = Dataset(File_temp_in, "r")
     sys.stdout.flush()
     T_array = inT.variables['air'][:]
     
+    # Precipitation:
     inP = Dataset(File_precip_in, "r")
     sys.stdout.flush()
     P_array = inP.variables['apcp'][:]
-    print("NARR Geopotential, Temperatue, Precipitation inputs loaded....") 
-                   
-                        #######OUTPUTS#######
-    
-    #Prep output file and variables
-    print('Setting up files for downscaled outputs')
-    
-    #TEMPERATURE:
-    Temp_outfile_name = 'Temp_' + str(year) + '.txt'
-    Temp_output_path = os.path.join(OUTPUT_PATH,Temp_outfile_name)
-    Temp_out = open(Temp_output_path, 'w')
-    
-    #PRECIPITATION:
-    netSnow_outfile_name = 'Precip' + Glacier_ID + str(year) + '.txt'
-    netSnow_output_path = os.path.join(OUTPUT_PATH,netSnow_outfile_name)
-    Precip_out = open(netSnow_output_path, 'w')
+    print("NARR Geopotential, Temperature, Precipitation inputs loaded.") 
+    # =========================================================================               
     
     
-    units = inE.variables['time'].units
+    # Prep output variables
+    # ========================================================================= 
+    Downscaled_T = np.empty((T_array.shape[0],Xgrid.shape[0],Xgrid.shape[1]))
+    Downscaled_P = np.empty((T_array.shape[0],Xgrid.shape[0],Xgrid.shape[1]))
+
+    # Get timestamps for T (3 hourly) and P (daily)
     dt_daily = netCDF4.num2date(inP.variables['time'][:], units) # 365 timesteps (daily for 1 year)
-    
-    dt_3hourly = netCDF4.num2date(inE.variables['time'][:], units)   # 2920 timesteps (3 hourly for 1 year)
+    dt_3hourly = netCDF4.num2date(inH.variables['time'][:], units)   # 2920 timesteps (3 hourly for 1 year)
     date_list = []
     for timestep in dt_3hourly:
-        d = timestep.replace(hour=0, minute=0, second=0, microsecond=0) # sets hour to zero for all dates (still 2920 timesteps)
-        date_list.append(d)
-    
+        date_list.append(timestep.replace(hour=0, minute=0, second=0, microsecond=0)) # sets hour to zero for all dates (still 2920 timesteps)
     dt_3hourly_dayonly = np.array(date_list)
+    # ========================================================================= 
     
-                      #######MODEL#######
-
-    ###Begin MB calculations, where dates are used to toggle while loop which
-    ###iterates through every day in the record, then through every hour in the
-    ###record, in order to obtain both daily and hourly (as per timestep) MB
-    ###values across the study area. #KR_note: rephrase this after edits are done. 
     
+    # Start looping through timesteps:
+    # ========================================================================= 
     for date in dt_daily:
         print(date)
        
-        ##Get values for current iteration         
+        # Get values for current iteration         
         hourly_indices = np.where(dt_3hourly_dayonly == date)
         daily_index = np.where(dt_daily == date)
-        DOY = daily_index[0][0]+1  # Day Of Year index (e.g. Jan 1 = day 1)
 
-        dailyE = E_array[hourly_indices]              #Selects all pressure levels and gridcells for current day. Shape=(8,29,6,6)
-        dailyT = T_array[hourly_indices]
-        dailyP = P_array[daily_index]
+        dailyH = H_array[hourly_indices] #Selects all pressure levels and gridcells for current day. Shape=(8,29,6,6)
+        dailyT = T_array[hourly_indices] # (8,29,6,6)
+        dailyP = P_array[daily_index][0]/1000  # (6,6)  # Convert daily precipitation from mm w.e. to m w.e.
     
-        for i in range(0, len(time_steps)): #Looping through each timestep (8 per day)
-            ###Get values for current hour, indexing is yucky, but straighforward
-            ###Note that units for NARR precip are mm we, conversion is done here  
+        # PRECIP DOWNSCALING: 
+        r_beta2, b_coeffs, b0 = rainy_day_funk(coarse_elev.ravel()[NARR_subregions], dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
+        Plocal = (b0 + (b_coeffs[0] * Xgrid) + (b_coeffs[1] * Ygrid) + (b_coeffs[2] * (Xgrid * Ygrid)) + (b_coeffs[3] * (Xgrid**2)) + (b_coeffs[4] * (Ygrid**2)) + (b_coeffs[5] * Zgrid))*r_beta2 
+        Plocal[np.where(Plocal<0)] = 0       # Correct for negative precip values in areas where statistical model predicts less than zero value on mx + b regression curve
+        # KR_note: still need to add P_regional to get total downscaled Precip.
+    
+        Pregional = np.empty(Plocal.shape)
+        for i in range(0, len(time_steps)): #Looping through each timestep (8 per day) 
             
-            hourlyE = dailyE[i]      
+            # Get Geopotential height and temperature vals for current timestep
+            hourlyH = dailyH[i]      
             hourlyT = dailyT[i]
-            hourlyP = dailyP[0]/1000 # Units for NARR precip are mm we, conversion to meters done here.  
             
-            # Set up lists to contain downscaled values of T/P/SR
-            Thour = []
-            Phour = []
-            SRhour_arc = []
-
-            #KR_note: next steps:
-            # identify exactly where T, P, and SR are downscaled, forget everything else!
-            # starting with T.
-            
-            ########################### GET COEFFICIENTS FOR DOWNSCALING T&P ###########################
-            # Young et al. (2021) Original code below
             # Apply T_downscale_funkfest function to get inversion tracking downscaled T functions for every reanalysis grid point
-            xi_list, yi_list, xi_list_inver, yi_list_inver, funclist, funclist_inver, inversion_list, y0func, y0func_inver, Lfunc, Lfunc_inver = T_downscale_funkfest(hourlyT, hourlyE, UTMx_list, UTMy_list) 
-               
-            #Apply rainy_day_funk function to get multivariate based downscaling of precip values:
-            # This function generates the b0 through b6 and r_beta squared coefficients used in the precip downscaling.
-            # See Young et al. (2021) supplementary material for more info.
+            xi_list, yi_list, xi_list_inver, yi_list_inver, funclist, funclist_inver, inversion_list, y0func, y0func_inver, Lfunc, Lfunc_inver = T_downscale_funkfest(hourlyT, hourlyH, UTMx_list, UTMy_list) 
             
-            if i == 0: #Only need to do once per day
-                r_beta2, b_coeffs, b0 = rainy_day_funk(coarse_elev.ravel()[NARR_subregions], hourlyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
-                if normalized_XYZ == True:
-                    Xmax = np.max(UTMx_list[NARR_subregions])
-                    Ymax = np.max(UTMy_list[NARR_subregions])
-                    Zmax = np.max(coarse_elev.ravel()[NARR_subregions])
-                    r_beta2, b_coeffs, b0 = rainy_day_funk(coarse_elev.ravel()[NARR_subregions]/Zmax, dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions]/Xmax, UTMy_list[NARR_subregions]/Ymax)     
-                else:
-                    pass
-            else:
-                pass    
             
-            #KR_note: move these comments somewhere else? (e.g. where these steps actually happen)
-            ###For large Kask type grid use if loop to assign reanalysis grid position                             
-            #Get T value for every point on glacier
-            #use appropriate interp functon and extrap values
-            
-            for z in range(0, len(Ih)):
+            # Loop over every gridcell in downscaled reanalysis, get downscaled P and T
+            for cell in range(0, len(np.where(np.isfinite(Zgrid))[0])):
+                x = np.where(np.isfinite(Zgrid))[0][cell]
+                y =  np.where(np.isfinite(Zgrid))[1][cell]
                 
                 #Get closest NARR grid point for appropriate downscaling T values
-                downscaled_cell = np.asarray(([Iy[z]], [Ix[z]]))
+                downscaled_cell = np.asarray(([Ygrid[x,y]], [Xgrid[x,y]]))
                 NARR_cell = closest_node(downscaled_cell, grid_pts) #Finds which NARR gridcell (36 total) is closest to the gridcell being downscaled.
             
                 #use index to get nearest grid point in u, w notation
@@ -245,63 +184,35 @@ for year in years:
                 #Lapse rate and y0, meaning no extrapolation routine is needed 
                 
                 if inversion_list[u][w] == 0:
-                    k = interpolate.bisplev(Iy[z], Ix[z], Lfunc) * Ih[z] + interpolate.bisplev(Iy[z], Ix[z], y0func)                         
+                    # Interpolated lapse rate*elev + interpolated sea level temp
+                    k = interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], Lfunc) * Zgrid[x,y] + interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], y0func)                         
                         
                 else:
                     
-                    if Ih[z] < yi_list[u][w][0]:
-                        k = interpolate.bisplev(Iy[z], Ix[z], Lfunc_inver) * Ih[z] + interpolate.bisplev(Iy[z], Ix[z], y0func_inver) 
+                    if Zgrid[x,y] < yi_list[u][w][0]:
+                        k = interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], Lfunc_inver) * Zgrid[x,y] + interpolate.bisplev(Ygrid[x,y], Xgrid[x,y], y0func_inver) 
                     else:
-                        k = interpolate.bisplev(Iy[z], Ix[z], Lfunc) * Ih[z] + interpolate.bisplev(Iy[z], Ix[z], y0func)  
+                        k = interpolate.bisplev(Ygrid[x,y], Xgrid[x,y], Lfunc) * Zgrid[x,y] + interpolate.bisplev(Ygrid[x,y], Xgrid[x,y], y0func)  
                         
                 K = (k - 273.15)
+                Downscaled_T[hourly_indices[0][i],x,y]
                 
-                if i == 0:  #Only need to do once per day
-                    Plocal = (b0 + (b_coeffs[0] * Ix[z]) + (b_coeffs[1] * Iy[z]) + (b_coeffs[2] \
-                        * Ix[z] * Iy[z]) + (b_coeffs[3] * Ix[z]**2) + (b_coeffs[4] * \
-                            Iy[z]**2) + (b_coeffs[5] * Ih[z]))*r_beta2 
-                
-                    if normalized_XYZ == True:
-                        Plocal = (b0 + (b_coeffs[0] * (Ix[z]/Xmax)) + (b_coeffs[1] * (Iy[z]/Ymax)) + (b_coeffs[2] \
-                        * (Ix[z]/Xmax) * (Iy[z]/Ymax)) + (b_coeffs[3] * (Ix[z]/Xmax)**2) + (b_coeffs[4] * \
-                            (Iy[z]/Ymax)**2) + (b_coeffs[5] * (Ih[z]/Zmax)))*r_beta2 
-                        
-
-                    # Correct for negative precip values in areas where statistical model predicts less than zero value on mx + b regression curve
-                    if Plocal < 0:
-                        Plocal = 0.
-                    else:
-                        pass
-                    
-                    Pregional = hourlyP[u][w]*(1-r_beta2)
-                    Pdownscaled = Plocal + Pregional
+                # Now get P_regional:
+                if i == 0: #calculate for first timestep only
+                    Pregional_cell = dailyP[u][w]*(1-r_beta2)
+                    Pregional[x,y] = Pregional_cell
                 else:
-                    Pdownscaled = 0.
+                    pass
+                
+                
+                
+        Pdownscaled = (Plocal + Pregional)/8
+        Pdownscaled[nanlocs] = np.nan
+        
+        for dt in hourly_indices:
+            Downscaled_P[dt] = Pdownscaled
+        
 
-                #Update lists  
-                Thour.append(K)
-                Phour.append(Pdownscaled)
-
-            
-
-            # Write downscaled variable to the output files:
-            MBwrite = Thour
-            for im in MBwrite:
-                Temp_out.write("%s," %im) #prepare for next row/day by next line 
-            Temp_out.write("\n")
-                                    
-            MBwrite = Phour
-            for im in MBwrite:
-                Precip_out.write("%s," %im) #prepare for next row/day by next line 
-            Precip_out.write("\n")
-    
-
-    Temp_out.close()
-    Precip_out.close()
-    inT.close()
-    inE.close()
-    inP.close()
-       
+    np.save(os.path.join(OUTPUT_PATH,'DownscaledPtest' + str(year) + '.npy'),Downscaled_P)
+    np.save(os.path.join(OUTPUT_PATH,'DownscaledTtest' + str(year) + '.npy'),Downscaled_T)    
     print(Glacier_ID + 'Downscaling Complete')
-    
-    # KR_note: edited up to here Mar 7 2023: everything below is not edited yet
