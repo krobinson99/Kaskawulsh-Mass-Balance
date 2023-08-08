@@ -195,7 +195,7 @@ for year in years:
                         k = interpolate.bisplev(Ygrid[x,y], Xgrid[x,y], Lfunc) * Zgrid[x,y] + interpolate.bisplev(Ygrid[x,y], Xgrid[x,y], y0func)  
                         
                 K = (k - 273.15)
-                Downscaled_T[hourly_indices[0][i],x,y]
+                Downscaled_T[hourly_indices[0][i],x,y] = K
                 
                 # Now get P_regional:
                 if i == 0: #calculate for first timestep only
@@ -203,16 +203,15 @@ for year in years:
                     Pregional[x,y] = Pregional_cell
                 else:
                     pass
-                
-                
-                
-        Pdownscaled = (Plocal + Pregional)/8
-        Pdownscaled[nanlocs] = np.nan
+            
+            if i == 0:
+                Pdownscaled = (Plocal + Pregional)/8
+                Pdownscaled[nanlocs] = np.nan
+            else:
+                pass
+            
+            Downscaled_P[hourly_indices[0][i],:,:] = Pdownscaled
         
-        for dt in hourly_indices:
-            Downscaled_P[dt] = Pdownscaled
-        
-
     np.save(os.path.join(OUTPUT_PATH,'DownscaledPtest' + str(year) + '.npy'),Downscaled_P)
     np.save(os.path.join(OUTPUT_PATH,'DownscaledTtest' + str(year) + '.npy'),Downscaled_T)    
     print(Glacier_ID + 'Downscaling Complete')
