@@ -17,7 +17,6 @@ Cleaned up version of NARR_DOWNSCALING.py by Erik Young
 # note to self: check all KR_note comments before commiting to git.
         
 import numpy as np
-#from scipy.interpolate import interp1d
 from scipy import interpolate
 import netCDF4
 from pyproj import Proj
@@ -31,6 +30,7 @@ import os
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import write_config_file
 from Model_functions_ver4 import model_domain
+from Model_functions_ver4 import netcdf_container_gen
 
 #Import parameters from config file
 from DOWNSCALINGnamelist import start_year, end_year
@@ -40,9 +40,8 @@ from DOWNSCALINGnamelist import static_surface
 from DOWNSCALINGnamelist import UTM
 from DOWNSCALINGnamelist import NARR_subregions
 from DOWNSCALINGnamelist import normalized_XYZ
-from DOWNSCALINGnamelist import delta_t
+from DOWNSCALINGnamelist import time_step
 from DOWNSCALINGnamelist import OUTPUT_PATH
-from DOWNSCALINGnamelist import catchment
 from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, Northing_grid
 
 # Save configuration file for this run to output directory:
@@ -80,7 +79,7 @@ print('Model coordinates loaded.')
 # Setting-up time period and timesteps
 # =============================================================================
 years = np.arange(start_year,end_year+1)
-time_steps = np.arange(0,24,delta_t)
+time_steps = np.arange(0,24,time_step)
 print('Downscaling years:',list(years))
 # =============================================================================
 
@@ -123,7 +122,10 @@ for year in years:
     # Prep output variables
     # ========================================================================= 
     Downscaled_T = np.empty((T_array.shape[0],Xgrid.shape[0],Xgrid.shape[1]))
+    Downscaled_T_file = os.path.join(OUTPUT_PATH,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc')
+    
     Downscaled_P = np.empty((T_array.shape[0],Xgrid.shape[0],Xgrid.shape[1]))
+    Downscaled_P_file = os.path.join(OUTPUT_PATH,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc')
 
     # Get timestamps for T (3 hourly) and P (daily)
     dt_daily = netCDF4.num2date(inP.variables['time'][:], units) # 365 timesteps (daily for 1 year)
@@ -212,6 +214,10 @@ for year in years:
             
             Downscaled_P[hourly_indices[0][i],:,:] = Pdownscaled
         
-    np.save(os.path.join(OUTPUT_PATH,'DownscaledPtest' + str(year) + '.npy'),Downscaled_P)
-    np.save(os.path.join(OUTPUT_PATH,'DownscaledTtest' + str(year) + '.npy'),Downscaled_T)    
-    print(Glacier_ID + 'Downscaling Complete')
+    
+    netcdf_container_gen(Downscaled_P, 'Precipitation', Downscaled_P_file, year, Xgrid, Ygrid) 
+    netcdf_container_gen(Downscaled_T, 'Temperature', Downscaled_T_file, year, Xgrid, Ygrid)        
+    
+ 
+print(Glacier_ID + 'Downscaling Complete')
+    
