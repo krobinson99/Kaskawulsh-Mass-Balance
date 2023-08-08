@@ -7,14 +7,19 @@ from scipy import interpolate
 from netCDF4 import Dataset
 import netCDF4
 import os
+import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
 
 
 ###Downscale temperature based on atmospheric structure and inversions###
 def T_downscale_funkfest(T, E, UTMx_list, UTMy_list):
-
+        '''
+        E has shape 29,6,6 (pressure level, x,y)
+        '''
         
         ###Get values for geopotential and temperature
+        # KR_note: these would probably work just as well as 6,6 arrays
         xi_list = np.empty_like(T[-1][:][:]).tolist()
         yi_list = np.empty_like(T[-1][:][:]).tolist()
         xi_list_inver = np.empty_like(T[-1][:][:]).tolist()
@@ -33,8 +38,8 @@ def T_downscale_funkfest(T, E, UTMx_list, UTMy_list):
 
         #interpolate elev and temp, get interp function for each grid point
         #also save T and geopotential points for extrapolation if needed   
-        for u in range(0, T[-1][:][:].shape[0]):
-            for w in range(0, T[-1][:][:].shape[1]): 
+        for u in range(0,T[0].shape[0]):
+            for w in range(0, T[0].shape[0]): 
                 inversion_list[u][w] = 0
                 j = 0
                 
@@ -104,17 +109,6 @@ def T_downscale_funkfest(T, E, UTMx_list, UTMy_list):
                 else:
                     y0_list_inver[u][w] = funclist_inver[u][w](0)
           
-     #use scipy.inter2d      
-        # y0func = interpolate.interp2d(UTMx_list, UTMy_list, y0_list, kind='linear')
-        # y0func_inver = interpolate.interp2d(UTMx_list, UTMy_list, y0_list_inver, kind='linear')
-        # Lfunc = interpolate.interp2d(UTMx_list, UTMy_list, L_list, kind='linear')
-        # Lfunc_inver = interpolate.interp2d(UTMx_list, UTMy_list, L_list_inver, kind='linear')
-     #use scipy.Rbf   
-        # y0func = interpolate.Rbf(UTMx_list, UTMy_list, y0_list, function='linear', smooth = 0)
-        # y0func_inver = interpolate.Rbf(UTMx_list, UTMy_list, y0_list_inver, function='linear', smooth = 0)
-        # Lfunc = interpolate.Rbf(UTMx_list, UTMy_list, L_list, function='linear', smooth = 0)
-        # Lfunc_inver = interpolate.Rbf(UTMx_list, UTMy_list, L_list_inver, function='linear', smooth = 0)
-     #use scipy.griddata
         y0func = interpolate.bisplrep(UTMy_list, UTMx_list, y0_list)
         y0func_inver = interpolate.bisplrep(UTMy_list, UTMx_list, y0_list_inver)
         Lfunc = interpolate.bisplrep(UTMy_list, UTMx_list, L_list)
@@ -126,7 +120,7 @@ def T_downscale_funkfest(T, E, UTMx_list, UTMy_list):
                             y0func_inver, Lfunc, Lfunc_inver
                         
                         
-                          #convert liquid precip to snow based on T###  
+#convert liquid precip to snow based on T###  
 def Precip_2_Snow(P,T,snowfac):
             
         #calculate snow
@@ -638,17 +632,15 @@ def bilinear_interpolation(x, y, points):
            
 
 ###create empty netcdf container, need ref files in directory
-def netcdf_container_gen(melt_model, var_n, File_name, File_sufix, ybounds, xbounds, This_year_is,ref_file_path):
+def netcdf_container_gen(MB, var_n, File_name, year, Xgrid, Ygrid):
 
     ###Create empty .nc file for MB values###
-    ref_file_in = os.path.join(ref_file_path,'ref' + str(This_year_is) + '.nc')
-    fh = Dataset(ref_file_in, "r")
-    f = Dataset(File_name + File_sufix, 'w', format='NETCDF4') #'w' stands for write
+    f = Dataset(File_name, 'w', format='NETCDF4') #'w' stands for write
         
-    time = f.createDimension('time', None)
+    time = f.createDimension('time', len(MB))
     #z = f.createDimension('z', len(Ih))
-    y = f.createDimension('y', len(ybounds))
-    x = f.createDimension('x', len(xbounds))
+    y = f.createDimension('y', len(MB[0]))
+    x = f.createDimension('x', len(MB[0][0]))
     #f.createDimension('date', None)
     
     #load subset into new netcdffile
@@ -659,8 +651,8 @@ def netcdf_container_gen(melt_model, var_n, File_name, File_sufix, ybounds, xbou
     mb = f.createVariable(var_n, np.float32, ('time', 'y', 'x'))
         
     # Global Attributes 
-    f.description = 'Model Output' + File_name   
-    f.source = 'Melt model for Kaskawulsh' 
+    f.description = 'Mass-Balance Model Output for Kaskawulsh Glacier (K. Robinson MSc Thesis)'   
+    f.source = File_name
     # Variable Attributes  
     Ys.units = 'm'  
     Xs.units = 'm'  
@@ -672,19 +664,20 @@ def netcdf_container_gen(melt_model, var_n, File_name, File_sufix, ybounds, xbou
     #time.actual_range = [1835688. , 1836405]
         
     #insert metadata into .nc file 
-    XX = xbounds
-    YY = ybounds
+    XX = Xgrid[0]
+    YY = Ygrid[:,0]
     #Z = Ih
-    time_nc = fh.variables['time'][:]
-    b = fh.variables['time']
-    dtime = netCDF4.num2date(b[:], b.units)
+    #time_nc = fh.variables['time'][:]
+    #b = fh.variables['time']
+    #dtime = netCDF4.num2date(b[:], b.units)
+    dtime = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='3H').to_pydatetime()
     
     Xs[:] = XX #The "[:]" at the end of the variable instance is necessary
     Ys[:] = YY
     #Zs[:] = Z
     times[:] = netCDF4.date2num(dtime, units = times.units, calendar = times.calendar)
     mb[:] = np.zeros(mb[:].shape) * np.nan
-    mb[:] = melt_model
+    mb[:] = MB
     
     f.close()
     
@@ -1283,5 +1276,54 @@ def model_domain(catchment):
     
     return Zgrid, Xgrid, Ygrid, xbounds, ybounds, Sfc
 
+def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
+    '''
+    Function to offset the "center" of a colormap. Useful for
+    data with a negative min and positive max and you want the
+    middle of the colormap's dynamic range to be at zero.
 
+    Input
+    -----
+      cmap : The matplotlib colormap to be altered
+      start : Offset from lowest point in the colormap's range.
+          Defaults to 0.0 (no lower offset). Should be between
+          0.0 and `midpoint`.
+      midpoint : The new center of the colormap. Defaults to 
+          0.5 (no shift). Should be between 0.0 and 1.0. In
+          general, this should be  1 - vmax / (vmax + abs(vmin))
+          For example if your data range from -15.0 to +5.0 and
+          you want the center of the colormap at 0.0, `midpoint`
+          should be set to  1 - 5/(5 + 15)) or 0.75
+      stop : Offset from highest point in the colormap's range.
+          Defaults to 1.0 (no upper offset). Should be between
+          `midpoint` and 1.0.
+    '''
+    cdict = {
+        'red': [],
+        'green': [],
+        'blue': [],
+        'alpha': []
+    }
+
+    # regular index to compute the colors
+    reg_index = np.linspace(start, stop, 257)
+
+    # shifted index to match the data
+    shift_index = np.hstack([
+        np.linspace(0.0, midpoint, 128, endpoint=False), 
+        np.linspace(midpoint, 1.0, 129, endpoint=True)
+    ])
+
+    for ri, si in zip(reg_index, shift_index):
+        r, g, b, a = cmap(ri)
+
+        cdict['red'].append((si, r, r))
+        cdict['green'].append((si, g, g))
+        cdict['blue'].append((si, b, b))
+        cdict['alpha'].append((si, a, a))
+
+    newcmap = matplotlib.colors.LinearSegmentedColormap(name, cdict)
+    plt.register_cmap(cmap=newcmap)
+
+    return newcmap
 
