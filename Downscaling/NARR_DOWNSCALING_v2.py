@@ -29,17 +29,13 @@ import sys
 import os 
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import write_config_file
-from Model_functions_ver4 import model_domain
 from Model_functions_ver4 import netcdf_container_gen
 
 #Import parameters from config file
 from DOWNSCALINGnamelist import start_year, end_year
 from DOWNSCALINGnamelist import Glacier_ID
-from DOWNSCALINGnamelist import glacier_outline
-from DOWNSCALINGnamelist import static_surface
 from DOWNSCALINGnamelist import UTM
 from DOWNSCALINGnamelist import NARR_subregions
-from DOWNSCALINGnamelist import normalized_XYZ
 from DOWNSCALINGnamelist import time_step
 from DOWNSCALINGnamelist import OUTPUT_PATH
 from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, Northing_grid, Elev_inputs
@@ -179,6 +175,7 @@ for year in years:
                 u = int(np.where(UTMx == grid_pts[0][NARR_cell])[0])
                 w = int(np.where(UTMy == grid_pts[1][NARR_cell])[1])
                 
+                # TEMPERATURE DOWNSCALING
                 if inversion_list[u][w] == 0:
                     # Interpolated lapse rate*elev + interpolated sea level temp
                     k = interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], Lfunc) * Zgrid[x,y] + interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], y0func)                         
@@ -199,6 +196,8 @@ for year in years:
                     Pregional[x,y] = Pregional_cell
                 else:
                     pass
+            
+            Downscaled_T[nanlocs] = np.nan
             
             if i == 0:
                 Pdownscaled = (Plocal + Pregional)/len(time_steps) # Split daily precip throughout day
