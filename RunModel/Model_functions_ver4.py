@@ -632,7 +632,7 @@ def bilinear_interpolation(x, y, points):
            
 
 ###create empty netcdf container, need ref files in directory
-def netcdf_container_gen(MB, var_n, File_name, year, Xgrid, Ygrid):
+def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
 
     ###Create empty .nc file for MB values###
     f = Dataset(File_name, 'w', format='NETCDF4') #'w' stands for write
