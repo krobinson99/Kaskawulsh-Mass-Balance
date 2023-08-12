@@ -21,9 +21,6 @@ from scipy import interpolate
 import netCDF4
 from pyproj import Proj
 from netCDF4 import Dataset
-
-#from Model_functions_ver3 import T_downscale_funkfest
-
 import sys, os
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import write_config_file, save_to_netcdf, closest_node
@@ -46,7 +43,7 @@ lats = NARR_DEM.variables['lat'][:]
 units = NARR_DEM.variables['time'].units
 sys.stdout.flush()
 
-Projection = Proj('+proj=utm +zone=' + UTM + ', +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
+Projection = Proj('+proj=utm +zone=' +str(UTM) + ' +ellps=WGS84', preserve_units=False)
 UTMx, UTMy = Projection(lons, lats)  # converts lat/lons of coarse NARR grid to easting, northing on WGS84 projection.
 
 
