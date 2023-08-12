@@ -22,23 +22,16 @@ import netCDF4
 from pyproj import Proj
 from netCDF4 import Dataset
 
-from Model_functions_ver3 import T_downscale_funkfest
-from Model_functions_ver3 import rainy_day_funk
-from Model_functions_ver3 import closest_node
-import sys
-import os 
+#from Model_functions_ver3 import T_downscale_funkfest
+
+import sys, os
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
-from Model_functions_ver4 import write_config_file
-from Model_functions_ver4 import netcdf_container_gen
+from Model_functions_ver4 import write_config_file, save_to_netcdf, closest_node
+from Model_functions_ver4 import rainy_day_funk, T_downscale_funkfest
 
 #Import parameters from config file
-from DOWNSCALINGnamelist import start_year, end_year
-from DOWNSCALINGnamelist import Glacier_ID
-from DOWNSCALINGnamelist import UTM
-from DOWNSCALINGnamelist import NARR_subregions
-from DOWNSCALINGnamelist import time_step
-from DOWNSCALINGnamelist import OUTPUT_PATH
-from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, Northing_grid, Elev_inputs
+from DOWNSCALINGnamelist import start_year, end_year, Glacier_ID, UTM, NARR_subregions, time_step
+from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, Northing_grid, Elev_inputs, OUTPUT_PATH
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"DOWNSCALINGnamelist.py")
@@ -54,12 +47,12 @@ units = NARR_DEM.variables['time'].units
 sys.stdout.flush()
 
 Projection = Proj('+proj=utm +zone=' + UTM + ', +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
-UTMy, UTMx = Projection(lons, lats)  # converts lat/lons of coarse NARR grid to easting, northing on WGS84 projection.
+UTMx, UTMy = Projection(lons, lats)  # converts lat/lons of coarse NARR grid to easting, northing on WGS84 projection.
+
 
 #create list of array positions ungridded
 UTMx_list = UTMx.ravel()
 UTMy_list = UTMy.ravel()
-grid_pts = np.stack((UTMx_list, UTMy_list)) #KR_note: not needed, can be replaced with UTM_xlist/ylist further down in code
 print("Coarse NARR grid loaded")
 # =============================================================================
 
@@ -168,12 +161,13 @@ for year in years:
                 y =  np.where(np.isfinite(Zgrid))[1][cell]
                 
                 #Get closest NARR grid point for appropriate downscaling T values
-                downscaled_cell = np.asarray(([Ygrid[x,y]], [Xgrid[x,y]]))
-                NARR_cell = closest_node(downscaled_cell, grid_pts) #Finds which NARR gridcell (36 total) is closest to the gridcell being downscaled.
+                downscaled_cell = np.asarray(([Xgrid[x,y]], [Ygrid[x,y]]))
+                NARR_cell = closest_node(downscaled_cell, UTMx_list, UTMy_list) #Finds which NARR gridcell (36 total) is closest to the gridcell being downscaled.
             
                 #use index to get nearest grid point in u, w notation
-                u = int(np.where(UTMx == grid_pts[0][NARR_cell])[0])
-                w = int(np.where(UTMy == grid_pts[1][NARR_cell])[1])
+                u = int(np.where(UTMx == UTMx_list[NARR_cell])[0])
+                w = int(np.where(UTMy == UTMy_list[NARR_cell])[1])
+
                 
                 # TEMPERATURE DOWNSCALING
                 if inversion_list[u][w] == 0:
@@ -197,7 +191,7 @@ for year in years:
                 else:
                     pass
             
-            Downscaled_T[nanlocs] = np.nan
+            Downscaled_T[i][nanlocs] = np.nan
             
             if i == 0:
                 Pdownscaled = (Plocal + Pregional)/len(time_steps) # Split daily precip throughout day
@@ -208,8 +202,8 @@ for year in years:
             Downscaled_P[hourly_indices[0][i],:,:] = Pdownscaled
         
     
-    netcdf_container_gen(Downscaled_P, 'Precipitation', Downscaled_P_file, year, Xgrid, Ygrid) 
-    netcdf_container_gen(Downscaled_T, 'Temperature', Downscaled_T_file, year, Xgrid, Ygrid)        
+    save_to_netcdf(Downscaled_P, 'Precipitation', Downscaled_P_file, year, Xgrid, Ygrid) 
+    save_to_netcdf(Downscaled_T, 'Temperature', Downscaled_T_file, year, Xgrid, Ygrid)        
     
  
 print(Glacier_ID + 'Downscaling Complete')
