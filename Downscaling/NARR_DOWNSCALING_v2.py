@@ -3,19 +3,25 @@
 Created on Thu Mar  2 11:52:00 2023
 
 Cleaned up version of NARR_DOWNSCALING.py by Erik Young
+Script for downscaling NARR Temperature and Precipitation.
+Based on downscaling routine from Young et al. (2021).
+
+Set configuration options in DOWNSCALINGnamelist.py
+
+Inputs:
+    NARR 3-hourly surface air temperature
+    NARR daily surface precipitation
+    DEM for NARR grid
+    Coordinates for model grid (X,Y,Z)
+Outputs:
+    Downscaled T/P as netcdf files
 
 @author: katierobinson
 """
 
-######IMPORTANT################
-#                             #
-# RUN DOWNSCALINGnamelist.py  # 
-#    BEFORE running this      #
-#          script!            #
-#                             #
-###############################
 # note to self: check all KR_note comments before commiting to git.
         
+# Import statements:
 import numpy as np
 from scipy import interpolate
 import netCDF4
@@ -35,7 +41,7 @@ from Model_functions_ver4 import rainy_day_funk, T_downscale_funkfest
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"DOWNSCALINGnamelist.py")
 
-# Load coarse NARR grid:
+# Load (time-invariant) coarse NARR grid:
 # =============================================================================
 NARR_DEM = Dataset(Coarse_DEM_input, "r")
 coarse_elev =  NARR_DEM.variables['hgt'][0,:,:] # surface geopotential height (time invariant), units = m a.s.l.
@@ -47,7 +53,6 @@ sys.stdout.flush()
 
 Projection = Proj('+proj=utm +zone=' +str(UTM) + ' +ellps=WGS84', preserve_units=False)
 UTMx, UTMy = Projection(lons, lats)  # converts lat/lons of coarse NARR grid to easting, northing on WGS84 projection.
-
 
 #create list of array positions ungridded
 UTMx_list = UTMx.ravel()
@@ -64,7 +69,7 @@ print('Model coordinates loaded.')
 # =============================================================================
 
 
-# Setting-up time period and timesteps
+# Set-up time period and timesteps for downscaling:
 # =============================================================================
 years = np.arange(start_year,end_year+1)
 time_steps = np.arange(0,24,time_step)
@@ -139,10 +144,15 @@ for year in years:
         dailyT = T_array[hourly_indices] # (8,29,6,6)
         dailyP = P_array[daily_index][0]/1000  # (6,6)  # Convert daily precipitation from mm w.e. to m w.e.
     
-        # PRECIP DOWNSCALING: 
+# =============================================================================
+#         PRECIP DOWNSCALING: 
+# =============================================================================
+        # Get coefficients from NARR Precip
         r_beta2, b_coeffs, b0 = rainy_day_funk(coarse_elev.ravel()[NARR_subregions], dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
+        # Calculate P_local across model grid using coeffs
         Plocal = (b0 + (b_coeffs[0] * Xgrid) + (b_coeffs[1] * Ygrid) + (b_coeffs[2] * (Xgrid * Ygrid)) + (b_coeffs[3] * (Xgrid**2)) + (b_coeffs[4] * (Ygrid**2)) + (b_coeffs[5] * Zgrid))*r_beta2 
-        Plocal[np.where(Plocal<0)] = 0       # Correct for negative precip values in areas where statistical model predicts less than zero value on mx + b regression curve
+        # Correct for negative precip values in areas where statistical model predicts less than zero value on mx + b regression curve
+        Plocal[np.where(Plocal<0)] = 0       
 
         Pregional = np.empty(Plocal.shape)
         
@@ -170,7 +180,9 @@ for year in years:
                 w = int(np.where(UTMy == UTMy_list[NARR_cell])[1])
 
                 
-                # TEMPERATURE DOWNSCALING
+# =============================================================================
+#                 TEMPERATURE DOWNSCALING
+# =============================================================================
                 if inversion_list[u][w] == 0:
                     # Interpolated lapse rate*elev + interpolated sea level temp
                     k = interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], Lfunc) * Zgrid[x,y] + interpolate.bisplev(Ygrid[x,y],Xgrid[x,y], y0func)                         
@@ -202,7 +214,7 @@ for year in years:
             
             Downscaled_P[hourly_indices[0][i],:,:] = Pdownscaled
         
-    
+    # Save downscaled T/P as netcdf
     save_to_netcdf(Downscaled_P, 'Precipitation', Downscaled_P_file, year, Xgrid, Ygrid) 
     save_to_netcdf(Downscaled_T, 'Temperature', Downscaled_T_file, year, Xgrid, Ygrid)        
     
