@@ -36,7 +36,7 @@ from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, 
 # Import functions for model:
 sys.path.insert(1,Model_functions)
 from Model_functions_ver4 import write_config_file, save_to_netcdf, closest_node
-from Model_functions_ver4 import rainy_day_funk, T_downscale_funkfest
+from Model_functions_ver4 import precip_downscaling, T_downscale_funkfest
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"DOWNSCALINGnamelist.py")
@@ -148,7 +148,7 @@ for year in years:
 #         PRECIP DOWNSCALING: 
 # =============================================================================
         # Get coefficients from NARR Precip
-        r_beta2, b_coeffs, b0 = rainy_day_funk(coarse_elev.ravel()[NARR_subregions], dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
+        r_beta2, b_coeffs, b0 = precip_downscaling(coarse_elev.ravel()[NARR_subregions], dailyP.ravel()[NARR_subregions], UTMx_list[NARR_subregions], UTMy_list[NARR_subregions]) 
         # Calculate P_local across model grid using coeffs
         Plocal = (b0 + (b_coeffs[0] * Xgrid) + (b_coeffs[1] * Ygrid) + (b_coeffs[2] * (Xgrid * Ygrid)) + (b_coeffs[3] * (Xgrid**2)) + (b_coeffs[4] * (Ygrid**2)) + (b_coeffs[5] * Zgrid))*r_beta2 
         # Correct for negative precip values in areas where statistical model predicts less than zero value on mx + b regression curve

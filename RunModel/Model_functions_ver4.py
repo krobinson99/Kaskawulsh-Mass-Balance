@@ -563,7 +563,7 @@ def closest_node(downscaledcell, NARRx, NARRy):
     return node_pos
     
 
-def rainy_day_funk(elev, precip, lat, lon):
+def precip_downscaling(elev, precip, lon, lat):
 
     #define list of relationships to be included in MLRM
     op_list = ['b0', 'b1X', 'b2Y', 'b3XY', 'b4X2', 'b5Y2', 'b6Z']
