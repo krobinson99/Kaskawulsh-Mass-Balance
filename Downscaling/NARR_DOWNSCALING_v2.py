@@ -22,13 +22,15 @@ import netCDF4
 from pyproj import Proj
 from netCDF4 import Dataset
 import sys, os
-sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
+
+# Import parameters from config file
+from DOWNSCALINGnamelist import start_year, end_year, Glacier_ID, UTM, NARR_subregions, time_step
+from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, Northing_grid, Elev_inputs, OUTPUT_PATH, Model_functions
+
+# Import functions for model:
+sys.path.insert(1,Model_functions)
 from Model_functions_ver4 import write_config_file, save_to_netcdf, closest_node
 from Model_functions_ver4 import rainy_day_funk, T_downscale_funkfest
-
-#Import parameters from config file
-from DOWNSCALINGnamelist import start_year, end_year, Glacier_ID, UTM, NARR_subregions, time_step
-from DOWNSCALINGnamelist import Climate_inputs, Coarse_DEM_input, Easting_grid, Northing_grid, Elev_inputs, OUTPUT_PATH
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"DOWNSCALINGnamelist.py")
@@ -102,6 +104,7 @@ for year in years:
     sys.stdout.flush()
     P_array = inP.variables['apcp'][:]
     print("NARR Geopotential, Temperature, Precipitation inputs loaded.") 
+    sys.stdout.flush()
     # =========================================================================               
     
     
@@ -126,6 +129,7 @@ for year in years:
     # ========================================================================= 
     for date in dt_daily:
         print(date)
+        sys.stdout.flush()
        
         # Get values for current iteration         
         hourly_indices = np.where(np.array(date_list) == date)
