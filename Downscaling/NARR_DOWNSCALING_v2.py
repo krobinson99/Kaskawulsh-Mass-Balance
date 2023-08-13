@@ -192,7 +192,7 @@ for year in years:
                 else:
                     pass
             
-            Downscaled_T[i][nanlocs] = np.nan
+            Downscaled_T[hourly_indices[0][i]][nanlocs] = np.nan
             
             if i == 0:
                 Pdownscaled = (Plocal + Pregional)/len(time_steps) # Split daily precip throughout day
