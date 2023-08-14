@@ -25,13 +25,14 @@ BiasCorrect_Prcp = True
 BiasCorrect_Rain = False #take daily rain arrays and bias correct them w\ the accumulation elevation dependent BC
 
 R2S = 1.0
-start_year = 1979
-end_year = 2019
+start_year = 2007
+end_year = 2018
 
+Glacier_name = 'kaskawulsh'
 Glacier_id = 'kaskonly'
 catchment = True
-INPUT_PATH = 'D:/Downscaled_files/Catchment/DynamicSurface/FinalDownscaling_1979-2022' #where are the downscaled NON-BIAS CORRECTED files located
-OUTPUT_PATH = 'D:/BiasCorrected_files/kaskonly_newcorrection_2013-2019'
+INPUT_PATH = 'D:/Downscaled_files/Kaskonly_staticZ/missing_trib/DownscaledNARR_2006-2018' #where are the downscaled NON-BIAS CORRECTED files located
+OUTPUT_PATH = 'D:/BiasCorrected_files/Kaskonly/MissingCAtrib/NewBiasCorrection_2007-2020'
 
 File_suffix = '.nc'
 reffiles = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Ref_files'
@@ -43,7 +44,7 @@ while year <= end_year:
   year = year + 1
 
 ##-------Turn glacier grid vectors into 3D grids--------------------##
-Zgrid, Xgrid, Ygrid, xbounds, ybounds = model_domain(catchment)
+Zgrid, Xgrid, Ygrid, xbounds, ybounds, Sfc = model_domain(catchment)
 #-----------------------------------------------------------------------
 #-----------------------------------------------------------------------
 #Set up values for bias correction; given array are DT values developped indepedently of
@@ -61,7 +62,7 @@ DTval = interp1d(np.asarray([1.,32.,60.,91.,121.,152.,182.,213.,244.,274.,305.,3
 #        5.45333788,  5.45333788, 5.45333788]), kind = 'linear')
   
 # This is the new bias correction (DP_bin450 from Recreate_BiasCorrection.py)  
-DPval = interp1d(np.asarray([500, 1225.0, 1675.0, 2125.0, 2575.0, 5000]), np.asarray([1.297593937690583,1.297593937690583,1.0856745219435284,1.1400724358642766,2.1760324548287953,2.1760324548287953]), kind = 'linear')    
+DPval = interp1d(np.asarray([500, 1225.0, 1675.0, 2125.0, 2575.0, 5000]), np.asarray([1.50821731,1.50821731,1.27023925,1.29709692,2.42742537,2.42742537]), kind = 'linear')    
     
 #--------------------------------------------------------------------------
 #####Apply TEMPERATURE bias correction first:########
@@ -74,13 +75,13 @@ if BiasCorrect_Temp == True:
         Temp_downscaled_filename = 'Temp' + Glacier_id + str(year) + '.nc' #can't use this bc it has already been bias corrected
         Temp_input = os.path.join(INPUT_PATH,Temp_downscaled_filename)
         inT = Dataset(Temp_input,'r')
+        #T_var = 'Precipitation'
         T_var = 'Temperature'
-        #T_var = 'Temperature'
         T_array = inT.variables[T_var][:] #T_array has shape (2920,218,328) = (t,x,y)
         sys.stdout.flush()
         
         # prepare the output file (to contain downscaled and Bias Corrected temp in netcdf form)
-        Temp_output_name = 'Temp' + Glacier_id + '_BC_' + str(year)
+        Temp_output_name = 'Temp_' + Glacier_name + '_BC_' + str(year)
         Temp_output_path = os.path.join(OUTPUT_PATH,Temp_output_name)
         
         # calculate bias correction factor for each timestep(every 3 hours) and apply it to the T_array
@@ -108,7 +109,7 @@ if BiasCorrect_Prcp == True:
         print('Starting year: ' + str(year))
         
         # call in the downscaled temp file (must be already converted to netcdf)
-        Just_Downscaled_Temp = 'Temp' + Glacier_id + '_BC_' + str(year) + '.nc'
+        Just_Downscaled_Temp = 'Temp_' + Glacier_name + '_BC_' + str(year) + '.nc'
         Downscaled_Temp = os.path.join(OUTPUT_PATH,Just_Downscaled_Temp)
         inT = Dataset(Downscaled_Temp,'r')
         T_var = 'Temperature'
@@ -118,12 +119,16 @@ if BiasCorrect_Prcp == True:
         rainlocs = np.where(T_array > R2S)
         
         # call in the downscaled accumulation file (must be already converted to netcdf)
-        Prcp_downscaled_filename = 'netSnow' + Glacier_id + str(year) + '.nc' #can't use this bc it has already been bias corrected
+        Prcp_downscaled_filename = 'netSnow' + 'kaskonly' + str(year) + '.nc' #can't use this bc it has already been bias corrected
         Prcp_input = os.path.join(INPUT_PATH,Prcp_downscaled_filename)
         inP = Dataset(Prcp_input,'r')
-        P_var = 'Temperature'
+        P_var = 'Precipitation'
         P_array = inP.variables[P_var][:] #P_array has shape (2920,218,328) = (t,x,y)
         sys.stdout.flush()
+        
+        # fix one anomalous timestep in 2014
+        if year == 2014:
+            P_array[1744][np.where(P_array[1744]>0)] = 0
         
         # get rain locations based on T_array
         
@@ -136,10 +141,10 @@ if BiasCorrect_Prcp == True:
         #print(Precip_uncorrected_array[1440,100,100])
         
         # prepare the output file (to contain downscaled and Bias Corrected temp in netcdf form)
-        Prcp_output_name = 'Prcp' + Glacier_id + '_BC_' + str(year) 
+        Prcp_output_name = 'Snow_' + Glacier_name + '_BC_' + str(year) 
         Prcp_output_path = os.path.join(OUTPUT_PATH,Prcp_output_name)
         
-        Rain_output_name = 'Rain' + Glacier_id + str(year)
+        Rain_output_name = 'Rain_' + Glacier_name + '_' + str(year)
         Rain_output_path = os.path.join(OUTPUT_PATH,Rain_output_name)
         
         # Calculate bias correction factor for each elevation and apply it to the P_array
@@ -174,7 +179,7 @@ if BiasCorrect_Rain == True:
         print('Starting year: ' + str(year))
         
         # call in the downscaled temp file (must be already converted to netcdf)
-        Just_Downscaled_Temp = 'Temp' + Glacier_id + '_BC_' + str(year) + '.nc'
+        Just_Downscaled_Temp = 'Temp_' + Glacier_name + '_BC_' + str(year) + '.nc'
         Downscaled_Temp = os.path.join(OUTPUT_PATH,Just_Downscaled_Temp)
         inT = Dataset(Downscaled_Temp,'r')
         T_var = 'Temperature'
