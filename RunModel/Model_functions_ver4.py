@@ -651,7 +651,7 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     mb = f.createVariable(var_n, np.float32, ('time', 'y', 'x'))
         
     # Global Attributes 
-    f.description = 'Mass-Balance Model Output for Kaskawulsh Glacier (K. Robinson MSc Thesis)'   
+    f.description = 'Mass-Balance Model Input for Kaskawulsh Glacier (K. Robinson MSc Thesis)'   
     f.source = File_name
     # Variable Attributes  
     Ys.units = 'm'  
