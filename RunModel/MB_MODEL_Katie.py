@@ -37,6 +37,7 @@ from MBMnamelist import params_filename
 from MBMnamelist import start_year, start_day, end_year
 from MBMnamelist import debris
 from MBMnamelist import time_step
+from MBMnamelist import save_MB_only
 from MBMnamelist import Output_path, ref_file_path
 from MBMnamelist import Rain_to_snow as R2S
 from MBMnamelist import Refreezing
@@ -46,7 +47,7 @@ from MBMnamelist import temp_shift_factor
 from MBMnamelist import Bias_CorrectionT as BC_T
 from MBMnamelist import Bias_CorrectionP as BC_P
 from MBMnamelist import Considering_Catchment
-from MBMnamelist import Tuning, JointProbabilityDistribution, means_debriscase, covariance_debriscase
+from MBMnamelist import Tuning, JointProbabilityDistribution, means_debriscase, covariance_debriscase, means_litvals, covariance_litvals
 from MBMnamelist import param_total
 from MBMnamelist import debris_treatment, debris_thickness_map
 from MBMnamelist import cleaniceM, peakM, peakM_thickness_ref, transition_thickness_ref, b0, k
@@ -72,7 +73,7 @@ Srad_input_path = SR_inputs
 #Load radiation parameters 
 if Tuning == True:
     if JointProbabilityDistribution == True:
-        JPD = np.random.multivariate_normal(means_debriscase, covariance_debriscase, param_total).T
+        JPD = np.random.multivariate_normal(means_litvals, covariance_litvals, param_total).T
         MF_p = JPD[0]
         aice_p = JPD[1]
         asnow_p = JPD[2]
@@ -156,11 +157,11 @@ nanlocs = np.where(np.isnan(Zgrid))
 
 #Setup debris mask for use in radiation parameters
 if debris == True:
-    #if debris_treatment == 'Boolean': #EMY MAP VERSION
-        #debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
-        #debris_m = np.zeros(debris_grid.shape)
-        #debris_m[np.where(debris_grid > 100)] = 0.
-        #debris_m[np.where(debris_grid <= 100)] = 1.
+    if debris_treatment == 'OriginalBoolean': #EMY MAP VERSION
+        debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
+        debris_m = np.zeros(debris_grid.shape)
+        debris_m[np.where(debris_grid > 100)] = 0.
+        debris_m[np.where(debris_grid <= 100)] = 1.
     if debris_treatment == 'Boolean':
         print('loading boolean debris map')
         debris_m = np.load(debris_thickness_map) #ones on ice, 0's on debris
@@ -199,10 +200,10 @@ while sim<(len(MF_p)-1):
     #counter for simulations with tested param combinations
     sim+=1
     
-    if debris_treatment == 'Boolean':
-        aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying by debris_m (boolean case) makes aice = 0 in debris covered cells
-    elif debris_treatment == 'Variable Thickness':
+    if debris_treatment == 'Variable Thickness':
         aice_a = np.ones(Zgrid.shape) * aice_p[sim]
+    else:
+        aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying by debris_m (boolean case) makes aice = 0 in debris covered cells
         
     asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
     MF_a = np.ones(Zgrid.shape) * MF_p[sim]
@@ -220,16 +221,16 @@ while sim<(len(MF_p)-1):
 #---------Set file names-----------------------------------------
         # may not be able to change too much due to some dependence on the downscaling script --> check again later
         if BC_T == True:
-            File_temp_name = 'Temp' + glacier_ID + '_BC_' + str(current_year) + '.nc'
+            File_temp_name = 'Temp_' + 'kaskawulsh' + '_BC_' + str(current_year) + '.nc'
         else:
             File_temp_name = 'Temp' + glacier_ID + str(current_year) + '.nc'
         
         if BC_P == True:
-            File_precip_name = 'Prcp' + glacier_ID + '_BC_' + str(current_year) + '.nc'
+            File_precip_name = 'Snow_' + 'kaskawulsh' + '_BC_' + str(current_year) + '.nc'
         else:
             File_precip_name = 'netSnow' + glacier_ID + str(current_year) + '.nc'
         
-        File_PDCSR_name = 'Srad' + glacier_ID + str(current_year) + '.nc'
+        File_PDCSR_name = 'Srad' + glacier_ID + str(1979) + '.nc'
         File_snow_in = 'snowini' + str(current_year) + '.txt'
         File_CC_in = 'CCini' + str(current_year) + '.txt'
         
@@ -264,7 +265,7 @@ while sim<(len(MF_p)-1):
         inP = Dataset(File_precip_in, "r")
         #P_var = 'Net snow'
         if BC_P == True:
-            P_var = 'Net snow'
+            P_var = 'Snow'
         else:
             P_var = 'Temperature'
         P_array = inP.variables[P_var][:]
@@ -464,18 +465,24 @@ while sim<(len(MF_p)-1):
             filename = 'MB' + str(current_year) + str(sim)
             output = os.path.join(OUTPUT_PATH,filename)
             np.save(output, MBhour)
-
+            sys.stdout.flush()
         else:
             #THIS PART OF THE SCRIPT TAKES THE LONGEST TIME: SAVE AS .NPY ARRAY INSTEAD? OR NP.SAVEZ FOR .NPZ FORMAT
             # CHECK WHICH ONE USES LEAST STORAGE
-            netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) # takes 3:13 s to run vs 52sec for np.savez(). np.save() takes 2:57
-            netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) #doing both MB and Accumulation takes 9min
-            netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-            netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-            netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-            netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-            netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-        
+            if save_MB_only == True:
+                filename = 'MB' + str(current_year) + str(sim)
+                output = os.path.join(OUTPUT_PATH,filename)
+                np.save(output, MBhour)
+                sys.stdout.flush()
+            else:
+                netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) # takes 3:13 s to run vs 52sec for np.savez(). np.save() takes 2:57
+                netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) #doing both MB and Accumulation takes 9min
+                netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+                netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+                netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+                netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+                netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
+            
             #npzoutfile = os.path.join(OUTPUT_PATH,'ModelResults_' + str(current_year) + '.npz')
             #print('saving outputs to: ' + str(npzoutfile))
             #np.savez(npzoutfile, Acc=Acchour, MB=MBhour) #takes 1:43 min
