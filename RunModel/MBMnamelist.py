@@ -7,18 +7,19 @@ Created on Tue May 25 10:15:08 2021
 
 #time_control
 time_step = 10800     #timestep - keep in units of seconds so that this is more flexible?
-start_year = 2006
-end_year = 2018
+start_year = 2007
+end_year = 2020
 start_day = 1
 #domain
 glacier_id = 'kaskonly'       #points to a specific glacier outline --> dont change this: it s the same for the kaskawulsh inputs and catchment inputs
-Considering_Catchment = False #are we simulating the whole catchment? (True) or just the Kask glacier (False)
+Considering_Catchment = True #are we simulating the whole catchment? (True) or just the Kask glacier (False)
 
 #parameterizations
 #debris
+save_MB_only = True #save net mb as npy file instead of netcdf. Makes model run much faster!
 ###############################################################################################################
 debris = True  #turn debris on or off
-debris_treatment = 'Boolean' # 'Boolean' or 'Variable Thickness'
+debris_treatment = 'Variable Thickness' # 'OriginalBoolean', 'Boolean' or 'Variable Thickness'
 deb_uncertainty_test_peakMthickness = False #leave off (False) if using ref value only
 deb_uncertainty_test_transitionthickness = False #leave off (False) if using ref value only
 ###############################################################################################################
@@ -56,12 +57,14 @@ Bias_CorrectionT = True #are you using bias corrected temp files as input (True)
 Bias_CorrectionP = True #are you using bias corrected precip files as input (True) or not (False)
 
 Tuning = True
-param_total = 1000 #how many parameter combinations to generate for the tuning process
-JointProbabilityDistribution = True #true: select parameters from joint probability distribution, if false, select from full distribution 
+param_total = 2 #how many parameter combinations to generate for the tuning process
+JointProbabilityDistribution = False #true: select parameters from joint probability distribution, if false, select from full distribution 
 #mean parameter values and covariance matrix, needed for generating the multivariate gaussian distribution: defined in Tuning/JointProbabilityDistribution.py
 means_debriscase = [2.97570389e-04, 2.44364946e-06, 1.02574550e-06]
 covariance_debriscase = [ 8.59048888e-09, -3.10636027e-11, -3.39930610e-11],[-3.10636027e-11,  1.88881027e-13,  1.20383794e-13],[-3.39930610e-11,  1.20383794e-13,  1.45712997e-13]
 
+means_litvals = [2.66355e-04, 2.54450e-06, 1.59065e-06]
+covariance_litvals = [ 2.57039900e-08, -8.87368158e-12, -3.49816639e-11],[-8.87368158e-12,  9.89741842e-13,  7.55436921e-13],[-3.49816639e-11,  7.55436921e-13,  7.72041924e-13]
 
 #file_names
 #Input_path = .../.../… #tell the model where to find the input files
@@ -70,20 +73,26 @@ params_filename = 'final_params_deb.csv' #tell the model which file contains the
 #T_inputs = 'D:\\Katie\\Mass Balance Model\\MassBalanceModel_KatiesVersion\\Final_runs'
 
 #File_glacier_in = ?? #need to change so that debris/non-debris case is more clear
-Output_path = 'D:/TuningOutputs/JPDtest' #tell the model where to put the output netcdf files
+Output_path = 'D:/TuningOutputs/Test_0723_throwaway' #tell the model where to put the output netcdf files
 ref_file_path = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Ref_files'
 File_sufix = ".nc"
 
 #######################################################################################################
 if Bias_CorrectionT == True:
-    T_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+    #T_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+    T_inputs = 'D:/BiasCorrected_files/Catchment/Final_Inputs_1979-2022'
 else:
     T_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
 
 if Bias_CorrectionP == True:
-    P_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+    #P_inputs = 'F:\\Mass Balance Model\\BiasCorrectedInputs_old\\Kaskonly_R2S=1'
+    P_inputs = 'D:/BiasCorrected_files/Catchment/Final_Inputs_1979-2022'
 else:
     P_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
 
-SR_inputs = 'F:\\Mass Balance Model\\Kaskonly_Downscaled_NoBC'
+if Considering_Catchment == True:
+    SR_inputs = 'D:/Downscaled_files/Catchment/DynamicSurface'
+else:
+    #SR_inputs = 'F:/Mass Balance Model/Downscaled_files/missing_trib/Kaskonly_Downscaled_NoBC'
+    SR_inputs = 'D:/BiasCorrected_files/kaskonly_newcorrection_2013-2019'
 
