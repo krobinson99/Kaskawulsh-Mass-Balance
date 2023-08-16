@@ -685,12 +685,12 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #return(mb[:], f)
 
 
-def get_meanSP(year_list,Glacier_ID,R2S,Climate_inputs):
+def get_meanSP(years,Glacier_ID,R2S,Climate_inputs):
     '''
     Calculates the mean annual total accumulation
     '''
     DH_list = []
-    for year in year_list:
+    for year in years:
         # Load Temp and Precip inputs for each year:
         inT = Dataset(os.path.join(Climate_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         T_array = inT.variables['Temperature'][:]
@@ -1231,9 +1231,53 @@ def generate_meltfactors(debrismask,cleaniceM,peakM,peakM_thickness,transition_t
                 Meltfact = Melt/cleaniceM
                 meltfactors[x,y] = Meltfact
             else:
-                print('debris thickness not accounted for in if statements')
+                print('generate meltfactors function error: debris thickness out of bounds')
 
-    return meltfactors 
+    return meltfactors
+
+def debris(debris_parameterization,debris_map,Sfc,cleanice_melt,peak_melt,peak_melt_thickness,transition_thickness,b0,k):
+    '''
+    Generate debris map based on chosen parameterization:
+    (1) None: debris is not considered
+        Returns: Array of one's with shape of domain
+    (2) Boolean debris: a_ice is set to zero everywhere with debris
+        Returns: Array where 0 = debris, 1 = no debris
+    (3) Sub-debris melt scaling: melt is multiplied by a scaling factor, determined
+    by the debris thickness (Rounce et al. 2021) and site-specific debris-melt parameters.
+        Returns: Array with thickness dependent melt scaling factors in all debris cells,
+        1 in all non-debris cells
+        
+    Inputs:
+        debris_map = path to text file containing debris thicknesses (or just boolean file where debris cover = >0, no debris = nan)
+        Sfc = text file where 0 = glacier cell, 1 = off glacier cell, NaN = outside of domain
+        Values from Ostrem Curve (debris thickness vs melt):
+            cleanice_melt = melt of clean ice (m w.e.)
+            peak_melt = maximum melt (m w.e.)
+            peak_melt_thickness = thickness at which max melt occurs(m)
+            transition_thickness = thickness at which melt  equals clean ice melt (m)
+        Values from Rounce et al. (2021) debris map for a given glacier;
+            b0 (float)
+            k (float)
+    '''
+    if debris_parameterization == None:
+        print('No debris')
+        debris_m = np.ones(Sfc.shape)
+        debris_m[np.where(np.isnan(Sfc))] = np.nan 
+        
+    elif debris_parameterization == 'Boolean debris':
+        debriscover = np.loadtxt(debris_map)
+        debris_m = np.ones(debriscover.shape)
+        debris_m[np.where(np.isfinite(debriscover))] = 0
+        debris_m[np.where(np.isnan(Sfc))] = np.nan 
+    
+    elif debris_parameterization == 'Sub-debris melt scaling':
+        debriscover = np.loadtxt(debris_map)
+        debris_m = generate_meltfactors(debriscover,cleanice_melt,peak_melt,peak_melt_thickness,transition_thickness,b0,k)
+        debris_m[np.where(np.isnan(Sfc))] = np.nan 
+    else:
+        print('Invalid entry for "debris_parameterization"\nMust be one of the following options:\n(1)None\n(2)Boolean debris\n(3)Sub-debris melt scaling')
+        
+    return debris_m 
 
 def write_config_file(outputpath,scriptname):
     with open(scriptname) as f:
