@@ -7,6 +7,7 @@ from scipy import interpolate
 from netCDF4 import Dataset
 import netCDF4
 import os
+import sys
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -684,46 +685,37 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #return(mb[:], f)
 
 
-def get_meanSP(year_list, Glacier_id,R2S,BiasCorrectionT,BiasCorrectionP,T_path,P_path):
-
-    #mean annual total precipitation
+def get_meanSP(year_list, Glacier_ID,R2S,BiasCorrectionT,BiasCorrectionP,Climate_inputs):
+    '''
+    Calculates the mean annual total accumulation
+    '''
     DH_list = []
-    for y in year_list:
+    for year in year_list:
+        # Load Temp and Precip inputs for each year:
+        inT = Dataset(os.path.join(Climate_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+        T_array = inT.variables['Temperature'][:]
+        sys.stdout.flush()
         
-        if BiasCorrectionT == True:
-            File_temp_in_future = 'Temp_' + 'kaskawulsh' + '_BC_' + str(y) + '.nc'
-        else:
-            File_temp_in_future = 'Temp' + Glacier_id + str(y) + '.nc'
-            
-        if BiasCorrectionP == True:
-            File_precip_in_future = 'Snow_' + 'kaskawulsh' + '_BC_' + str(y) + '.nc'
-            P_var = 'Snow'
-        else:
-            File_precip_in_future = 'netSnow' + Glacier_id + str(y) + '.nc'
-            P_var = 'Temperature'
+        inP = Dataset(os.path.join(Climate_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+        P_array = inP.variables['Precipitation'][:]
+        sys.stdout.flush()
+        
+        # Get indices for all rainy pixels:
+        rainlocs = np.where(T_array > R2S)        
+        
+        # Get array with accumulation only (by zero-ing any pixels with rain instead of snow)
+        Accumulation_array = np.array(P_array)
+        Accumulation_array[rainlocs] = 0
 
-        File_t_in = os.path.join(T_path,File_temp_in_future)
-        File_p_in = os.path.join(P_path,File_precip_in_future)
         
-        infut = Dataset(File_p_in, "r")
-        tinfut = Dataset(File_t_in, "r")
-        T_var = 'Temperature'
-        T_array = tinfut.variables[T_var][:]
-        
-        snowlocs = np.where(T_array > R2S)        
-        
-        #P_var = 'Net snow'
-        P_array = infut.variables[P_var][:]
-        P_array[snowlocs] = 0.
-        
-        DH = np.sum(P_array, axis = 0)
+        DH = np.sum(Accumulation_array, axis = 0)
         DH_list.append(DH)
         
-        infut.close()
-        tinfut.close()
+        inT.close()
+        inP.close()
         
         
-    DHval = np.mean(DH_list, axis = 0)     
+    DHval = np.mean(DH_list, axis = 0)  # Think that DHval should be an array of shape (x,y)?   
 
     return DHval          
                                                 
