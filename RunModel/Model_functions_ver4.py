@@ -685,7 +685,7 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #return(mb[:], f)
 
 
-def get_meanSP(year_list, Glacier_ID,R2S,BiasCorrectionT,BiasCorrectionP,Climate_inputs):
+def get_meanSP(year_list,Glacier_ID,R2S,Climate_inputs):
     '''
     Calculates the mean annual total accumulation
     '''
