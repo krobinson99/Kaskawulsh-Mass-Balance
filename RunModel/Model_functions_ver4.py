@@ -685,18 +685,18 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #return(mb[:], f)
 
 
-def get_meanSP(years,Glacier_ID,R2S,Climate_inputs):
+def get_meanSP(years,Glacier_ID,R2S,Precip_inputs):
     '''
     Calculates the mean annual total accumulation
     '''
     DH_list = []
     for year in years:
         # Load Temp and Precip inputs for each year:
-        inT = Dataset(os.path.join(Climate_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+        inT = Dataset(os.path.join(Precip_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         T_array = inT.variables['Temperature'][:]
         sys.stdout.flush()
         
-        inP = Dataset(os.path.join(Climate_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+        inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         P_array = inP.variables['Precipitation'][:]
         sys.stdout.flush()
         
@@ -719,7 +719,7 @@ def get_meanSP(years,Glacier_ID,R2S,Climate_inputs):
 
     return DHval          
                                                 
-def cold_content(This_year_is, year_list, P_array, T_array, Glacier_id, DHval, BC_P,P_path):
+def cold_content(year, P_array, T_array, Glacier_ID, Cmean, Precip_inputs):
 
 #function called for calculating the cold content of each cell in the model
 #domain. Applied for pre-processed model.
@@ -730,33 +730,21 @@ def cold_content(This_year_is, year_list, P_array, T_array, Glacier_id, DHval, B
     d = np.ones(P_array[0,:,:].shape)*2 #m
         
     #mean annual temperature
-    Tval = np.mean(T_array, axis = 0)
-    for t in range(0, len(Tval)):
-        for tt in range(0, len(Tval[t])):
-            if Tval[t][tt] > 0.:
-                Tval[t][tt] = 0.
+    Tmean = np.mean(T_array, axis = 0)
+    Tmean[np.where(Tmean>0)] = 0
     
     #Total snow pack
-    if BC_P == True:
-        File_precip_in_future = 'Snow_' + 'kaskawulsh' + '_BC_' + str(This_year_is) + '.nc'
-    else:
-        File_precip_in_future = 'netSnow' + Glacier_id + str(This_year_is + 1) + '.nc'
+    inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
+    P_array_fut = inP.variables['Precipitation'][:]
+    sys.stdout.flush()
     
-    File_p_in = os.path.join(P_path,File_precip_in_future)
-    
-    infut = Dataset(File_p_in, "r")
-    if BC_P == True:
-        P_var = 'Snow'
-    else:
-        P_var = 'Temperature'
-    P_array_fut = infut.variables[P_var][:]
     
     past = P_array[(int(-len(P_array_fut)/3)):,:,:]
     future = P_array_fut[:(int(len(P_array)*0.41)),:,:]
     SP = np.sum(past,axis = 0) + np.sum(future, axis = 0)
        
     #calculate snowpack to melt
-    proportion = (c/L)*np.abs(Tval)*(d/DHval) 
+    proportion = (c/L)*np.abs(Tmean)*(d/Cmean) 
     CC = proportion*SP
     
     return CC
