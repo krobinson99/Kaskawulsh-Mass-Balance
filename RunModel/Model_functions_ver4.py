@@ -737,14 +737,12 @@ def cold_content(year, P_array, T_array, Glacier_ID, Cmean, Precip_inputs):
     '''
     # Constants:
     c = 2097        # Specific heat capacity of ice (J kg^-1 K^-1)
-    L = 333500.     # Latent heat of fusion (J kg^-1)
+    L = 333500     # Latent heat of fusion (J kg^-1)
     d = np.ones(P_array[0,:,:].shape)*2 # Thickness of thermal active layer (2 m)
         
     #mean annual temperature
     Tmean = np.mean(T_array, axis = 0)
     Tmean[np.where(Tmean>0)] = 0
-    # Convert Tmean to Kelvin to match units of c
-    Tmean_K = Tmean + 273.15
     
     #Total snow pack
     inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
@@ -756,7 +754,7 @@ def cold_content(year, P_array, T_array, Glacier_ID, Cmean, Precip_inputs):
     SP = np.sum(past,axis = 0) + np.sum(future, axis = 0)
        
     #calculate snowpack to melt
-    Pr = (c/L)*np.abs(Tmean_K)*(d/Cmean) 
+    Pr = (c/L)*np.abs(Tmean)*(d/Cmean) 
     CC = Pr*SP
     
     return CC
