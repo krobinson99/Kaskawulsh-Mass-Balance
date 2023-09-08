@@ -720,32 +720,44 @@ def get_meanSP(years,Glacier_ID,R2S,Precip_inputs):
     return DHval          
                                                 
 def cold_content(year, P_array, T_array, Glacier_ID, Cmean, Precip_inputs):
-
-#function called for calculating the cold content of each cell in the model
-#domain. Applied for pre-processed model.
-
-    #first define parameters
-    c = 2009 #J kg^-1 K^-1
-    L = 335000. #J kg^-1
-    d = np.ones(P_array[0,:,:].shape)*2 #m
+    '''
+    Cold content parameterization to account for refreezing of meltwater in the
+    seasonal snowpack. Following Young et al. (2021).
+    
+    For every hydrologic year, total energy consumed by refreezing (CC) is 
+    approximated as a proportion (Pr) of the seasonal snowpack (SP)
+    
+    c = Specific heat capacity of ice (J kg^-1 K^-1)
+    L = Latent heat of fusion (J kg^-1)
+    d = Thickness of thermal active layer (2 m)
+    Tmean = local mean annual air temperature
+    SP = Snowpack from Sept 1 to May 30
+    
+    returns CC: the total energy available for refreezing per hydrologic year
+    '''
+    # Constants:
+    c = 2097        # Specific heat capacity of ice (J kg^-1 K^-1)
+    L = 333500.     # Latent heat of fusion (J kg^-1)
+    d = np.ones(P_array[0,:,:].shape)*2 # Thickness of thermal active layer (2 m)
         
     #mean annual temperature
     Tmean = np.mean(T_array, axis = 0)
     Tmean[np.where(Tmean>0)] = 0
+    # Convert Tmean to Kelvin to match units of c
+    Tmean_K = Tmean + 273.15
     
     #Total snow pack
     inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
     P_array_fut = inP.variables['Precipitation'][:]
     sys.stdout.flush()
     
-    
     past = P_array[(int(-len(P_array_fut)/3)):,:,:]
     future = P_array_fut[:(int(len(P_array)*0.41)),:,:]
     SP = np.sum(past,axis = 0) + np.sum(future, axis = 0)
        
     #calculate snowpack to melt
-    proportion = (c/L)*np.abs(Tmean)*(d/Cmean) 
-    CC = proportion*SP
+    Pr = (c/L)*np.abs(Tmean_K)*(d/Cmean) 
+    CC = Pr*SP
     
     return CC
     
@@ -969,7 +981,42 @@ def MB_vectorized(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, CC_in):
     return MBhour, Melt_list, Leftover_list, CC_out 
     
 
+# NEW FUNCTION TO CALCULATE THE MASS BALANCE
+def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc):
 
+    # Calculate snow melt
+    Msnow = (MF + asnow*I)*T
+    Msnow[np.where(T<=0)] = 0  # Set melt = 0 where T <0
+    Msnow[np.where(SP_in = 0)] = 0 # No snow melt where there is no initial snowpack
+    
+    # Calculate the amount of melt that is refrozen:
+    Refreezing = np.array(T.shape)
+    Refreezing[np.where(Msnow >= CC_in)] = CC_in # all cold content is used up in refreezing, and then some additional melt happens
+    Refreezing[np.where(Msnow < CC_in)] = Msnow # all melt is refrozen, some cold content is leftover
+    Refreezing[np.where(np.isnan(Sfc))] = np.nan
+    
+    # Update the snowpack:
+    SP_out = SP_in - (Msnow - Refreezing) # Leftover snowpack = initial snowpack minus net melt
+    SP_out[np.where(SP_out <=0)] = 0 # reset negative values to zero (i.e. where snowpack is depleted and sfc = ice)
+    
+    # Update the cold content array
+    CC_out = CC_in - Refreezing
+    CC_out[np.where(SP_out = 0)] = 0 # No cold content left where snowpack is depleted
+    
+    # Calculate energy leftover for melting ice after snow has been melted
+    T_used_in_snowmelt = (SP_in + Refreezing)/(MF + asnow*I) # If SP_in was 0, Refreezing would also be zero, then this value would be zero too
+    
+    # Calculate ice melt
+    if debris_parameterization == 'Boolean debris':
+        aice_array = np.ones(debris.shape)*(aice)*debris  # Sets aice = 0 in cells with debris
+        Mice = ((MF + (aice_array)*I)*(T - T_used_in_snowmelt))
+    else:
+        Mice = ((MF + aice*I)*(T - T_used_in_snowmelt))*debris
+    
+    Mice[np.where(Sfc==1)] = 0 # Set ice melt to zero in off-glacier cells
+    
+    return Msnow, Mice, Refreezing, CC_out, SP_out
+    
     
 def MB_vectorized_discreteSnI(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, Topo, CC_in, meltfactors, debtreatment):   
 
@@ -983,11 +1030,11 @@ def MB_vectorized_discreteSnI(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF
     nan_locs = np.isnan(Thour)
     CC_out = np.zeros(Thour.shape)
 
-    #ETIM melt model and snow tracker  
+    #DETIM melt model and snow tracker  
     
     #get indices of ice and snowmelt based on snow melt delta and T
     Melt_snow = (MF + asnow * SRhour) * Thour
-    DDsnow = (Leftover_in + CC_in)/(MF + asnow * SRhour)
+    DDsnow = (Leftover_in + CC_in)/(MF + asnow * SRhour) # units = deg C
     if debtreatment == 'Boolean':
         Melt_ice = ((MF + aice * SRhour) * (Thour - DDsnow)) #aice should already be zero in debris covered cells
     else:
@@ -1011,7 +1058,7 @@ def MB_vectorized_discreteSnI(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF
     #update snow melt arrays
     Leftover_list[snowmelt_ind] = Leftover_in[snowmelt_ind] - (Melt_snow[snowmelt_ind] - CC_in[snowmelt_ind])
     Melt_list[snowmelt_ind] = Melt_snow[snowmelt_ind] - CC_in[snowmelt_ind] 
-    Snowmelt_list[snowmelt_ind] = Melt_snow[snowmelt_ind] - CC_in[snowmelt_ind]
+    Snowmelt_list[snowmelt_ind] = Melt_snow[snowmelt_ind] - CC_in[snowmelt_ind] #this is where negative vals could come from
     #Total_ablation_list[snowmelt_ind_totalablation] = Melt_snow[snowmelt_ind_totalablation]
     
     #update ice melt arrays
