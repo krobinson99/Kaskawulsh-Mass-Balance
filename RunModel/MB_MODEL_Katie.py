@@ -2,496 +2,185 @@
 """
 Created on Tue May 25 10:02:43 2021
 
-@author: agribbon
+Revised version of glacier mass balance model (originally by Young et al. 2021)
+Calculates distributed glacier mass balance and runoff.
+
+Set configuration options in MBMnamelist.py
+
+Inputs:
+    Melt parameters (MF, asnow, aice)
+    Downscaled/bias-corrected NARR 3-hourly surface air temperature
+    Downscaled/bias-corrected NARR 3-hourly surface precipitation
+    3 hourly potential direct incoming solar radiation
+    Coordinates for model grid (X,Y)
+    Surface Type Grid (1 = off-glacier, 0 = on-glacier, NaN = not in the domain.)
+    Debris cover grid
+Outputs:
+    Distributed snow melt, ice melt, refreezing, and mass balance as NetCDF files.
+
+@author: katierobinson
 """
-######IMPORTANT########
-#                     #
-# RUN MBMnamelist.py  # 
-# BEFORE running this #
-#      script!        #
-#                     #
-#######################
 
-#This is a copy of the script MB_MODEL_FINALRUNS_balancefluxes.py (originally by Erik Young) with revisions by Katie Robinson 
-
-#import libraries
+# Import packages:
 import numpy as np
-import netCDF4
 from netCDF4 import Dataset
-import datetime as dt
-from datetime import datetime
+import pandas as pd
 import sys
 import os
-# import model functions
-sys.path.insert(1,'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel')
-from Model_functions_ver4 import MB_vectorized_discreteSnI
-from Model_functions_ver4 import cold_content
-from Model_functions_ver4 import regridXY_something
-from Model_functions_ver4 import get_meanSP
-from Model_functions_ver4 import netcdf_container_gen
-from Model_functions_ver4 import generate_meltfactors
-from Model_functions_ver4 import write_config_file
-# import from the config file
-from MBMnamelist import glacier_id
-from MBMnamelist import params_filename
-from MBMnamelist import start_year, start_day, end_year
-from MBMnamelist import debris
-from MBMnamelist import time_step
-from MBMnamelist import save_MB_only
-from MBMnamelist import Output_path, ref_file_path
-from MBMnamelist import Rain_to_snow as R2S
-from MBMnamelist import Refreezing
-from MBMnamelist import T_inputs, P_inputs, SR_inputs
-from MBMnamelist import Temp_shift
-from MBMnamelist import temp_shift_factor
-from MBMnamelist import Bias_CorrectionT as BC_T
-from MBMnamelist import Bias_CorrectionP as BC_P
-from MBMnamelist import Considering_Catchment
-from MBMnamelist import Tuning, JointProbabilityDistribution, means_debriscase, covariance_debriscase, means_litvals, covariance_litvals
-from MBMnamelist import param_total
-from MBMnamelist import debris_treatment, debris_thickness_map
-from MBMnamelist import cleaniceM, peakM, peakM_thickness_ref, transition_thickness_ref, b0, k
-from MBMnamelist import peakthickness_uncertainty, transitionthickness_uncertainty
 
-# save the namelist that was used here into a txt file that will go in the outputs directory
-write_config_file(Output_path,"MBMnamelist.py")
+# Import parameters from config file
+from MBMnamelist import start_year, end_year, timestep, params_file, sim, R2S, Glacier_ID, \
+Model_functions, Precip_inputs, Temp_inputs, Solar_inputs, Easting_grid, Northing_grid, \
+Sfc_grid, debris_parameterization, debris_map, cleanice_melt, peak_melt, peak_melt_thickness, \
+transition_thickness, b0, k, OUTPUT_PATH, SaveMBonly
 
-#Initialize model (get parameterizations from the namelist)
-sim = -1
-glacier_ID = glacier_id #namelist!!
-OUTPUT_PATH = Output_path #namelist
-#R2S = Rain_to_snow #rain to snow melt threshold
-REFREEZING = Refreezing
-#BC_T = Bias_CorrectionT
-#BC_P = Bias_CorrectionP
-considering_catchment = Considering_Catchment
-#where are the downscaled/bias corrected inputs stored
-Temp_input_path = T_inputs
-Precip_input_path = P_inputs
-Srad_input_path = SR_inputs
+# Import functions for model:
+sys.path.insert(1,Model_functions)
+from Model_functions_ver4 import write_config_file, save_to_netcdf
+from Model_functions_ver4 import debris, get_meanSP, cold_content, MassBalance
 
-#Load radiation parameters 
-if Tuning == True:
-    if JointProbabilityDistribution == True:
-        JPD = np.random.multivariate_normal(means_litvals, covariance_litvals, param_total).T
-        MF_p = JPD[0]
-        aice_p = JPD[1]
-        asnow_p = JPD[2]
-    else:
-        # origina/full parameter distribution, defined in Young et al. (2021)
-        aice_p = np.zeros(param_total)
-        asnow_p = np.zeros(param_total)
-        MF_p = np.zeros(param_total)
-        for i in range(0,param_total):
-            aice = np.random.normal(0.000003396, 0.00000265) 
-            while aice < 0:
-                aice = np.random.normal(0.000003396, 0.00000265) #OG spread was = 4.38e-6
-            asnow = np.random.normal(0.000001546,0.00000085) 
-            while asnow < 0:
-                asnow = np.random.normal(0.000001546,0.00000085) 
-            MF = np.random.normal(0.0002707,0.0001632) 
-            while MF < 0:
-                MF = np.random.normal(0.0002707,0.0001632)
-            
-            aice_p[i] = aice
-            asnow_p[i] = asnow
-            MF_p[i] = MF
-            
-    #add line to save the params to an xls or npy or txt file
-    np.savetxt(os.path.join(OUTPUT_PATH,'initial_params.csv'), [aice_p,asnow_p,MF_p])
-        
-else:
-    params = np.loadtxt(params_filename) #namelist!!
-    aice_p = params[0,:]
-    asnow_p = params[1,:]
-    MF_p = params[2,:]
+# Save configuration file for this run to output directory:
+write_config_file(OUTPUT_PATH,"MBMnamelist.py")
 
-## set up time range ###
-years = []
-year = start_year
-while year <= end_year:
-  years.append(year)
-  year = year + 1
+# Load model grid:
+# =============================================================================
+years = np.arange(start_year,end_year+1)
+Xgrid = np.loadtxt(Easting_grid)
+Ygrid = np.loadtxt(Northing_grid)
+Sfc = np.loadtxt(Sfc_grid)
+print('Model coordinates loaded.')
+sys.stdout.flush()
+# =============================================================================
+
+# Load melt parameters for this run:
+# =============================================================================
+# KR_note: params file should have 3 columns (aice, asnow, MF) with one row per simulation    
+params = np.loadtxt(params_file,skiprows=1,delimiter=',') 
+aice, asnow, MF = params[sim]
+print('Parameters for this run:\naice = ',aice,'\nasnow = ',asnow,'\nMF = ',MF)
+sys.stdout.flush()
+# =============================================================================
   
-#-------------------------#
-#calculate mean snowpack for cold content before looping
-DHval = get_meanSP(years,glacier_ID,R2S,BC_T,BC_P,Temp_input_path,Precip_input_path) #change this func to match shape of domain
-#-------------------------#
+# Set up the debris parameterization:
+# =============================================================================
+debris_m = debris(debris_parameterization,debris_map,Sfc,cleanice_melt,peak_melt,peak_melt_thickness,transition_thickness,b0,k)
+print('Debris parameterization loaded with option:',debris_parameterization)
+sys.stdout.flush()
+# =============================================================================
 
-#-------Set up glacier vectors-----------------------
+# Calculate mean annual snowpack (for cold content/refreezing):
+# =============================================================================
+Cmean = get_meanSP(years,Glacier_ID,R2S,Precip_inputs,Temp_inputs)
+print('Mean annual snowpack calculated') 
+sys.stdout.flush()
+# =============================================================================
 
-if considering_catchment == True:
-    File_glacier_in = 'kask_catchment.txt'
-else:
-    File_glacier_in = glacier_ID + '_deb.txt'
+for year in years:
+    print('Running model for',year)
+    sys.stdout.flush()
+    dates = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(timestep)+'H')
+    
+    # Load inputs for model (Temperature, Precip, Solar Radiation) 
+    # =========================================================================
+    
+    # Temperature:
+    inT = Dataset(os.path.join(Temp_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+    T_array = inT.variables['Temperature'][:]
+    sys.stdout.flush()
+    
+    # Precipitation:
+    inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+    P_array = inP.variables['Precipitation'][:]
+    sys.stdout.flush()
+    
+    # Solar radiation:
+    inS = Dataset(os.path.join(Solar_inputs,'Solar_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+    S_array = inS.variables['SolarRadiation'][:]
+    sys.stdout.flush()
+    
+    print(year,'inputs (temperature, precipitation, solar) loaded.') 
+    sys.stdout.flush()
+    # =========================================================================     
 
-glacier = np.genfromtxt(File_glacier_in, skip_header=1, delimiter=',')
-
-if considering_catchment == True:
-    if debris == True:
-        Ix = glacier[:,4] 
-        Iy = glacier[:,5] 
-        Ih = glacier[:,6]
-        sfc_type = glacier[:,8]
-        debris_array = glacier[:,9]
-    else:      
-        Ix = glacier[:,4] 
-        Iy = glacier[:,5] 
-        Ih = glacier[:,6]
-        sfc_type = glacier[:,8]
-else:
-    if debris == True:
-        Ix = glacier[:,3] 
-        Iy = glacier[:,4] 
-        Ih = glacier[:,2] 
-        debris_array = glacier[:,6]
-    else:  
-        Ix = glacier[:,3] 
-        Iy = glacier[:,4] 
-        Ih = glacier[:,2]
-
-#-------Turn vectors into 3D gridded inputs--------------------
-
-Zgrid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, Ih)
-nanlocs = np.where(np.isnan(Zgrid))
-
-#Setup debris mask for use in radiation parameters
-if debris == True:
-    if debris_treatment == 'OriginalBoolean': #EMY MAP VERSION
-        debris_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, debris_array)
-        debris_m = np.zeros(debris_grid.shape)
-        debris_m[np.where(debris_grid > 100)] = 0.
-        debris_m[np.where(debris_grid <= 100)] = 1.
-    if debris_treatment == 'Boolean':
-        print('loading boolean debris map')
-        debris_m = np.load(debris_thickness_map) #ones on ice, 0's on debris
-        debris_m[nanlocs] = np.nan
-    elif debris_treatment == 'Variable Thickness':
-        #Load debris parameters
-        peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
-        while peakM_thickness < 0:
-            peakM_thickness = np.random.normal(peakM_thickness_ref, peakthickness_uncertainty)
-        transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
-        while transition_thickness < 0: 
-            transition_thickness = np.random.normal(transition_thickness_ref, transitionthickness_uncertainty)
-        np.savetxt(os.path.join(OUTPUT_PATH,'debris_params.csv'), [peakM_thickness,transition_thickness])
-        print('loading debris thickness map, generating melt factors')
-        debristhickness_array = np.load(debris_thickness_map)
-        debris_m = generate_meltfactors(debristhickness_array,cleaniceM,peakM,peakM_thickness,transition_thickness,b0,k)
-        debris_m[nanlocs] = np.nan 
+    # Get cold content for year:
+    # =========================================================================
+    if year == years[-1]:
+        pass
     else:
-        print('Invalid debris treatment option. Must be Boolean or Variable Thickness')
-else:
-    print('No debris')
-    debris_m = np.ones(Zgrid.shape) #no debris. 
-    debris_m[nanlocs] = np.nan 
+        CC = cold_content(year, P_array,T_array, Glacier_ID, Cmean, R2S, Precip_inputs, Temp_inputs)
 
-
-#open a writeout file to keep track of the step the model is on
-rsl_file = open(os.path.join(Output_path,'writeout.txt'),'w')
-print('number of simulations in total = ' + str(len(MF_p)))
-# begin looping through each simulation
-while sim<(len(MF_p)-1):
-#while sim < 0:
-    print('\rRun ' + str(sim+2) + ' started:',)
-    rsl_file.write('Run ' + str(sim+2) + ' started:')
-    rsl_file.write('\n')
+    # Set up output files:
+    # =========================================================================
+    TotalMelt = np.empty(T_array.shape)
+    IceMelt = np.empty(T_array.shape)
+    SnowMelt = np.empty(T_array.shape)
+    RefrozenMelt = np.empty(T_array.shape)
+    MassBal = np.empty(T_array.shape)
     
-    #counter for simulations with tested param combinations
-    sim+=1
-    
-    if debris_treatment == 'Variable Thickness':
-        aice_a = np.ones(Zgrid.shape) * aice_p[sim]
+    if year == years[0]:
+        # Trackers should have +1 extra timestep to account for carry over values for following year:
+        Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        CC_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
     else:
-        aice_a = np.ones(Zgrid.shape) * aice_p[sim] * debris_m #multiplying by debris_m (boolean case) makes aice = 0 in debris covered cells
-        
-    asnow_a = np.ones(Zgrid.shape) * asnow_p[sim]
-    MF_a = np.ones(Zgrid.shape) * MF_p[sim]
-    MF_a[nanlocs] = np.nan 
-    
-    for y in years:
-        current_year = y
-        print('starting year: ' + str(current_year))
-        rsl_file.write('starting year: ' + str(current_year))
-        rsl_file.write('\n')
-        
-    
-#-------Inputs: Temperature, Precipitation, and geographical information-------------
-        
-#---------Set file names-----------------------------------------
-        # may not be able to change too much due to some dependence on the downscaling script --> check again later
-        if BC_T == True:
-            File_temp_name = 'Temp_' + 'kaskawulsh' + '_BC_' + str(current_year) + '.nc'
-        else:
-            File_temp_name = 'Temp' + glacier_ID + str(current_year) + '.nc'
-        
-        if BC_P == True:
-            File_precip_name = 'Snow_' + 'kaskawulsh' + '_BC_' + str(current_year) + '.nc'
-        else:
-            File_precip_name = 'netSnow' + glacier_ID + str(current_year) + '.nc'
-        
-        File_PDCSR_name = 'Srad' + glacier_ID + str(1979) + '.nc'
-        File_snow_in = 'snowini' + str(current_year) + '.txt'
-        File_CC_in = 'CCini' + str(current_year) + '.txt'
-        
-        
-        File_temp_in = os.path.join(Temp_input_path,File_temp_name)
-        File_precip_in = os.path.join(Precip_input_path,File_precip_name)
-        File_PDCSR_in = os.path.join(Srad_input_path,File_PDCSR_name)
-        
+        # Load snowpack and CC from previous year here.
+        Snowpack_tracker[0] = Snowpack_tracker[-1] # Carry over snowpack data from end of previous year to beginning of new year
+        Snowpack_tracker[1:] = 0 # Reset snowpack for rest of the year to zero
 
-        #if debris == True:
-        #    File_glacier_in = glacier_ID + '_deb.txt'
-        #else:
-            #File_glacier_in = glacier_ID + '.txt'
-            #File_glacier_in = glacier_ID + '_deb.txt'
-        #print('File_glacier_in = ' + str(File_glacier_in))
-            
-        #temp_inputfile = 'temp_' + glacier_ID + str(current_year) + '.nc'
-        #accumulation_inputfile = 'netSnow_' + glacier_ID + str(current_year) + '.nc'
-        #PDCSR_inputfile = 'PDCSR_' + glacier_ID + str(current_year) + '.nc'
-        #snowpack_inputfile = 'snowpack_' + glacier_ID + str(current_year) + '.txt'
-        #CC_inputfile = 'CC_' + glacier_ID + str(current_year) + '.txt'
+        CC_tracker[0] = CC_tracker[-1]
+        CC_tracker[1:] = 0
 
-
-#---------------Load netcdf data---------------------------------
-        
-        inT = Dataset(File_temp_in, "r")
-        T_var = 'Temperature'
-        T_array = inT.variables[T_var][:]
-        #print "Temperature in..."
+    # Set up timestepping (loop through every timestep in year)
+    # =========================================================================
+    for timestamp in range(0,len(dates)):
+        print(dates[timestamp])
         sys.stdout.flush()
         
-        inP = Dataset(File_precip_in, "r")
-        #P_var = 'Net snow'
-        if BC_P == True:
-            P_var = 'Snow'
-        else:
-            P_var = 'Temperature'
-        P_array = inP.variables[P_var][:]
-        #print "Precipitation in..."
-        sys.stdout.flush()
-        
-        inS = Dataset(File_PDCSR_in, "r")
-        S_var = 'Temperature'
-        S_array = inS.variables[S_var][:]
-        #print "Potential direct clear-sky radiation in..."
-        sys.stdout.flush()
-        
-        if Temp_shift == True:
-            print('OG Temp = ' + str(T_array[100,100,100]))
-            T_array = T_array + temp_shift_factor
-            print('Shifted Temp = ' + str(T_array[100,100,100]))
+        # Update cold content and snowpack trackers
+        # =====================================================================
+        # (from original model): add cold content in late october to snow pack to prevent winter melt events
+        if ((dates[timestamp] >= pd.Timestamp(str(year)+'-10-01T00')) and (dates[timestamp] < pd.Timestamp(str(year)+'-10-02T00'))):
+            CC_tracker[timestamp] += CC/8
         else:
             pass
         
-        rainlocs = np.where(T_array > R2S)
-        snowlocs = np.where(T_array <= R2S)
+        New_snowfall =  P_array[timestamp,:,:]
+        New_snowfall[np.where(T_array[timestamp,:,:] > R2S)] = 0
+        Snowpack_tracker[timestamp,:,:] += New_snowfall
         
-        Rain_array = P_array  * 1
+        # Calculate Melt:
+        # =====================================================================        
+        Msnow, Mice, Refreezing, CC_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],CC_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
+        # KR_note: check that this is working as expected
         
-        P_array[rainlocs] = 0. # set rain locations to zero in the snow precip array
-        Rain_array[snowlocs] = 0.
-        
-        
-        # removed glacier vectors from this section
-        
-        if considering_catchment == True:
-            Topo_grid, Xgrid, Ygrid, xbounds, ybounds = regridXY_something(Ix, Iy, sfc_type)
-            Office_locs = np.where(Topo_grid == 1)
-            Onice_locs = np.where(Topo_grid == 0)
-            Topo = np.empty(Topo_grid.shape)*np.nan
-            Topo[Office_locs] = 0 #now all off ice points = 0, which is important for setting icemelt to 0 for off-glacier locations in the mass balance function
-            Topo[Onice_locs] = 1
-        else:
-            Topo = np.ones(Zgrid.shape) #bc all cells are 'on ice' for the kaskawulsh only
-        
-        if current_year == years[-1]:
-            pass
-        else:
-            CC = cold_content(current_year, years[:-1], P_array, T_array, glacier_ID, DHval, BC_P, Precip_input_path)
-            
-                   
-#-------Set up output files---------------------------------------------
-        Melt_output_name = 'NetMelt' + str(current_year) + str(sim)
-        Melt_output_path = os.path.join(OUTPUT_PATH,Melt_output_name)
-        
-        Mb_output_name = 'MB' + str(current_year) + str(sim)
-        Mb_output_path = os.path.join(OUTPUT_PATH,Mb_output_name)
-        
-        Acc_output_name = 'Accumulation' + str(current_year) + str(sim)
-        Acc_output_path = os.path.join(OUTPUT_PATH,Acc_output_name)
-        
-        Refreezing_output_name = 'Refreezing' + str(current_year) + str(sim)
-        Refreezing_output_path = os.path.join(OUTPUT_PATH,Refreezing_output_name)
-        
-        Rain_output_name = 'Rain' + str(current_year) + str(sim)
-        Rain_output_path = os.path.join(OUTPUT_PATH,Rain_output_name)
-        
-        IceMelt_output_name = 'IceMelt' + str(current_year) + str(sim)
-        IceMelt_output_path = os.path.join(OUTPUT_PATH,IceMelt_output_name)
-        
-        SnowMelt_output_name = 'SnowMelt' + str(current_year) + str(sim)
-        SnowMelt_output_path = os.path.join(OUTPUT_PATH,SnowMelt_output_name)
-        
-        #Snowmelt_output_name = 'Snowmelt' + str(current_year)  + str(sim)  
-        #Icemelt_output_name = 'Icemelt' + str(current_year)  + str(sim) 
-        #Snowpack_output_name = 'Snowpack' + str(current_year) + str(sim) 
+        # Update output arrays for this timestep:
+        # Total Melt = Snow Melt + Ice Melt
+        # Net ablation = total melt - refreezing
+        # Net balance = Accumulation - net ablation
+        # ===================================================================== 
+        IceMelt[timestamp,:,:] = Mice
+        SnowMelt[timestamp,:,:] = Msnow
+        RefrozenMelt[timestamp,:,:] = Refreezing
+        MassBal[timestamp,:,:] = New_snowfall - ((Msnow + Mice) - Refreezing)  
 
-        File_sufix = ".nc"        
+        # Update snowpack and CC trackers for next timestep:
+        # ===================================================================== 
+        Snowpack_tracker[timestamp+1,:,:] = SP_out
+        CC_tracker[timestamp+1,:,:] = CC_out   
+        
+    # Save outputs for the year before starting next year:
+    # =========================================================================
+    print('Saving model outputs for',year)
+    if SaveMBonly == False:
+        save_to_netcdf(IceMelt, 'Ice melt', os.path.join(OUTPUT_PATH,'Icemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(SnowMelt, 'Snow melt', os.path.join(OUTPUT_PATH,'Snowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(RefrozenMelt, 'Refreezing', os.path.join(OUTPUT_PATH,'Refreezing_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+    else:
+        pass
+    
+    save_to_netcdf(MassBal, 'Net balance', os.path.join(OUTPUT_PATH,'Netbalance_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
 
-        # set up the 'leftover list' --> keeps track of the snowpack that did not melt and adds it to next years snowpack
-        # same with tracking excess Cold Content through time
-        if considering_catchment == True:
-            if current_year == years[0]:
-                Leftover_list = np.zeros(Zgrid.shape)
-                CC_list = np.zeros(Zgrid.shape)
-            else:
-                File_snow_in = 'snowini_catchment' + str(current_year) + '.txt'
-                File_CC_in = 'CCini_catchment' + str(current_year) + '.txt'
-                Leftover_list = np.loadtxt(File_snow_in)
-                CC_list = np.loadtxt(File_CC_in)
-        else:
-            Leftover_list = np.loadtxt(File_snow_in)   
-            CC_list = np.loadtxt(File_CC_in)   
-        
-#-------Set up the TEMPORAL lists----------------------------------------        
-        units = inT.variables['time'].units
-        dates = netCDF4.num2date(inT.variables['time'][:], units)
-        
-        #date_list = []
-        month_list = []
-        
-       # for d in dates:
-        #    date_el = d.replace(hour=0, minute=0, second=0, microsecond=0)
-         #   date_list.append(date_el)
-        
-        #date_list = np.array(date_list)
-        
-        
-        st_day = start_day #called from namelist
-        
-        # fruit = the current date
-        fruit = dates[(st_day*8) - 8]
-        sys.stdout.flush()
-        
-        ###list to preserve timestep melt arrays
-        Melthour = np.empty(T_array.shape) #Melthour is NET MELT
-        Snowmelt_hour = np.empty(T_array.shape)
-        Icemelt_hour = np.empty(T_array.shape)
-        MBhour = np.empty(T_array.shape)
-        Leftover_hour = np.empty(T_array.shape)
-        Acchour = np.empty(T_array.shape)
-        Refreezedhour = np.empty(T_array.shape)
-        
-        #set the timestep
-        delta_t = time_step #from namelist --> given in units of seconds
-        
-        #run the model for each timestep (for each year, for each 'sim')
-        while (fruit < (dates[-1] + dt.timedelta(seconds=delta_t))):
-            #print(fruit)
-            rsl_file.write(str(fruit))
-            rsl_file.write('\n') 
-            
-            month_list.append(fruit.month)
-        
-        
-            #add cold content in late october to snow pack to prevent winter melt events
-            if Refreezing == True:
-                if fruit.timetuple().tm_yday == 274:
-                    CC_list = CC_list + CC/8.
-            else:
-                pass
+    inT.close()
+    inP.close()
+    inS.close()
 
-            #determine current temporal position
-            pos = np.where(dates == fruit)[0][0]
-                    
-            curT = T_array[pos,:,:]        
-            curS = S_array[pos,:,:]
-            ###units conversion to m.w.e. for precipitation done in DS step
-            curP = P_array[pos,:,:]
-            ###update snowpack with acumulation
-            Leftover_list = Leftover_list + curP
-            
-
-            ###calculate mass balance
-            MB, Melt, Leftover_list_out, Icemelt, Snowmelt, CC_out = MB_vectorized_discreteSnI(curT, curP, curS, Leftover_list, asnow_a, aice_a, MF_a, Topo, CC_list, debris_m, debris_treatment) #NEW LINE!! MF changed to MF_a
-                
-            deltaCC = CC_list - CC_out #calculate the change in CC over one time step
-            #NEW LINE BELOW!!
-            if considering_catchment == True:
-                Icemelt[Office_locs] = 0 #make sure no ice melt is happening off the glacier
-            # set a limit for snow melt on the off ice grid cells --> ie. the max snow melt that can occur is = to the depth of the snowpack
-            else:
-                pass
-            
-            #print(str(fruit) + ' glacier wide avg icemelt: ' + str(np.nanmean(Icemelt)))
-            #print(str(fruit) + ' glacier wide avg snowmelt: ' + str(np.nanmean(Snowmelt)))
-            
-            #Multiply ice melt in debris covered cells by the melt enhancement factors
-            # this is already done in the MB_vectorized function above ^
-            #if debris_treatment == 'Variable Thickness':
-                #Icemelt = Icemelt * debris_m
-            #else:
-                #pass
-            
-            ###update leftoverlists
-            Leftover_list = Leftover_list_out  
-            CC_list = CC_out       
-            
-            ###setup next timestep and save timestep outputs100                                                       
-            move = dt.timedelta(seconds=delta_t)
-            fruit = fruit + move
-            Melthour[pos] = Melt
-            Snowmelt_hour[pos] = Snowmelt
-            Icemelt_hour[pos] = Icemelt
-            MBhour[pos] = MB
-            Acchour[pos] = curP
-            Leftover_hour[pos] = Leftover_list 
-            Refreezedhour[pos] = deltaCC
-
-        ###generate snow content for next year
-        if considering_catchment == True:
-            np.savetxt('snowini_catchment' + str(current_year+1) + '.txt', Leftover_list)
-            np.savetxt('CCini_catchment' + str(current_year+1) + '.txt', CC_list)
-        else:
-            np.savetxt('snowini' + str(current_year+1) + '.txt', Leftover_list)
-            np.savetxt('CCini' + str(current_year+1) + '.txt', CC_list)
-        
-        ###insert outputs into .nc containers using function
-        if Tuning == True:
-            # save only the MB variable as a numpy array, to save space and time
-            # save as 1 file per year and per sim as usual 
-            filename = 'MB' + str(current_year) + str(sim)
-            output = os.path.join(OUTPUT_PATH,filename)
-            np.save(output, MBhour)
-            sys.stdout.flush()
-        else:
-            #THIS PART OF THE SCRIPT TAKES THE LONGEST TIME: SAVE AS .NPY ARRAY INSTEAD? OR NP.SAVEZ FOR .NPZ FORMAT
-            # CHECK WHICH ONE USES LEAST STORAGE
-            if save_MB_only == True:
-                filename = 'MB' + str(current_year) + str(sim)
-                output = os.path.join(OUTPUT_PATH,filename)
-                np.save(output, MBhour)
-                sys.stdout.flush()
-            else:
-                netcdf_container_gen(Melthour, 'Melt', Melt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) # takes 3:13 s to run vs 52sec for np.savez(). np.save() takes 2:57
-                netcdf_container_gen(MBhour, 'MB', Mb_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path) #doing both MB and Accumulation takes 9min
-                netcdf_container_gen(Acchour, 'Accumulation', Acc_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-                netcdf_container_gen(Refreezedhour, 'Refreezing', Refreezing_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-                netcdf_container_gen(Rain_array, 'Rain', Rain_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-                netcdf_container_gen(Icemelt_hour, 'IceMelt', IceMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-                netcdf_container_gen(Snowmelt_hour, 'SnowMelt', SnowMelt_output_path, File_sufix, ybounds, xbounds, current_year, ref_file_path)
-            
-            #npzoutfile = os.path.join(OUTPUT_PATH,'ModelResults_' + str(current_year) + '.npz')
-            #print('saving outputs to: ' + str(npzoutfile))
-            #np.savez(npzoutfile, Acc=Acchour, MB=MBhour) #takes 1:43 min
-            
-        inT.close()
-        inP.close()
-        inS.close()
-
-rsl_file.write('ALL RUNS COMPLETE')
-rsl_file.close()
-
-print('ALL RUNS COMPLETE!')
+print('RUN COMPLETE!')
