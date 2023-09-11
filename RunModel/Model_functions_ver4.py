@@ -685,14 +685,14 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #return(mb[:], f)
 
 
-def get_meanSP(years,Glacier_ID,R2S,Precip_inputs):
+def get_meanSP(years,Glacier_ID,R2S,Precip_inputs,Temp_inputs):
     '''
     Calculates the mean annual total accumulation
     '''
     DH_list = []
     for year in years:
         # Load Temp and Precip inputs for each year:
-        inT = Dataset(os.path.join(Precip_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+        inT = Dataset(os.path.join(Temp_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         T_array = inT.variables['Temperature'][:]
         sys.stdout.flush()
         
@@ -719,7 +719,7 @@ def get_meanSP(years,Glacier_ID,R2S,Precip_inputs):
 
     return DHval          
                                                 
-def cold_content(year, P_array, T_array, Glacier_ID, Cmean, Precip_inputs):
+def cold_content(year, P_array, T_array, Glacier_ID, Cmean, R2S, Precip_inputs, Temp_inputs):
     '''
     Cold content parameterization to account for refreezing of meltwater in the
     seasonal snowpack. Following Young et al. (2021).
@@ -740,17 +740,26 @@ def cold_content(year, P_array, T_array, Glacier_ID, Cmean, Precip_inputs):
     L = 333500     # Latent heat of fusion (J kg^-1)
     d = np.ones(P_array[0,:,:].shape)*2 # Thickness of thermal active layer (2 m)
         
-    #mean annual temperature
+    # Mean annual temperature
     Tmean = np.mean(T_array, axis = 0)
     Tmean[np.where(Tmean>0)] = 0
     
-    #Total snow pack
+    # Load precip/temp inputs for next year
     inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
     P_array_fut = inP.variables['Precipitation'][:]
     sys.stdout.flush()
     
-    past = P_array[(int(-len(P_array_fut)/3)):,:,:]
-    future = P_array_fut[:(int(len(P_array)*0.41)),:,:]
+    inT = Dataset(os.path.join(Temp_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
+    T_array_fut = inT.variables['Temperature'][:]
+    sys.stdout.flush()
+    
+    # Zero any rainy pixels
+    P_array[np.where(T_array > R2S)] = 0
+    P_array_fut[np.where(T_array_fut > R2S)] = 0
+    
+    # Calculate seasonal snowpack:
+    past = P_array[(int(-len(P_array)/3)):,:,:]
+    future = P_array_fut[:(int(len(P_array_fut)*0.41)),:,:]
     SP = np.sum(past,axis = 0) + np.sum(future, axis = 0)
        
     #calculate snowpack to melt
