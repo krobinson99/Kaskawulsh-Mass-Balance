@@ -994,12 +994,12 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     # Calculate snow melt
     Msnow = (MF + asnow*I)*T
     Msnow[np.where(T<=0)] = 0  # Set melt = 0 where T <0
-    Msnow[np.where(SP_in = 0)] = 0 # No snow melt where there is no initial snowpack
+    Msnow[np.where(SP_in <= 0)] = 0 # No snow melt where there is no initial snowpack
     
     # Calculate the amount of melt that is refrozen:
-    Refreezing = np.array(T.shape)
-    Refreezing[np.where(Msnow >= CC_in)] = CC_in # all cold content is used up in refreezing, and then some additional melt happens
-    Refreezing[np.where(Msnow < CC_in)] = Msnow # all melt is refrozen, some cold content is leftover
+    Refreezing = np.zeros(T.shape)
+    Refreezing[np.where(Msnow >= CC_in)] = CC_in[np.where(Msnow >= CC_in)] # all cold content is used up in refreezing, and then some additional melt happens
+    Refreezing[np.where(Msnow < CC_in)] = Msnow[np.where(Msnow < CC_in)] # all melt is refrozen, some cold content is leftover
     Refreezing[np.where(np.isnan(Sfc))] = np.nan
     
     # Update the snowpack:
@@ -1008,7 +1008,7 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     
     # Update the cold content array
     CC_out = CC_in - Refreezing
-    CC_out[np.where(SP_out = 0)] = 0 # No cold content left where snowpack is depleted
+    CC_out[np.where(SP_out == 0)] = 0 # No cold content left where snowpack is depleted
     
     # Calculate energy leftover for melting ice after snow has been melted
     T_used_in_snowmelt = (SP_in + Refreezing)/(MF + asnow*I) # If SP_in was 0, Refreezing would also be zero, then this value would be zero too
@@ -1020,7 +1020,9 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     else:
         Mice = ((MF + aice*I)*(T - T_used_in_snowmelt))*debris
     
+    Mice[np.where(T<=0)] = 0
     Mice[np.where(Sfc==1)] = 0 # Set ice melt to zero in off-glacier cells
+    Mice[np.where(SP_out > 0)] = 0 # Set ice melt to zero where there is still a snowpack
     
     return Msnow, Mice, Refreezing, CC_out, SP_out
     
