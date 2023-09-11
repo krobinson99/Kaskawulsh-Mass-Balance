@@ -25,8 +25,8 @@ from Model_functions_ver4 import save_to_netcdf
 # =============================================================================
 # BIAS CORRECTION OPTIONS
 # =============================================================================
-INPUT_PATH = 'D:/Downscaled_files/Catchment/downscaling_v2_test/FinalizedDSscript'
-OUTPUT_PATH = 'D:/BiasCorrected_files/Kaskonly/MissingCAtrib/NewBiasCorrection_2007-2020'
+INPUT_PATH = 'D:\Downscaled_files\KRH' 
+OUTPUT_PATH = 'D:/BiasCorrected_files/KRH'
 
 start_year = 1979
 end_year = 2022
@@ -47,7 +47,7 @@ DT = interp1d(np.asarray([1.,32.,60.,91.,121.,152.,182.,213.,244.,274.,305.,335.
 # ACCUMULATION BIAS CORRECTION
 # =============================================================================
 # DPbin450 from Recreate_BiasCorrection.py script
-DP = interp1d(np.asarray([500, 1225.0, 1675.0, 2125.0, 2575.0, 5000]), np.asarray([1.50821731,1.50821731,1.27023925,1.29709692,2.42742537,2.42742537]), kind = 'linear')     
+DP = interp1d(np.asarray([500, 1225.0, 1675.0, 2125.0, 2575.0, 5000]), np.asarray([1.50823521,1.50823521,1.27057052,1.29932794,2.43052786,2.43052786]), kind = 'linear')     
 # =============================================================================
 
 # LOAD MODEL GRID
@@ -85,7 +85,8 @@ for year in np.arange(start_year,end_year+1):
 
 # APPLY ACCUMULATION BIAS CORRECTION
 # =============================================================================
-
+    print('Bias correcting:', str(year),'Precip')
+    
     # Load downscaled precipitation file:
     inP = Dataset(os.path.join(INPUT_PATH,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
     P_array = inP.variables['Precipitation'][:]
@@ -112,5 +113,8 @@ for year in np.arange(start_year,end_year+1):
     # Save downscaled and bias-corrected precipitation as netcdf file:
     save_to_netcdf(Corrected_P, 'Precipitation', Corrected_P_file, year, Xgrid, Ygrid) 
    
+    inT.close()
+    inP.close()
+    
 print('Bias correction complete!! :)')
 
