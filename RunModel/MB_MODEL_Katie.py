@@ -54,9 +54,10 @@ sys.stdout.flush()
 
 # Load melt parameters for this run:
 # =============================================================================
-# KR_note: params file should have 3 columns (aice, asnow, MF) with one row per simulation    
 params = np.loadtxt(params_file,skiprows=1,delimiter=',') 
-aice, asnow, MF = params[sim]
+aice, asnow, MF = params[sim][1:]
+# Save params for this run in a text file just in case:
+np.savetxt(os.path.join(OUTPUT_PATH,'sim' + str(sim) + '_params.txt'),params[sim][1:])
 print('Parameters for this run:\naice = ',aice,'\nasnow = ',asnow,'\nMF = ',MF)
 sys.stdout.flush()
 # =============================================================================
@@ -122,12 +123,17 @@ for year in years:
         Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
         CC_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
     else:
-        # Load snowpack and CC from previous year here.
-        Snowpack_tracker[0] = Snowpack_tracker[-1] # Carry over snowpack data from end of previous year to beginning of new year
-        Snowpack_tracker[1:] = 0 # Reset snowpack for rest of the year to zero
-
-        CC_tracker[0] = CC_tracker[-1]
-        CC_tracker[1:] = 0
+        # Save final snowpack and CC from previous year here.
+        Snowpack_carryover = np.array(Snowpack_tracker[-1])
+        CC_carryover = np.array(CC_tracker[-1])
+        
+        # Reset snowpack for rest of the year to zero
+        Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        CC_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        
+        # Add carry over values from previous year to beginning of tracker
+        Snowpack_tracker[0] = Snowpack_carryover
+        CC_tracker[0] = CC_carryover
 
     # Set up timestepping (loop through every timestep in year)
     # =========================================================================
@@ -170,6 +176,7 @@ for year in years:
     # Save outputs for the year before starting next year:
     # =========================================================================
     print('Saving model outputs for',year)
+    sys.stdout.flush()
     if SaveMBonly == False:
         save_to_netcdf(IceMelt, 'Ice melt', os.path.join(OUTPUT_PATH,'Icemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
         save_to_netcdf(SnowMelt, 'Snow melt', os.path.join(OUTPUT_PATH,'Snowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
