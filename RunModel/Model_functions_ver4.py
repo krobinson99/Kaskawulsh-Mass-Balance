@@ -694,10 +694,12 @@ def get_meanSP(years,Glacier_ID,R2S,Precip_inputs,Temp_inputs):
         # Load Temp and Precip inputs for each year:
         inT = Dataset(os.path.join(Temp_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         T_array = inT.variables['Temperature'][:]
+        inT.close()
         sys.stdout.flush()
         
         inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         P_array = inP.variables['Precipitation'][:]
+        inP.close()
         sys.stdout.flush()
         
         # Get indices for all rainy pixels:
@@ -717,7 +719,34 @@ def get_meanSP(years,Glacier_ID,R2S,Precip_inputs,Temp_inputs):
         
     DHval = np.mean(DH_list, axis = 0)  # Think that DHval should be an array of shape (x,y)?   
 
-    return DHval          
+    return DHval      
+
+def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
+    '''
+    Calculate and return Pmean, the mean annual total precipitation (m w.e. a^-1)
+    Pmean is used to calculate to retention fraction Pr
+    '''
+    
+    # Set up N,x,y array, where N is the number of years in the study period.
+    Annual_total_precip = np.empty((len(years),Sfc.shape[0],Sfc.shape[1]))
+    
+    for year in years:
+
+        inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
+        P_array = inP.variables['Precipitation'][:]
+        inP.close()
+        sys.stdout.flush()
+        
+        # Get total annual precipitation
+        totalP = np.sum(P_array,axis=0)
+        Annual_total_precip[(year-years[0])] = totalP
+        
+    # Get the mean annual total precipitation
+    Pmean = np.nanmean(Annual_total_precip,axis=0)
+    
+    return Pmean
+        
+    
                                                 
 def cold_content(year, P_array, T_array, Glacier_ID, Cmean, R2S, Precip_inputs, Temp_inputs):
     '''
@@ -736,9 +765,9 @@ def cold_content(year, P_array, T_array, Glacier_ID, Cmean, R2S, Precip_inputs, 
     returns CC: the total energy available for refreezing per hydrologic year
     '''
     # Constants:
-    c = 2097        # Specific heat capacity of ice (J kg^-1 K^-1)
-    L = 333500     # Latent heat of fusion (J kg^-1)
-    d = np.ones(P_array[0,:,:].shape)*2 # Thickness of thermal active layer (2 m)
+    c = 2097        # Specific heat capacity of ice (J kg^-1 K^-1) (Cuffey & Patterson)
+    L = 333500     # Latent heat of fusion (J kg^-1) (Cuffey & Patterson)
+    d = 2 # Thickness of thermal active layer (2 m) (Janssens & Huybrechts, 2000)
         
     # Mean annual temperature
     Tmean = np.mean(T_array, axis = 0)
@@ -1016,9 +1045,9 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     # Calculate ice melt
     if debris_parameterization == 'Boolean debris':
         aice_array = np.ones(debris.shape)*(aice)*debris  # Sets aice = 0 in cells with debris
-        Mice = (MF + (aice_array*I))*(T - DD_used_in_snowmelt)
+        Mice = (MF + aice_array*I)*(T - DD_used_in_snowmelt)
     else:
-        Mice = ((MF + (aice*I))*(T - DD_used_in_snowmelt))*debris
+        Mice = ((MF + aice*I)*(T - DD_used_in_snowmelt))*debris
     
     # Set ice melt to zero where T < 0, and in off-glacier cells, and where snowpack is present. 
     Mice[np.where(T<=0)] = 0
