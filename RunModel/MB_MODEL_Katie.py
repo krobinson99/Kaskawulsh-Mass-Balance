@@ -42,6 +42,12 @@ from Model_functions_ver4 import debris, get_meanSP, cold_content, MassBalance
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"MBMnamelist.py")
 
+# Get sim param from the job array
+# =============================================================================
+#sim = int(sys.argv[1])
+#print('this is sim',sim)
+#print(type(sim))
+
 # Load model grid:
 # =============================================================================
 years = np.arange(start_year,end_year+1)
@@ -144,12 +150,12 @@ for year in years:
         # Update cold content and snowpack trackers
         # =====================================================================
         # (from original model): add cold content in late october to snow pack to prevent winter melt events
-        if ((dates[timestamp] >= pd.Timestamp(str(year)+'-10-01T00')) and (dates[timestamp] < pd.Timestamp(str(year)+'-10-02T00'))):
-            CC_tracker[timestamp] += CC/8
+        if dates[timestamp] == pd.Timestamp(str(year)+'-10-01T00'):
+            CC_tracker[timestamp] += CC
         else:
             pass
         
-        New_snowfall =  P_array[timestamp,:,:]
+        New_snowfall =  np.array(P_array[timestamp,:,:])
         New_snowfall[np.where(T_array[timestamp,:,:] > R2S)] = 0
         Snowpack_tracker[timestamp,:,:] += New_snowfall
         
