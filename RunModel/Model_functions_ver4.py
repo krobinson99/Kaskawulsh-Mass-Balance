@@ -34,7 +34,7 @@ def T_downscale_funkfest(T, E, UTMx_list, UTMy_list):
         y0_list = np.empty_like(T[-1][:][:]).tolist()
         y0_list_inver = np.empty_like(T[-1][:][:]).tolist()
         
-        #set threshold for dropping high altitude values
+        #set threshold for dropping high altitude values (drops pressure levels <= 300)
         th = -9
 
         #interpolate elev and temp, get interp function for each grid point
@@ -995,6 +995,7 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     Msnow = (MF + asnow*I)*T
     Msnow[np.where(T<=0)] = 0  # Set melt = 0 where T <0
     Msnow[np.where(SP_in <= 0)] = 0 # No snow melt where there is no initial snowpack
+    Msnow[np.where(Msnow > SP_in)] = SP_in[np.where(Msnow > SP_in)] # Snow melt cannot exceed the snow pack volume
     
     # Calculate the amount of melt that is refrozen:
     Refreezing = np.zeros(T.shape)
@@ -1003,26 +1004,27 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     Refreezing[np.where(np.isnan(Sfc))] = np.nan
     
     # Update the snowpack:
-    SP_out = SP_in - (Msnow - Refreezing) # Leftover snowpack = initial snowpack minus net melt
-    SP_out[np.where(SP_out <=0)] = 0 # reset negative values to zero (i.e. where snowpack is depleted and sfc = ice)
+    SP_out = SP_in - Msnow # Leftover snowpack = initial snowpack minus snow melt
+    SP_out[np.where(SP_out <= 0)] = 0 # Reset negative values to zero (i.e. where snowpack is depleted and sfc = ice)
     
     # Update the cold content array
     CC_out = CC_in - Refreezing
-    CC_out[np.where(SP_out == 0)] = 0 # No cold content left where snowpack is depleted
     
-    # Calculate energy leftover for melting ice after snow has been melted
-    T_used_in_snowmelt = (SP_in + Refreezing)/(MF + asnow*I) # If SP_in was 0, Refreezing would also be zero, then this value would be zero too
+    # Calculate degree days leftover for melting ice after snow has been melted
+    DD_used_in_snowmelt = (Msnow)/(MF + asnow*I) # If Msnow was 0, DDsnow would be zero too
     
     # Calculate ice melt
     if debris_parameterization == 'Boolean debris':
         aice_array = np.ones(debris.shape)*(aice)*debris  # Sets aice = 0 in cells with debris
-        Mice = ((MF + (aice_array)*I)*(T - T_used_in_snowmelt))
+        Mice = (MF + (aice_array*I))*(T - DD_used_in_snowmelt)
     else:
-        Mice = ((MF + aice*I)*(T - T_used_in_snowmelt))*debris
+        Mice = ((MF + (aice*I))*(T - DD_used_in_snowmelt))*debris
     
+    # Set ice melt to zero where T < 0, and in off-glacier cells, and where snowpack is present. 
     Mice[np.where(T<=0)] = 0
     Mice[np.where(Sfc==1)] = 0 # Set ice melt to zero in off-glacier cells
     Mice[np.where(SP_out > 0)] = 0 # Set ice melt to zero where there is still a snowpack
+    Mice[np.where(np.isnan(Sfc))] = np.nan
     
     return Msnow, Mice, Refreezing, CC_out, SP_out
     
