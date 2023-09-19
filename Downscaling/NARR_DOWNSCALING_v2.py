@@ -18,10 +18,8 @@ Outputs:
 
 @author: katierobinson
 """
-
-# note to self: check all KR_note comments before commiting to git.
-        
-# Import statements:
+      
+# Import packages:
 import numpy as np
 from scipy import interpolate
 import netCDF4
@@ -176,8 +174,8 @@ for year in years:
                 NARR_cell = closest_node(downscaled_cell, UTMx_list, UTMy_list) #Finds which NARR gridcell (36 total) is closest to the gridcell being downscaled.
             
                 #use index to get nearest grid point in u, w notation
-                u = int(np.where(UTMx == UTMx_list[NARR_cell])[0])
-                w = int(np.where(UTMy == UTMy_list[NARR_cell])[1])
+                u = int((np.where(UTMx == UTMx_list[NARR_cell])[0])[0])
+                w = int((np.where(UTMy == UTMy_list[NARR_cell])[1])[0])
 
                 
 # =============================================================================
@@ -217,7 +215,10 @@ for year in years:
     # Save downscaled T/P as netcdf
     save_to_netcdf(Downscaled_P, 'Precipitation', Downscaled_P_file, year, Xgrid, Ygrid) 
     save_to_netcdf(Downscaled_T, 'Temperature', Downscaled_T_file, year, Xgrid, Ygrid)        
-    
+ 
+    inH.close()
+    inP.close()
+    inT.close()
  
 print(Glacier_ID + 'Downscaling Complete')
     
