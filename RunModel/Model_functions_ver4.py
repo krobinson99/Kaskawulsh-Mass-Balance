@@ -694,12 +694,10 @@ def get_meanSP(years,Glacier_ID,R2S,Precip_inputs,Temp_inputs):
         # Load Temp and Precip inputs for each year:
         inT = Dataset(os.path.join(Temp_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         T_array = inT.variables['Temperature'][:]
-        inT.close()
         sys.stdout.flush()
         
         inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         P_array = inP.variables['Precipitation'][:]
-        inP.close()
         sys.stdout.flush()
         
         # Get indices for all rainy pixels:
@@ -734,12 +732,13 @@ def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
 
         inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         P_array = inP.variables['Precipitation'][:]
-        inP.close()
         sys.stdout.flush()
         
         # Get total annual precipitation
         totalP = np.sum(P_array,axis=0)
         Annual_total_precip[(year-years[0])] = totalP
+        
+        inP.close()
         
     # Get the mean annual total precipitation
     Pmean = np.nanmean(Annual_total_precip,axis=0)
