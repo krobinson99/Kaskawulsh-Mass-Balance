@@ -161,7 +161,7 @@ for year in years:
         
         # Calculate Melt:
         # =====================================================================        
-        Msnow, Mice, Refreezing, CC_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
+        Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
         
         # Update output arrays for this timestep:
         # Total Melt = Snow Melt + Ice Melt
@@ -176,7 +176,7 @@ for year in years:
         # Update snowpack and CC trackers for next timestep:
         # ===================================================================== 
         Snowpack_tracker[timestamp+1,:,:] = SP_out
-        PotentialSI_tracker[timestamp+1,:,:] = CC_out   
+        PotentialSI_tracker[timestamp+1,:,:] = SI_out   
         
     # Save outputs for the year before starting next year:
     # =========================================================================
