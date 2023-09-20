@@ -725,11 +725,12 @@ def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
     Pmean is used to calculate to retention fraction Pr
     '''
     
-    # Set up N,x,y array, where N is the number of years in the study period.
+    # Set up t,x,y array, where t is the number of years in the study period.
     Annual_total_precip = np.empty((len(years),Sfc.shape[0],Sfc.shape[1]))
     
     for year in years:
 
+        # Open precipitation input file
         inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year) + '.nc'),'r')
         P_array = inP.variables['Precipitation'][:]
         sys.stdout.flush()
@@ -738,6 +739,7 @@ def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
         totalP = np.sum(P_array,axis=0)
         Annual_total_precip[(year-years[0])] = totalP
         
+        # Close netCDF file.
         inP.close()
         
     # Get the mean annual total precipitation
@@ -747,54 +749,76 @@ def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
         
     
                                                 
-def cold_content(year, P_array, T_array, Glacier_ID, Cmean, R2S, Precip_inputs, Temp_inputs):
+def cold_content(year, P_array, T_array, timestep, Glacier_ID, Pmean, R2S, Precip_inputs, Temp_inputs):
     '''
     Cold content parameterization to account for refreezing of meltwater in the
-    seasonal snowpack. Following Young et al. (2021).
+    seasonal snowpack. Following Janssens & Huybrechts (2000).
     
-    For every hydrologic year, total energy consumed by refreezing (CC) is 
-    approximated as a proportion (Pr) of the seasonal snowpack (SP)
+    For every hydrologic year (Oct 1--Sept 30), the maximum amount of superimposed
+    ice that can form (SImax) is approximated as a proportion (Pr) of the total
+    annual precipitation (Ptotal)
     
     c = Specific heat capacity of ice (J kg^-1 K^-1)
     L = Latent heat of fusion (J kg^-1)
     d = Thickness of thermal active layer (2 m)
     Tmean = local mean annual air temperature
-    SP = Snowpack from Sept 1 to May 30
+    Pmean = mean annual total precipitation (m w.e. a^-1)
+    Ptotal = total annual precipitation (m w.e.)
     
-    returns CC: the total energy available for refreezing per hydrologic year
+    returns SImax: the maximum amount of superimposed ice that can form per hydrologic year.
     '''
     # Constants:
     c = 2097        # Specific heat capacity of ice (J kg^-1 K^-1) (Cuffey & Patterson)
     L = 333500     # Latent heat of fusion (J kg^-1) (Cuffey & Patterson)
     d = 2 # Thickness of thermal active layer (2 m) (Janssens & Huybrechts, 2000)
         
-    # Mean annual temperature
-    Tmean = np.mean(T_array, axis = 0)
-    Tmean[np.where(Tmean>0)] = 0
-    
-    # Load precip/temp inputs for next year
-    inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
-    P_array_fut = inP.variables['Precipitation'][:]
-    sys.stdout.flush()
-    
+    # Get dates for the current hydrologic year
+    dates_yr1 = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(timestep)+'H')
+    dates_yr2 = pd.date_range(start= str(year+1) + '-01-01 00:00:00',end= str(year+1) + '-12-31 21:00:00',freq=str(timestep)+'H')
+        
+# =============================================================================
+#     Mean temperature for hydrologic year
+# =============================================================================
+    # Concatenate temps from Oct 1 of current year to Sept 30 of following year    
     inT = Dataset(os.path.join(Temp_inputs,'Temperature_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
     T_array_fut = inT.variables['Temperature'][:]
     sys.stdout.flush()
     
-    # Zero any rainy pixels
-    P_array[np.where(T_array > R2S)] = 0
-    P_array_fut[np.where(T_array_fut > R2S)] = 0
+    T_yr1 = T_array[np.where(dates_yr1 == pd.Timestamp(str(year)+'-10-01T00'))[0][0]:]
+    T_yr2 = T_array_fut[:np.where(dates_yr2 == pd.Timestamp(str(year+1)+'-10-01T00'))[0][0]]
+    T_hydroyear = np.concatenate((T_yr1,T_yr2),axis=0)
     
-    # Calculate seasonal snowpack:
-    past = P_array[(int(-len(P_array)/3)):,:,:]
-    future = P_array_fut[:(int(len(P_array_fut)*0.41)),:,:]
-    SP = np.sum(past,axis = 0) + np.sum(future, axis = 0)
-       
-    #calculate snowpack to melt
-    Pr = (c/L)*np.abs(Tmean)*(d/Cmean) 
-    CC = Pr*SP
+    # Calculate mean temperature for hydrologic year
+    Tmean = np.nanmean(T_hydroyear,axis=0)
+    Tmean[np.where(Tmean>0)] = 0 # Set all positive temperatures to 0
     
-    return CC
+# =============================================================================
+#     Total precipiation for hydrologic year
+# =============================================================================
+    # Concatenate precip from Oct 1 of current year to Sept 30 of following year
+    inP = Dataset(os.path.join(Precip_inputs,'Precipitation_' + str(Glacier_ID) + '_' + str(year+1) + '.nc'),'r')
+    P_array_fut = inP.variables['Precipitation'][:]
+    sys.stdout.flush()
+    
+    P_yr1 = P_array[np.where(dates_yr1 == pd.Timestamp(str(year)+'-10-01T00'))[0][0]:]
+    P_yr2 = P_array_fut[:np.where(dates_yr2 == pd.Timestamp(str(year+1)+'-10-01T00'))[0][0]]
+    P_hydroyear = np.concatenate((P_yr1,P_yr2),axis=0)
+    
+    # Get the total precipitation for the hydrologic year
+    Ptotal = np.sum(P_hydroyear,axis=0)
+    
+# =============================================================================
+#     Calculate the maximum amount of superimposed ice that can form
+# =============================================================================
+    Pr = (c/L)*np.abs(Tmean)*(d/Pmean) 
+    Pr[np.where(Pr > 1)] = 1 # Set upper limit of 1 on Pr
+    
+    SImax = Pr*Ptotal
+    
+    inT.close()
+    inP.close()
+    
+    return SImax
     
 def cold_content_simplified(year_range, MT, MSP, SPs):
     
