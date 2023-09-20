@@ -37,7 +37,7 @@ transition_thickness, b0, k, OUTPUT_PATH, SaveMBonly
 # Import functions for model:
 sys.path.insert(1,Model_functions)
 from Model_functions_ver4 import write_config_file, save_to_netcdf
-from Model_functions_ver4 import debris, get_meanSP, cold_content, MassBalance
+from Model_functions_ver4 import debris, Calculate_Pmean, max_superimposed_ice, MassBalance
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"MBMnamelist.py")
@@ -75,9 +75,9 @@ print('Debris parameterization loaded with option:',debris_parameterization)
 sys.stdout.flush()
 # =============================================================================
 
-# Calculate mean annual snowpack (for cold content/refreezing):
+# Calculate mean annual precipitation (for refreezing):
 # =============================================================================
-Cmean = get_meanSP(years,Glacier_ID,R2S,Precip_inputs,Temp_inputs)
+Pmean = Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc)
 print('Mean annual snowpack calculated') 
 sys.stdout.flush()
 # =============================================================================
@@ -114,7 +114,7 @@ for year in years:
     if year == years[-1]:
         pass
     else:
-        CC = cold_content(year, P_array,T_array, Glacier_ID, Cmean, R2S, Precip_inputs, Temp_inputs)
+        CC = max_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs)
 
     # Set up output files:
     # =========================================================================
@@ -162,7 +162,6 @@ for year in years:
         # Calculate Melt:
         # =====================================================================        
         Msnow, Mice, Refreezing, CC_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],CC_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
-        # KR_note: check that this is working as expected
         
         # Update output arrays for this timestep:
         # Total Melt = Snow Melt + Ice Melt
