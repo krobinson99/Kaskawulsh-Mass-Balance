@@ -749,7 +749,7 @@ def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
         
     
                                                 
-def cold_content(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs):
+def maximum_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs):
     '''
     Cold content parameterization to account for refreezing of meltwater in the
     seasonal snowpack. Following Janssens & Huybrechts (2000).
