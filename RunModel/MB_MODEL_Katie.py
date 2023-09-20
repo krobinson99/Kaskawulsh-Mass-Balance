@@ -109,14 +109,14 @@ for year in years:
     sys.stdout.flush()
     # =========================================================================     
 
-    # Get cold content for year:
+    # Get maximum amount of superimposed ice that can form each hydrologic year:
     # =========================================================================
     if year == years[-1]:
         pass
     else:
-        CC = max_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs)
+        SImax = max_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs)
 
-    # Set up output files:
+    # Set up output files and trackers for snowpack, potential superimposed ice:
     # =========================================================================
     TotalMelt = np.empty(T_array.shape)
     IceMelt = np.empty(T_array.shape)
@@ -127,19 +127,19 @@ for year in years:
     if year == years[0]:
         # Trackers should have +1 extra timestep to account for carry over values for following year:
         Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
-        CC_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        PotentialSI_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
     else:
-        # Save final snowpack and CC from previous year here.
+        # Save final snowpack and leftover potential superimposed ice from previous year here.
         Snowpack_carryover = np.array(Snowpack_tracker[-1])
-        CC_carryover = np.array(CC_tracker[-1])
+        PotentialSI_carryover = np.array(PotentialSI_tracker[-1])
         
         # Reset snowpack for rest of the year to zero
         Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
-        CC_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        PotentialSI_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
         
         # Add carry over values from previous year to beginning of tracker
         Snowpack_tracker[0] = Snowpack_carryover
-        CC_tracker[0] = CC_carryover
+        PotentialSI_tracker[0] = PotentialSI_carryover
 
     # Set up timestepping (loop through every timestep in year)
     # =========================================================================
@@ -151,7 +151,7 @@ for year in years:
         # =====================================================================
         # (from original model): add cold content in late october to snow pack to prevent winter melt events
         if dates[timestamp] == pd.Timestamp(str(year)+'-10-01T00'):
-            CC_tracker[timestamp] += CC
+            PotentialSI_tracker[timestamp] += SImax
         else:
             pass
         
@@ -161,7 +161,7 @@ for year in years:
         
         # Calculate Melt:
         # =====================================================================        
-        Msnow, Mice, Refreezing, CC_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],CC_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
+        Msnow, Mice, Refreezing, CC_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
         
         # Update output arrays for this timestep:
         # Total Melt = Snow Melt + Ice Melt
@@ -176,7 +176,7 @@ for year in years:
         # Update snowpack and CC trackers for next timestep:
         # ===================================================================== 
         Snowpack_tracker[timestamp+1,:,:] = SP_out
-        CC_tracker[timestamp+1,:,:] = CC_out   
+        PotentialSI_tracker[timestamp+1,:,:] = CC_out   
         
     # Save outputs for the year before starting next year:
     # =========================================================================
