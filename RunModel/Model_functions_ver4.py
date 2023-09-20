@@ -749,7 +749,7 @@ def Calculate_Pmean(years,Glacier_ID,Precip_inputs,Temp_inputs,Sfc):
         
     
                                                 
-def maximum_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs):
+def max_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs):
     '''
     Cold content parameterization to account for refreezing of meltwater in the
     seasonal snowpack. Following Janssens & Huybrechts (2000).
@@ -1041,7 +1041,7 @@ def MB_vectorized(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, CC_in):
     
 
 # NEW FUNCTION TO CALCULATE THE MASS BALANCE
-def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc):
+def MassBalance(MF,asnow,aice,T,I,SP_in,SI_in,debris,debris_parameterization,Sfc):
 
     # Calculate snow melt
     Msnow = (MF + asnow*I)*T
@@ -1051,16 +1051,16 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     
     # Calculate the amount of melt that is refrozen:
     Refreezing = np.zeros(T.shape)
-    Refreezing[np.where(Msnow >= CC_in)] = CC_in[np.where(Msnow >= CC_in)] # all cold content is used up in refreezing, and then some additional melt happens
-    Refreezing[np.where(Msnow < CC_in)] = Msnow[np.where(Msnow < CC_in)] # all melt is refrozen, some cold content is leftover
+    Refreezing[np.where(Msnow >= SI_in)] = SI_in[np.where(Msnow >= SI_in)] # all potential superimposed ice is used up in refreezing, and then some additional melt happens and runs off
+    Refreezing[np.where(Msnow < SI_in)] = Msnow[np.where(Msnow < SI_in)] # all melt is refrozen, some cold content is leftover
     Refreezing[np.where(np.isnan(Sfc))] = np.nan
     
     # Update the snowpack:
     SP_out = SP_in - Msnow # Leftover snowpack = initial snowpack minus snow melt
     SP_out[np.where(SP_out <= 0)] = 0 # Reset negative values to zero (i.e. where snowpack is depleted and sfc = ice)
     
-    # Update the cold content array
-    CC_out = CC_in - Refreezing
+    # Update the potential superimposed ice array
+    SI_out = SI_in - Refreezing
     
     # Calculate degree days leftover for melting ice after snow has been melted
     DD_used_in_snowmelt = (Msnow)/(MF + asnow*I) # If Msnow was 0, DDsnow would be zero too
@@ -1078,7 +1078,7 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,CC_in,debris,debris_parameterization,Sfc
     Mice[np.where(SP_out > 0)] = 0 # Set ice melt to zero where there is still a snowpack
     Mice[np.where(np.isnan(Sfc))] = np.nan
     
-    return Msnow, Mice, Refreezing, CC_out, SP_out
+    return Msnow, Mice, Refreezing, SI_out, SP_out
     
     
 def MB_vectorized_discreteSnI(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, Topo, CC_in, meltfactors, debtreatment):   
