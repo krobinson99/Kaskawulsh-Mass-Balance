@@ -819,6 +819,49 @@ def max_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Pr
     inP.close()
     
     return SImax
+
+def max_superimposed_ice_finalyear(year, P_array, T_array, timestep, Pmean):
+    '''
+    Cold content parameterization to account for refreezing of meltwater in the
+    seasonal snowpack. Following Janssens & Huybrechts (2000).
+    
+    Modified from max_superimposed_ice function to calculate the SImax for the
+    final year in the simulation period (Oct 1 -- Dec 31)
+    
+    returns SImax: the maximum amount of superimposed ice that can form
+    for part of the hydrologic year
+    '''
+    # Constants:
+    c = 2097        # Specific heat capacity of ice (J kg^-1 K^-1) (Cuffey & Patterson)
+    L = 333500     # Latent heat of fusion (J kg^-1) (Cuffey & Patterson)
+    d = 2 # Thickness of thermal active layer (2 m) (Janssens & Huybrechts, 2000)
+        
+    # Get dates for the current hydrologic year
+    dates_yr1 = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(timestep)+'H')
+# =============================================================================
+#     Mean temperature for remaining part of hydrologic year
+# =============================================================================
+    
+    T = T_array[np.where(dates_yr1 == pd.Timestamp(str(year)+'-10-01T00'))[0][0]:]
+    Tmean = np.nanmean(T,axis=0)
+    Tmean[np.where(Tmean>0)] = 0 # Set all positive temperatures to 0
+    
+# =============================================================================
+#     Total precipiation forremaining part of hydrologic year
+# =============================================================================
+
+    P = P_array[np.where(dates_yr1 == pd.Timestamp(str(year)+'-10-01T00'))[0][0]:]
+    Ptotal = np.sum(P,axis=0)
+    
+# =============================================================================
+#     Calculate the maximum amount of superimposed ice that can form
+# =============================================================================
+    Pr = (c/L)*np.abs(Tmean)*(d/Pmean) 
+    Pr[np.where(Pr > 1)] = 1 # Set upper limit of 1 on Pr
+    
+    SImax = Pr*Ptotal
+    
+    return SImax
     
 def cold_content_simplified(year_range, MT, MSP, SPs):
     
