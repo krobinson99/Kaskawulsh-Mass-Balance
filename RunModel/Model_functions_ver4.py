@@ -1041,7 +1041,7 @@ def MB_vectorized(Thour, Phour, SRhour, Leftover_in, asnow, aice, MF, CC_in):
     
 
 # NEW FUNCTION TO CALCULATE THE MASS BALANCE
-def MassBalance(MF,asnow,aice,T,I,SP_in,SI_in,debris,debris_parameterization,Sfc):
+def MassBalance(MF,asnow,aice,T,I,SP_in,SI_in,debris,debris_parameterization,Sfc,Curr_superimposedice):
 
     # Calculate snow melt
     Msnow = (MF + asnow*I)*T
@@ -1052,7 +1052,7 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,SI_in,debris,debris_parameterization,Sfc
     # Calculate the amount of melt that is refrozen:
     Refreezing = np.zeros(T.shape)
     Refreezing[np.where(Msnow >= SI_in)] = SI_in[np.where(Msnow >= SI_in)] # all potential superimposed ice is used up in refreezing, and then some additional melt happens and runs off
-    Refreezing[np.where(Msnow < SI_in)] = Msnow[np.where(Msnow < SI_in)] # all melt is refrozen, some cold content is leftover
+    Refreezing[np.where(Msnow < SI_in)] = Msnow[np.where(Msnow < SI_in)] # all melt is refrozen, some potential SI is leftover
     Refreezing[np.where(np.isnan(Sfc))] = np.nan
     
     # Update the snowpack:
@@ -1074,9 +1074,13 @@ def MassBalance(MF,asnow,aice,T,I,SP_in,SI_in,debris,debris_parameterization,Sfc
     
     # Set ice melt to zero where T < 0, and in off-glacier cells, and where snowpack is present. 
     Mice[np.where(T<=0)] = 0
-    Mice[np.where(Sfc==1)] = 0 # Set ice melt to zero in off-glacier cells
     Mice[np.where(SP_out > 0)] = 0 # Set ice melt to zero where there is still a snowpack
     Mice[np.where(np.isnan(Sfc))] = np.nan
+    
+    # The maximum icemelt than can occur off glacier is limited by the current amount of superimposed ice
+    Mice_off_glacier = np.array(Mice)
+    Mice_off_glacier[np.where(Mice > Curr_superimposedice)] = Curr_superimposedice[np.where(Mice > Curr_superimposedice)] # Set ice melt to zero in off-glacier cells
+    Mice[Sfc==1] = Mice_off_glacier[Sfc==1]
     
     return Msnow, Mice, Refreezing, SI_out, SP_out
     
