@@ -862,6 +862,39 @@ def max_superimposed_ice_finalyear(year, P_array, T_array, timestep, Pmean):
     SImax = Pr*Ptotal
     
     return SImax
+
+def rain_refreezing(P,T,R2S,SI_out,SP_out):
+    '''
+    At each timestep, this function gets the total amount of rain in each 
+    gridcell (if any), and refreezes the appropriate amount (based on remaining
+    potential superimposed ice after snowmelt occurs). Then, the potential
+    superimposed ice volume is updated accordingly.
+    Rain may not refreeze if there is no snowpack. 
+    
+    Inputs: 
+        P = P_array[timestamp] dim = x,y
+        T = T_array[timestamp] dim = x,y
+        R2S = rain to snow threshold
+        SI_out = remaining potential superimposed ice (after snowmelt)
+        SP_out = remaining snowpack after snowmelt
+        
+    Returns:
+        SI_out: updated with the volume of rain that refroze subtracted from the
+        total leftover potential superimposed ice
+    '''
+# =============================================================================
+#   Get total amount of rain at this timestep:
+# =============================================================================
+    Rain = np.array(P)
+    Rain[np.where(T <= R2S)] = 0 # zero the snow fall
+    
+    RefrozenRain = np.zeros(Rain.shape)
+    RefrozenRain[np.where(Rain >= SI_out)] = SI_out[np.where(Rain >= SI_out)]
+    RefrozenRain[np.where(Rain < SI_out)] = Rain[np.where(Rain < SI_out)]
+    RefrozenRain[np.where(SP_out <= 0)] = 0 # no refreezing occurs where there is no snowpack
+    RefrozenRain[np.where(np.isnan(P))] = np.nan
+
+    return RefrozenRain
     
 def cold_content_simplified(year_range, MT, MSP, SPs):
     
