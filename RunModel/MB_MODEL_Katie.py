@@ -37,7 +37,8 @@ transition_thickness, b0, k, OUTPUT_PATH, SaveMBonly
 # Import functions for model:
 sys.path.insert(1,Model_functions)
 from Model_functions_ver4 import write_config_file, save_to_netcdf
-from Model_functions_ver4 import debris, Calculate_Pmean, max_superimposed_ice, MassBalance
+from Model_functions_ver4 import debris, Calculate_Pmean, max_superimposed_ice,  \
+max_superimposed_ice_finalyear,MassBalance
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"MBMnamelist.py")
@@ -112,7 +113,7 @@ for year in years:
     # Get maximum amount of superimposed ice that can form each hydrologic year:
     # =========================================================================
     if year == years[-1]:
-        pass
+        SImax = max_superimposed_ice_finalyear(year, P_array, T_array, timestep, Pmean)
     else:
         SImax = max_superimposed_ice(year, P_array, T_array, timestep, Glacier_ID, Pmean, Precip_inputs, Temp_inputs)
 
