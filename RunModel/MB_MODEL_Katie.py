@@ -118,11 +118,10 @@ for year in years:
 
     # Set up output files and trackers for snowpack, potential superimposed ice:
     # =========================================================================
-    TotalMelt = np.empty(T_array.shape)
-    IceMelt = np.empty(T_array.shape)
-    SnowMelt = np.empty(T_array.shape)
-    RefrozenMelt = np.empty(T_array.shape)
-    MassBal = np.empty(T_array.shape)
+    IceMelt = np.zeros(T_array.shape)
+    SnowMelt = np.zeros(T_array.shape)
+    RefrozenMelt = np.zeros(T_array.shape)
+    MassBal = np.zeros(T_array.shape)
     
     if year == years[0]:
         # Trackers should have +1 extra timestep to account for carry over values for following year:
@@ -147,9 +146,9 @@ for year in years:
         print(dates[timestamp])
         sys.stdout.flush()
         
-        # Update cold content and snowpack trackers
+        # Get current snowpack, potential SI, and actual SI volumes for this timestep:
         # =====================================================================
-        # (from original model): add cold content in late october to snow pack to prevent winter melt events
+        # Renew cold content at beginning of hydrological year:
         if dates[timestamp] == pd.Timestamp(str(year)+'-10-01T00'):
             PotentialSI_tracker[timestamp] += SImax
         else:
@@ -159,9 +158,10 @@ for year in years:
         New_snowfall[np.where(T_array[timestamp,:,:] > R2S)] = 0
         Snowpack_tracker[timestamp,:,:] += New_snowfall
         
+        Curr_superimposedice = (np.cumsum(RefrozenMelt[:timestamp+1],axis=0)[-1] + np.cumsum(IceMelt[:timestamp+1],axis=0)[-1])
         # Calculate Melt:
         # =====================================================================        
-        Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
+        Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc,Curr_superimposedice)
         
         # Calculate refreezing of rain (if any)
         # =====================================================================  
