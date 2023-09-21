@@ -163,6 +163,17 @@ for year in years:
         # =====================================================================        
         Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc)
         
+        # Calculate refreezing of rain (if any)
+        # =====================================================================  
+        Rain = np.array(P_array[timestamp,:,:])
+        Rain[np.where(T_array[timestamp,:,:] <= R2S)] = 0 # zero the snow fall
+    
+        RefrozenRain = np.zeros(Rain.shape)
+        RefrozenRain[np.where(Rain >= SI_out)] = SI_out[np.where(Rain >= SI_out)] # all potential superimposed ice is used up in refreezing, and then some additional rain happens and runs off
+        RefrozenRain[np.where(Rain < SI_out)] = Rain[np.where(Rain < SI_out)] # all rain is refrozen, some potentialSI is leftover
+        RefrozenRain[np.where(np.isnan(Sfc))] = np.nan
+        SI_out -= RefrozenRain # Subtract the amount of rain that is refrozen from the potentialSI
+
         # Update output arrays for this timestep:
         # Total Melt = Snow Melt + Ice Melt
         # Net ablation = total melt - refreezing
@@ -170,8 +181,8 @@ for year in years:
         # ===================================================================== 
         IceMelt[timestamp,:,:] = Mice
         SnowMelt[timestamp,:,:] = Msnow
-        RefrozenMelt[timestamp,:,:] = Refreezing
-        MassBal[timestamp,:,:] = New_snowfall - ((Msnow + Mice) - Refreezing)  
+        RefrozenMelt[timestamp,:,:] = (Refreezing + RefrozenRain)
+        MassBal[timestamp,:,:] = New_snowfall - ((Msnow - RefrozenMelt[timestamp,:,:]) + Mice)  
 
         # Update snowpack and CC trackers for next timestep:
         # ===================================================================== 
