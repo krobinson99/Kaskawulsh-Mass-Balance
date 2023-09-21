@@ -38,7 +38,7 @@ transition_thickness, b0, k, OUTPUT_PATH, SaveMBonly
 sys.path.insert(1,Model_functions)
 from Model_functions_ver4 import write_config_file, save_to_netcdf
 from Model_functions_ver4 import debris, Calculate_Pmean, max_superimposed_ice,  \
-max_superimposed_ice_finalyear,MassBalance
+max_superimposed_ice_finalyear, rain_refreezing, MassBalance
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"MBMnamelist.py")
@@ -168,13 +168,7 @@ for year in years:
         
         # Calculate refreezing of rain (if any)
         # =====================================================================  
-        Rain = np.array(P_array[timestamp,:,:])
-        Rain[np.where(T_array[timestamp,:,:] <= R2S)] = 0 # zero the snow fall
-    
-        RefrozenRain = np.zeros(Rain.shape)
-        RefrozenRain[np.where(Rain >= SI_out)] = SI_out[np.where(Rain >= SI_out)] # all potential superimposed ice is used up in refreezing, and then some additional rain happens and runs off
-        RefrozenRain[np.where(Rain < SI_out)] = Rain[np.where(Rain < SI_out)] # all rain is refrozen, some potentialSI is leftover
-        RefrozenRain[np.where(np.isnan(Sfc))] = np.nan
+        RefrozenRain = rain_refreezing(P_array[timestamp,:,:],T_array[timestamp,:,:],R2S,SI_out,SP_out)
         SI_out -= RefrozenRain # Subtract the amount of rain that is refrozen from the potentialSI
 
         # Update output arrays for this timestep:
