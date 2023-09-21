@@ -159,6 +159,8 @@ for year in years:
         Snowpack_tracker[timestamp,:,:] += New_snowfall
         
         Curr_superimposedice = (np.cumsum(RefrozenMelt[:timestamp+1],axis=0)[-1] + np.cumsum(IceMelt[:timestamp+1],axis=0)[-1])
+        Curr_superimposedice[np.where(Curr_superimposedice < 0)] = 0
+        
         # Calculate Melt:
         # =====================================================================        
         Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc,Curr_superimposedice)
@@ -197,6 +199,8 @@ for year in years:
         save_to_netcdf(IceMelt, 'Ice melt', os.path.join(OUTPUT_PATH,'Icemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
         save_to_netcdf(SnowMelt, 'Snow melt', os.path.join(OUTPUT_PATH,'Snowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
         save_to_netcdf(RefrozenMelt, 'Refreezing', os.path.join(OUTPUT_PATH,'Refreezing_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(Snowpack_tracker[:-1], 'Snowdepth', os.path.join(OUTPUT_PATH,'Snowdepth_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(PotentialSI_tracker[:-1], 'Ptau', os.path.join(OUTPUT_PATH,'Ptau_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
     else:
         pass
     
