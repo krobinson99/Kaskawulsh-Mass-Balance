@@ -38,7 +38,7 @@ transition_thickness, b0, k, OUTPUT_PATH, SaveMBonly
 sys.path.insert(1,Model_functions)
 from Model_functions_ver4 import write_config_file, save_to_netcdf
 from Model_functions_ver4 import debris, Calculate_Pmean, max_superimposed_ice,  \
-max_superimposed_ice_finalyear, rain_refreezing, MassBalance
+max_superimposed_ice_finalyear, rain_refreezing, updated_superimposed_ice, MassBalance
 
 # Save configuration file for this run to output directory:
 write_config_file(OUTPUT_PATH,"MBMnamelist.py")
@@ -128,18 +128,22 @@ for year in years:
         # Trackers should have +1 extra timestep to account for carry over values for following year:
         Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
         PotentialSI_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        CurrentSI_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
     else:
         # Save final snowpack and leftover potential superimposed ice from previous year here.
         Snowpack_carryover = np.array(Snowpack_tracker[-1])
         PotentialSI_carryover = np.array(PotentialSI_tracker[-1])
+        CurrentSI_carryover = np.array(CurrentSI_tracker[-1])
         
         # Reset snowpack for rest of the year to zero
         Snowpack_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
         PotentialSI_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
+        CurrentSI_tracker = np.zeros((T_array.shape[0]+1,T_array.shape[1],T_array.shape[2]))
         
         # Add carry over values from previous year to beginning of tracker
         Snowpack_tracker[0] = Snowpack_carryover
         PotentialSI_tracker[0] = PotentialSI_carryover
+        CurrentSI_tracker[0] = CurrentSI_carryover
 
     # Set up timestepping (loop through every timestep in year)
     # =========================================================================
@@ -159,12 +163,16 @@ for year in years:
         New_snowfall[np.where(T_array[timestamp,:,:] > R2S)] = 0
         Snowpack_tracker[timestamp,:,:] += New_snowfall
         
-        Curr_superimposedice = (np.cumsum(RefrozenMelt[:timestamp+1],axis=0)[-1] + np.cumsum(IceMelt[:timestamp+1],axis=0)[-1])
-        Curr_superimposedice[np.where(Curr_superimposedice < 0)] = 0
+        # KR_note: this could be a rate limiting step, since with each timestamp the cumsum includes more elements
+        #Curr_superimposedice = (np.cumsum(RefrozenMelt[:timestamp+1],axis=0)[-1] - np.cumsum(IceMelt[:timestamp+1],axis=0)[-1])
+        #Curr_superimposedice[np.where(Curr_superimposedice < 0)] = 0
+        # KR_note: replacing curr_SI array with zeros to see if that fixes the slowdown.
+        Curr_superimposedice = np.zeros(New_snowfall.shape)
+        New_superimposed_ice = RefrozenMelt[timestamp,:,:] - IceMelt[timestamp,:,:]
         
         # Calculate Melt:
         # =====================================================================        
-        Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc,Curr_superimposedice)
+        Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc,CurrentSI_tracker[timestamp,:,:])
         
         # Calculate refreezing of rain (if any)
         # =====================================================================  
@@ -181,10 +189,11 @@ for year in years:
         RefrozenMelt[timestamp,:,:] = (Refreezing + RefrozenRain)
         MassBal[timestamp,:,:] = New_snowfall - ((Msnow - RefrozenMelt[timestamp,:,:]) + Mice)  
 
-        # Update snowpack and CC trackers for next timestep:
+        # Update snowpack and superimposed ice trackers for next timestep:
         # ===================================================================== 
         Snowpack_tracker[timestamp+1,:,:] = SP_out
         PotentialSI_tracker[timestamp+1,:,:] = SI_out   
+        CurrentSI_tracker[timestamp+1,:,:] = updated_superimposed_ice(RefrozenMelt[timestamp,:,:],IceMelt[timestamp,:,:],CurrentSI_tracker[timestamp,:,:])
         
     # Save outputs for the year before starting next year:
     # =========================================================================
@@ -194,8 +203,9 @@ for year in years:
         save_to_netcdf(IceMelt, 'Ice melt', os.path.join(OUTPUT_PATH,'Icemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
         save_to_netcdf(SnowMelt, 'Snow melt', os.path.join(OUTPUT_PATH,'Snowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
         save_to_netcdf(RefrozenMelt, 'Refreezing', os.path.join(OUTPUT_PATH,'Refreezing_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
-        save_to_netcdf(Snowpack_tracker[:-1], 'Snowdepth', os.path.join(OUTPUT_PATH,'Snowdepth_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(Snowpack_tracker[:-1], 'Snow depth', os.path.join(OUTPUT_PATH,'Snowdepth_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
         save_to_netcdf(PotentialSI_tracker[:-1], 'Ptau', os.path.join(OUTPUT_PATH,'Ptau_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
+        save_to_netcdf(CurrentSI_tracker[:-1], 'Superimposed ice', os.path.join(OUTPUT_PATH,'Superimposedice_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
     else:
         pass
     
