@@ -838,30 +838,32 @@ def max_superimposed_ice_finalyear(year, P_array, T_array, timestep, Pmean):
         
     # Get dates for the current hydrologic year
     dates_yr1 = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(timestep)+'H')
-# =============================================================================
-#     Mean temperature for remaining part of hydrologic year
-# =============================================================================
+    # =============================================================================
+    # Mean temperature for remaining part of hydrologic year
+    # =============================================================================
     
     T = T_array[np.where(dates_yr1 == pd.Timestamp(str(year)+'-10-01T00'))[0][0]:]
     Tmean = np.nanmean(T,axis=0)
     Tmean[np.where(Tmean>0)] = 0 # Set all positive temperatures to 0
     
-# =============================================================================
-#     Total precipiation forremaining part of hydrologic year
-# =============================================================================
+    # =============================================================================
+    # Total precipiation forremaining part of hydrologic year
+    # =============================================================================
 
     P = P_array[np.where(dates_yr1 == pd.Timestamp(str(year)+'-10-01T00'))[0][0]:]
     Ptotal = np.sum(P,axis=0)
     
-# =============================================================================
-#     Calculate the maximum amount of superimposed ice that can form
-# =============================================================================
+    # =============================================================================
+    # Calculate the maximum amount of superimposed ice that can form
+    # =============================================================================
     Pr = (c/L)*np.abs(Tmean)*(d/Pmean) 
     Pr[np.where(Pr > 1)] = 1 # Set upper limit of 1 on Pr
     
     SImax = Pr*Ptotal
     
     return SImax
+
+
 
 def rain_refreezing(P,T,R2S,SI_out,SP_out):
     '''
@@ -882,9 +884,9 @@ def rain_refreezing(P,T,R2S,SI_out,SP_out):
         SI_out: updated with the volume of rain that refroze subtracted from the
         total leftover potential superimposed ice
     '''
-# =============================================================================
-#   Get total amount of rain at this timestep:
-# =============================================================================
+    # =============================================================================
+    #   Get total amount of rain at this timestep:
+    # =============================================================================
     Rain = np.array(P)
     Rain[np.where(T <= R2S)] = 0 # zero the snow fall
     
@@ -896,6 +898,20 @@ def rain_refreezing(P,T,R2S,SI_out,SP_out):
 
     return RefrozenRain
     
+
+def updated_superimposed_ice(Refreezing,IceMelt,CurrentSI):
+    '''
+    Calculate the volume of superimposed ice formed after each timestep
+    Update the superimposed ice tracker accordingly.
+    '''
+    
+    Change_in_SI = Refreezing - IceMelt # positive if new SI formed, 0 or negative if all SI melted
+    Updated_SI = CurrentSI + Change_in_SI # Add new SI/new melt to the current SI volume
+    Updated_SI[np.where(Updated_SI < 0)] = 0 # If more ice melt happened than SI volume, set SI to 0 (no SI remaining)
+    
+    return Updated_SI
+
+
 def cold_content_simplified(year_range, MT, MSP, SPs):
     
     CCs = []
