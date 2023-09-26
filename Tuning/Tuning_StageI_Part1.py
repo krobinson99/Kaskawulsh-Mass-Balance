@@ -33,7 +33,7 @@ KRH_tributaries = np.loadtxt('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunM
 
 print('sim',sim)
 sys.stdout.flush()
-sim_mbvals = []
+
 running_mb = np.zeros(KRH_tributaries.shape)
 for year in range(2007,2018+1):
     print(year)
@@ -62,6 +62,8 @@ num_years = len(pd.date_range(start= str(2007) + '-09-03 00:00:00',end= str(2018
 annual_mb = running_mb/num_years
         
 KW_mb = np.mean(annual_mb[np.isfinite(KRH_tributaries)])
- 
+print(KW_mb)
+sys.stdout.flush() 
+
 np.savetxt(os.path.join(INPUT_PATH,'sim' + str(sim) + '_mb.txt'),[KW_mb])
 
