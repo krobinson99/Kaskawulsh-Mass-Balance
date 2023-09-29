@@ -14,6 +14,12 @@ import os
 import sys
 from netCDF4 import Dataset
 
+def average_sim_results():
+    '''
+    Get the average result from a set of simulations
+    Output sim9999
+    '''
+
 def load_hydrologic_year(sim,year,varname,var,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=False):
     '''
     Returns a given variable from Oct 1 -- Sept 30 (hydrological year)
@@ -65,6 +71,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         rain that refreezes
     '''
     massbal_l = []
+    totalsnowmelt_l = []
+    refrozen_melt_l = []
     snowmelt_runoff_l = []
     superimposed_icemelt_l = []
     glacier_icemelt_l = []
@@ -108,6 +116,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         # Get timeseries from each component at a point location:
         if PointScale == True:
             daily_massbal = np.sum(massbal[:,x,y].reshape(-1,8),axis=1)
+            daily_snowmelt = np.sum(snowmelt[:,x,y].reshape(-1,8),axis=1)
+            daily_refrozenmelt = np.sum(refreezing[:,x,y].reshape(-1,8),axis=1)
             daily_netsnowmelt = np.sum(netsnowmelt[:,x,y].reshape(-1,8),axis=1)
             daily_glaciericemelt = np.sum(glacier_icemelt[:,x,y].reshape(-1,8),axis=1)
             daily_superimposedicemelt = np.sum(superimposed_icemelt[:,x,y].reshape(-1,8),axis=1)
@@ -118,6 +128,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         # Get timeseries from each component for the catchment wide average
         elif Catchmentaverage == True:
             mean_massbal = np.nanmean(np.nanmean(massbal,axis=1),axis=1)
+            mean_snowmelt =  np.nanmean(np.nanmean(snowmelt,axis=1),axis=1)
+            mean_refrozenmelt = np.nanmean(np.nanmean(refreezing,axis=1),axis=1)
             mean_netsnowmelt = np.nanmean(np.nanmean(netsnowmelt,axis=1),axis=1)
             mean_glaciericemelt = np.nanmean(np.nanmean(glacier_icemelt,axis=1),axis=1)
             mean_superimposedicemelt = np.nanmean(np.nanmean(superimposed_icemelt,axis=1),axis=1)
@@ -126,6 +138,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
             
             daily_massbal = np.sum(mean_massbal.reshape(-1,8),axis=1)
+            daily_snowmelt = np.sum(mean_snowmelt[:,x,y].reshape(-1,8),axis=1)
+            daily_refrozenmelt = np.sum(mean_refrozenmelt[:,x,y].reshape(-1,8),axis=1)
             daily_netsnowmelt = np.sum(mean_netsnowmelt.reshape(-1,8),axis=1)
             daily_glaciericemelt = np.sum(mean_glaciericemelt.reshape(-1,8),axis=1)
             daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
@@ -137,6 +151,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         elif KWaverage == True:
             for i in range(0,len(snowmelt)):
                 massbal[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                snowmelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                refreezing[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 netsnowmelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 glacier_icemelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 superimposed_icemelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
@@ -145,6 +161,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
                 accumulation[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
     
             mean_massbal = np.nanmean(np.nanmean(massbal,axis=1),axis=1)
+            mean_snowmelt =  np.nanmean(np.nanmean(snowmelt,axis=1),axis=1)
+            mean_refrozenmelt = np.nanmean(np.nanmean(refreezing,axis=1),axis=1)
             mean_netsnowmelt = np.nanmean(np.nanmean(netsnowmelt,axis=1),axis=1)
             mean_glaciericemelt = np.nanmean(np.nanmean(glacier_icemelt,axis=1),axis=1)
             mean_superimposedicemelt = np.nanmean(np.nanmean(superimposed_icemelt,axis=1),axis=1)
@@ -153,6 +171,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
             
             daily_massbal = np.sum(mean_massbal.reshape(-1,8),axis=1)
+            daily_snowmelt = np.sum(mean_snowmelt[:,x,y].reshape(-1,8),axis=1)
+            daily_refrozenmelt = np.sum(mean_refrozenmelt[:,x,y].reshape(-1,8),axis=1)
             daily_netsnowmelt = np.sum(mean_netsnowmelt.reshape(-1,8),axis=1)
             daily_glaciericemelt = np.sum(mean_glaciericemelt.reshape(-1,8),axis=1)
             daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
@@ -161,6 +181,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             daily_accumulation = np.sum(mean_accumulation.reshape(-1,8),axis=1)
     
         massbal_l.append(daily_massbal)
+        totalsnowmelt_l.append(daily_snowmelt)
+        refrozen_melt_l.append(daily_refrozenmelt)
         snowmelt_runoff_l.append(daily_netsnowmelt)
         superimposed_icemelt_l.append(daily_superimposedicemelt)
         glacier_icemelt_l.append(daily_glaciericemelt)
@@ -168,7 +190,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         rain_refreezing_l.append(daily_rainrefreezing)
         accumulation_l.append(daily_accumulation)
         
-    return massbal_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, accumulation_l
+    return massbal_l, totalsnowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, accumulation_l
 
 
 def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID):
