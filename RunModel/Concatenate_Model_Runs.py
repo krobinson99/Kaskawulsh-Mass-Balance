@@ -13,58 +13,111 @@ import os
 import sys
 import pandas as pd
 from netCDF4 import Dataset
+
+from MBMnamelist import Easting_grid, Northing_grid, Sfc_grid
+
 # Import functions for model:
 sys.path.insert(1,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\RunModel')
 from Model_functions_ver4 import save_to_netcdf
+
+# =============================================================================
+# User specified options:
+# =============================================================================
 
 INPUT_FOLDER = 'D:/TuningOutputs/Tuning_Sept26'
 OUTPUT_FOLDER = 'D:/TuningOutputs/Tuning_Sept26'
 OUTPUT_ID = 9999
 
-years = np.arange(1979,2022+1)
 sims = np.arange(0,2)
 
-Glacier_ID = 'KRH'
-R2S = 1
+# Get sim param from the job array
+# =============================================================================
+year = 1979
+#year = int(sys.argv[1])
+#print('this is year',year)
+#print(type(year))
 
-# Input geometry
-Easting_grid = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Downscaling/KRH_Xgrid.txt' # Paths to text files defining Easting/Northing coords of every model gridcell
-Northing_grid = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Downscaling/KRH_Ygrid.txt'
-Sfc_grid = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KRH_SfcType.txt'      # Path to text file where 1 = off-glacier, 0 = on-glacier, NaN = not in the domain.
+Glacier_ID = 'KRH'
+
+# =============================================================================
+# Load input geometry:
+# =============================================================================
 
 Xgrid = np.loadtxt(Easting_grid)
 Ygrid = np.loadtxt(Northing_grid)
 Sfc = np.loadtxt(Sfc_grid)
 
 # Function to concatenate any variable:
-def concatenate_model_ouputs(varname, var):
+def concatenate_model_ouputs(year, sims, varname, var):
+    '''
+    Inputs: 
+        year (1979--2022)
+        sims (array or list of integers corresponding to model runs to be averaged)
+        varname (string, e.g. 'Icemelt')
+        var: netcdf variable (string, e.g. 'Ice melt')
+    Returns:
+        Average and standard deviation of all model runs for a given year and sim number. 
+    '''
     
-    for year in years:
-        print('year:',year)
+    print('year:',year)
+    sys.stdout.flush()
+    dates = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(3)+'H')  
+    
+# =============================================================================
+#   Calculate mean of all sims:
+# =============================================================================
+    mb_sum = np.zeros((len(dates),Xgrid.shape[0],Xgrid.shape[1])) 
+    for sim in sims:
+        print('Calculating mean for sim:',sim)
+        sys.stdout.flush()
         
-        dates = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(3)+'H')
-        MB_sum = np.zeros((len(dates),Xgrid.shape[0],Xgrid.shape[1]))
+        inMB = Dataset(os.path.join(INPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'),'r')
+        mb = inMB.variables[var][:]
+        sys.stdout.flush()
+        inMB.close()
+    
+        mb_sum += np.array(mb)
         
-        for sim in sims:
-            print('sim:',sim)
-            
-            inMB = Dataset(os.path.join(INPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'),'r')
-            mb_array = inMB.variables[var][:]
-            sys.stdout.flush()
-            inMB.close()
+    mean_mb = np.array(mb_sum)/len(sims)
+    save_to_netcdf(mean_mb, var, os.path.join(OUTPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(OUTPUT_ID) + '.nc'), year, Xgrid, Ygrid) 
+    
+# =============================================================================
+#     Calculate mean standard deviation
+# =============================================================================
+    # mb_minus_mean = abs(mb - mean(mb))**2
+    # std dev = sqrt(sum(x)/len(sims))
+    
+    x = np.zeros((len(dates),Xgrid.shape[0],Xgrid.shape[1]))     
+    for sim in sims:
+        print('Calculating std. dev. for sim:',sim)
+        sys.stdout.flush()
         
-            MB_sum += np.array(mb_array)
-            
-        Average_MB = np.array(MB_sum)/len(sims)
-        save_to_netcdf(Average_MB, var, os.path.join(OUTPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(OUTPUT_ID) + '.nc'), year, Xgrid, Ygrid) 
+        inMB = Dataset(os.path.join(INPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'),'r')
+        mb = inMB.variables[var][:]
+        nanlocs = np.where(np.isnan(mb))
+        sys.stdout.flush()
+        inMB.close()    
         
-concatenate_model_ouputs('Icemelt', 'Ice melt')   
-concatenate_model_ouputs('Snowmelt', 'Snow melt')   
-concatenate_model_ouputs('Refrozenmelt', 'Refreezing melt')  
-concatenate_model_ouputs('Refrozenrain', 'Refreezing rain')   
-concatenate_model_ouputs('Netbalance', 'Net balance')  
-concatenate_model_ouputs('Superimposedice', 'Superimposed ice')    
-concatenate_model_ouputs('Snowdepth', 'Snow depth')  
-concatenate_model_ouputs('Ptau', 'Ptau')    
+        mb_minus_mean = np.abs(mb - mean_mb)**2
+        mb_minus_mean[nanlocs] = np.nan
+        x += np.array(mb_minus_mean)
+    
+    std = np.sqrt(mb_minus_mean/len(sims))
+    std[nanlocs] = np.nan
+    
+    save_to_netcdf(std, var, os.path.join(OUTPUT_FOLDER,varname + '_' + 'std' + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(OUTPUT_ID) + '.nc'), year, Xgrid, Ygrid) 
+    
+    
+#Call function for each of the model outputs:    
+# =============================================================================
+concatenate_model_ouputs(year,sims,'Icemelt', 'Ice melt')   
+# concatenate_model_ouputs(year,sims,'Snowmelt', 'Snow melt')   
+# concatenate_model_ouputs(year,sims,'Refrozenmelt', 'Refreezing melt')  
+# concatenate_model_ouputs(year,sims,'Refrozenrain', 'Refreezing rain')   
+# concatenate_model_ouputs(year,sims,'Netbalance', 'Net balance')  
+# concatenate_model_ouputs(year,sims,'Superimposedice', 'Superimposed ice')    
+# concatenate_model_ouputs(year,sims,'Snowdepth', 'Snow depth')  
+# concatenate_model_ouputs(year,sims,'Ptau', 'Ptau')    
+# =============================================================================
 
   
