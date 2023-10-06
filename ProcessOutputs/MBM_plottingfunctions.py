@@ -223,6 +223,8 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
     '''
     
     massbal_l = []
+    total_snowmelt_l = []
+    refrozen_melt_l = []
     snowmelt_runoff_l = []
     superimposed_icemelt_l = []
     glacier_icemelt_l = []
@@ -240,7 +242,10 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
         
         # Calculate the snow melt that runs off:
         snowmelt = load_hydrologic_year(sim,year,'Snowmelt','Snow melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        total_snowmelt = np.sum(snowmelt,axis=0)
+        
         refreezing = load_hydrologic_year(sim,year,'Refrozenmelt','Refreezing melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        total_refreezing = np.sum(refreezing,axis=0)
         
         netsnowmelt = np.subtract(snowmelt,refreezing)
         total_netsnowmelt = np.sum(netsnowmelt,axis=0)
@@ -276,6 +281,8 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
     
         # KR_note: left off here
         massbal_l.append(cumulative_massbal)
+        total_snowmelt_l.append(total_snowmelt)
+        refrozen_melt_l.append(total_refreezing)
         snowmelt_runoff_l.append(total_netsnowmelt)
         superimposed_icemelt_l.append(total_superimposed_icemelt)
         glacier_icemelt_l.append(total_glacier_icemelt)
@@ -284,5 +291,5 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
         rain_l.append(total_rain)
         accumulation_l.append(total_accumulation)
         
-    return massbal_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
+    return massbal_l, total_snowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
 
