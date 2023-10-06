@@ -177,8 +177,8 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
             
             daily_massbal = np.sum(mean_massbal.reshape(-1,8),axis=1)
-            daily_snowmelt = np.sum(mean_snowmelt[:,x,y].reshape(-1,8),axis=1)
-            daily_refrozenmelt = np.sum(mean_refrozenmelt[:,x,y].reshape(-1,8),axis=1)
+            daily_snowmelt = np.sum(mean_snowmelt.reshape(-1,8),axis=1)
+            daily_refrozenmelt= np.sum(mean_refrozenmelt.reshape(-1,8),axis=1)
             daily_netsnowmelt = np.sum(mean_netsnowmelt.reshape(-1,8),axis=1)
             daily_glaciericemelt = np.sum(mean_glaciericemelt.reshape(-1,8),axis=1)
             daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
