@@ -76,6 +76,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
     snowmelt_runoff_l = []
     superimposed_icemelt_l = []
     glacier_icemelt_l = []
+    rain_l = []
     rain_runoff_l = []
     rain_refreezing_l = []
     accumulation_l = []
@@ -122,6 +123,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             daily_glaciericemelt = np.sum(glacier_icemelt[:,x,y].reshape(-1,8),axis=1)
             daily_superimposedicemelt = np.sum(superimposed_icemelt[:,x,y].reshape(-1,8),axis=1)
             daily_rainrunoff = np.sum(rain_runoff[:,x,y].reshape(-1,8),axis=1)
+            daily_rain = np.sum(rain[:,x,y].reshape(-1,8),axis=1)
             daily_rainrefreezing = np.sum(rain_refreezing[:,x,y].reshape(-1,8),axis=1)
             daily_accumulation = np.sum(accumulation[:,x,y].reshape(-1,8),axis=1)
         
@@ -134,6 +136,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             mean_glaciericemelt = np.nanmean(np.nanmean(glacier_icemelt,axis=1),axis=1)
             mean_superimposedicemelt = np.nanmean(np.nanmean(superimposed_icemelt,axis=1),axis=1)
             mean_rainrunoff = np.nanmean(np.nanmean(rain_runoff,axis=1),axis=1)
+            mean_rain = np.nanmean(np.nanmean(rain,axis=1),axis=1)
             mean_rainrefreezing = np.nanmean(np.nanmean(rain_refreezing,axis=1),axis=1)
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
             
@@ -145,6 +148,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
             daily_rainrunoff = np.sum(mean_rainrunoff.reshape(-1,8),axis=1)
             daily_rainrefreezing = np.sum(mean_rainrefreezing.reshape(-1,8),axis=1)
+            daily_rain = np.sum(mean_rain.reshape(-1,8),axis=1)
             daily_accumulation = np.sum(mean_accumulation.reshape(-1,8),axis=1)
         
         # Get timeseries from each component for the glacier wide average
@@ -158,6 +162,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
                 superimposed_icemelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 rain_runoff[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 rain_refreezing[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                rain[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 accumulation[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
     
             mean_massbal = np.nanmean(np.nanmean(massbal,axis=1),axis=1)
@@ -167,6 +172,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             mean_glaciericemelt = np.nanmean(np.nanmean(glacier_icemelt,axis=1),axis=1)
             mean_superimposedicemelt = np.nanmean(np.nanmean(superimposed_icemelt,axis=1),axis=1)
             mean_rainrunoff = np.nanmean(np.nanmean(rain_runoff,axis=1),axis=1)
+            mean_rain = np.nanmean(np.nanmean(rain,axis=1),axis=1)
             mean_rainrefreezing = np.nanmean(np.nanmean(rain_refreezing,axis=1),axis=1)
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
             
@@ -177,6 +183,7 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
             daily_glaciericemelt = np.sum(mean_glaciericemelt.reshape(-1,8),axis=1)
             daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
             daily_rainrunoff = np.sum(mean_rainrunoff.reshape(-1,8),axis=1)
+            daily_rain = np.sum(mean_rain.reshape(-1,8),axis=1)
             daily_rainrefreezing = np.sum(mean_rainrefreezing.reshape(-1,8),axis=1)
             daily_accumulation = np.sum(mean_accumulation.reshape(-1,8),axis=1)
     
@@ -188,9 +195,10 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         glacier_icemelt_l.append(daily_glaciericemelt)
         rain_runoff_l.append(daily_rainrunoff)
         rain_refreezing_l.append(daily_rainrefreezing)
+        rain_l.append(daily_rain)
         accumulation_l.append(daily_accumulation)
         
-    return massbal_l, totalsnowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, accumulation_l
+    return massbal_l, totalsnowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
 
 
 def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID):
