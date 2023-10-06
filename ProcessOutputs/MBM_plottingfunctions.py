@@ -13,6 +13,7 @@ import pandas as pd
 import os
 import sys
 from netCDF4 import Dataset
+import matplotlib.pyplot as plt
 
 def average_sim_results():
     '''
@@ -293,3 +294,45 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
         
     return massbal_l, total_snowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
 
+def runoff_timeseries_12years(year1, years, daily_runoff_upperlim, cumu_runoff_upperlim, gl_icemelt,snowmelt_runoff, rain_runoff, superimp_icemelt):
+    a = []
+    fig, axs = plt.subplots(nrows=4, ncols=3,figsize=(12,12))
+    for i, row in enumerate(axs):
+        for j, ax in enumerate(row):
+            a.append(ax)
+    
+    for i, ax in enumerate(a):
+        year = i+year1
+        dates = pd.date_range(start= str(year) + '-10-01 00:00:00',end= str(year+1) + '-09-30 21:00:00',freq='1D')
+        
+        ax.set_title(str(year)+'-'+str(year+1))
+        ax.set_ylabel('Runoff (m w.e. d$^{-1}$)')
+    
+        ax.plot(np.arange(0,len(dates)),gl_icemelt[year-years[0]],c='turquoise',label='Glacier ice melt')    
+        ax.plot(np.arange(0,len(dates)),snowmelt_runoff[year-years[0]],c='royalblue',label='Snow melt')
+        ax.plot(np.arange(0,len(dates)),rain_runoff[year-years[0]],c='deeppink',label='Rain')
+        ax.plot(np.arange(0,len(dates)),superimp_icemelt[year-years[0]],c='gold',label='Superimposed ice melt')
+        ax.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+        ax.set_xticklabels(['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],rotation=45)
+        ax.set_ylim(0,daily_runoff_upperlim)
+        ax.grid()
+        ax.margins(x=0)
+    
+        total_runoff = gl_icemelt[year-years[0]] + snowmelt_runoff[year-years[0]] + rain_runoff[year-years[0]] + superimp_icemelt[year-years[0]]
+    
+        ax0 = ax.twinx()
+        ax0.plot(np.arange(0,len(dates)),np.cumsum(total_runoff),c='k',label='cumulative runoff')
+        #ax0.plot(np.arange(0,len(dates)),np.cumsum(gl_icemelt[year-years[0]]),c='turquoise',label='cumulative runoff')
+        #ax0.plot(np.arange(0,len(dates)),np.cumsum(snowmelt[year-years[0]]),c='royalblue',label='cumulative runoff')
+        #ax0.plot(np.arange(0,len(dates)),np.cumsum(superimp_icemelt[year-years[0]]),c='orange')
+        ax0.set_ylim(0,cumu_runoff_upperlim)
+        ax0.set_ylabel('Cumulative Runoff (m w.e.)')
+        ax0.margins(x=0)
+        
+    handles, labels = ax.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    #plt.legend(by_label.values(), by_label.keys())
+    fig.legend(by_label.values(), by_label.keys(),fontsize=14,bbox_to_anchor=(0.98,1.08), ncol=2, borderaxespad=0.19)
+    fig.suptitle('Glacier-wide average runoff',fontsize=14,y=1.01) 
+    fig.tight_layout()
+    #fig.savefig(os.path.join(MODEL_OUTPUTS,'KWaverage_runoff_2007-2018.png'),bbox_inches='tight')
