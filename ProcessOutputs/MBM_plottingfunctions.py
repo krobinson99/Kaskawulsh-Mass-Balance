@@ -294,7 +294,7 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
         
     return massbal_l, total_snowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
 
-def runoff_timeseries_12years(year1, years, daily_runoff_upperlim, cumu_runoff_upperlim, gl_icemelt,snowmelt_runoff, rain_runoff, superimp_icemelt):
+def runoff_timeseries_12years(title,year1, years, daily_runoff_upperlim, cumu_runoff_upperlim, gl_icemelt,snowmelt_runoff, rain_runoff, superimp_icemelt):
     a = []
     fig, axs = plt.subplots(nrows=4, ncols=3,figsize=(12,12))
     for i, row in enumerate(axs):
@@ -333,6 +333,27 @@ def runoff_timeseries_12years(year1, years, daily_runoff_upperlim, cumu_runoff_u
     by_label = dict(zip(labels, handles))
     #plt.legend(by_label.values(), by_label.keys())
     fig.legend(by_label.values(), by_label.keys(),fontsize=14,bbox_to_anchor=(0.98,1.08), ncol=2, borderaxespad=0.19)
-    fig.suptitle('Glacier-wide average runoff',fontsize=14,y=1.01) 
+    fig.suptitle(title,fontsize=14,y=1.01) 
     fig.tight_layout()
     #fig.savefig(os.path.join(MODEL_OUTPUTS,'KWaverage_runoff_2007-2018.png'),bbox_inches='tight')
+
+def runoff_piecharts_12years(title,year1,years,gl_icemelt, netsnowmelt, rain_runoff, superimp_icemelt):
+
+    piechart_colours = ['turquoise','royalblue','deeppink','gold']
+    fig = plt.figure(figsize=(10,14))
+    for i in range(1,13):
+        year = i+(year1-1)
+    
+        plt.subplot(4,3,i)
+        plt.title(str(year)+'-'+str(year+1),fontsize=14)
+        
+        total_runoff = np.sum(gl_icemelt[year-years[0]] + netsnowmelt[year-years[0]] + rain_runoff[year-years[0]] + superimp_icemelt[year-years[0]])
+        gl_ice_percent = round((np.sum(gl_icemelt[year-years[0]])/total_runoff)*100,1)
+        snow_percent = round((np.sum(netsnowmelt[year-years[0]])/total_runoff)*100,1)
+        SIice_percent = round((np.sum(superimp_icemelt[year-years[0]])/total_runoff)*100,1)
+        rain_percent = round((np.sum(rain_runoff[year-years[0]])/total_runoff)*100,1)
+        
+        plt.pie([gl_ice_percent,snow_percent,rain_percent,SIice_percent],labels=[str(gl_ice_percent) + '%',str(snow_percent) + '%',str(rain_percent) + '%',str(SIice_percent) + '%'],colors=piechart_colours, textprops={'fontsize': 12})
+    fig.suptitle(title,fontsize=14,y=1.01) 
+    fig.legend(['Glacier ice melt','Snow melt','Rain','Superimposed ice melt'],fontsize=14,bbox_to_anchor=(0.98,1.06),ncol=2)
+    plt.tight_layout()
