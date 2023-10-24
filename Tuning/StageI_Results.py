@@ -18,7 +18,7 @@ from Model_functions_ver4 import shiftedColorMap
 
 # Get the tuning results:
 # =============================================================================
-params_file = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Tuning/Tuning_Params.csv' # Path to csv file containing MF, aice, asnow.
+params_file = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Tuning/Tuning_Params_Initial10k.csv' # Path to csv file containing MF, aice, asnow.
 params = np.loadtxt(params_file,skiprows=1,delimiter=',') 
 aice = params[:,1][0:5000]
 asnow = params[:,2][0:5000]
@@ -191,4 +191,27 @@ plt.yticks(fontsize=14)
 plt.grid()
 plt.tight_layout()
 #plt.savefig('TuningParams_Stage1_MBdistribution.png',bbox_inches='tight')
+
+# =============================================================================
+# Select mass balance results from normal distribution
+
+# x[np.where((p/np.max(p)*11)>=1)] # 11 is the number of sims in the bin centered on -0.46
+# approx range of mb_vals inside normal distribution is -1 to 0.1
+# =============================================================================
+mb_normaldist_bins =  np.arange(-0.99,0.12,0.02)
+mb_normaldist = mb[np.where((mb >= (-0.99)) & (mb <= (0.11)))]
+
+plt.figure(figsize=(12,5))
+plt.grid(zorder=20)
+plt.title('Stage I',fontsize=14)
+plt.hist(mb_normaldist,mb_normaldist_bins,rwidth=0.9,color='mediumblue',zorder=10)
+plt.ylabel('Frequency',fontsize=14)
+plt.xlabel('2007-2018 Mass Balance (m w.e. $a^{-1}$)',fontsize=14)
+plt.xticks(np.arange(-0.98,0.12,0.04),np.round(np.arange(-0.98,0.12,0.04),2),fontsize=14,rotation=45)
+plt.yticks(np.arange(0,10,1),fontsize=14)
+#x = np.linspace(np.min(mb_passing), np.max(mb_passing), 100)
+x = np.linspace(-1,0.12,100)
+p = norm.pdf(x, -0.46,0.17)
+plt.plot(x, p/np.max(p)*np.histogram(mb_passing,mb_passing_bins)[0][8], 'k', linewidth=2,zorder=12)
+plt.tight_layout()
 
