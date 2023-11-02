@@ -671,7 +671,7 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #time_nc = fh.variables['time'][:]
     #b = fh.variables['time']
     #dtime = netCDF4.num2date(b[:], b.units)
-    dtime = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='3H').to_pydatetime()
+    dtime = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='D').to_pydatetime()
     
     Xs[:] = XX #The "[:]" at the end of the variable instance is necessary
     Ys[:] = YY
