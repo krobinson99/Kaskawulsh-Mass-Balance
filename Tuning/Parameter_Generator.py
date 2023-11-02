@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 # N is the number of parameters to be generated.
-N = 5000
+N = 10000
 
 aice_list = []
 asnow_list = []
@@ -36,17 +36,4 @@ for i in range(0,N):
 d = {'aice': aice_list, 'asnow': asnow_list, 'MF': MF_list}
 df = pd.DataFrame(data=d)
 
-#df.to_csv('Tuning_Params.csv')
-
-
-plt.figure(figsize=(9,5))
-plt.contourf(Xgrid,(Ygrid),np.sum(MassBal,axis=0),cmap='RdYlBu',levels=np.linspace(-12,4,33))
-plt.axis('equal')
-legend = plt.colorbar()
-legend.ax.set_ylabel('Cumulative Mass Balance (m w.e.)', rotation=270,fontsize=14,labelpad=25)
-plt.title('2020')
-plt.xlabel('Easting (m)',fontsize=14)
-plt.ylabel('Northing (m)',fontsize=14)
-legend.ax.tick_params(labelsize=14)
-plt.contour(Xgrid,(Ygrid),Sfc,levels=0,colors='k',linewidths=0.8,alpha=1)
-plt.tight_layout()
+#df.to_csv('Tuning_Params_10k.csv')
