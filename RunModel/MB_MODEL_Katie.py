@@ -122,6 +122,7 @@ for year in years:
     IceMelt = np.zeros(T_array.shape)
     SnowMelt = np.zeros(T_array.shape)
     RefrozenMelt = np.zeros(T_array.shape)
+    RefrozenRain = np.zeros(T_array.shape)
     MassBal = np.zeros(T_array.shape)
     
     if year == years[0]:
@@ -163,53 +164,103 @@ for year in years:
         New_snowfall[np.where(T_array[timestamp,:,:] > R2S)] = 0
         Snowpack_tracker[timestamp,:,:] += New_snowfall
         
-        # KR_note: this could be a rate limiting step, since with each timestamp the cumsum includes more elements
-        #Curr_superimposedice = (np.cumsum(RefrozenMelt[:timestamp+1],axis=0)[-1] - np.cumsum(IceMelt[:timestamp+1],axis=0)[-1])
-        #Curr_superimposedice[np.where(Curr_superimposedice < 0)] = 0
-        # KR_note: replacing curr_SI array with zeros to see if that fixes the slowdown.
-        Curr_superimposedice = np.zeros(New_snowfall.shape)
-        New_superimposed_ice = RefrozenMelt[timestamp,:,:] - IceMelt[timestamp,:,:]
-        
+
         # Calculate Melt:
         # =====================================================================        
         Msnow, Mice, Refreezing, SI_out, SP_out = MassBalance(MF,asnow,aice,T_array[timestamp,:,:],S_array[timestamp,:,:],Snowpack_tracker[timestamp,:,:],PotentialSI_tracker[timestamp,:,:],debris_m,debris_parameterization,Sfc,CurrentSI_tracker[timestamp,:,:])
         
         # Calculate refreezing of rain (if any)
         # =====================================================================  
-        RefrozenRain = rain_refreezing(P_array[timestamp,:,:],T_array[timestamp,:,:],R2S,SI_out,SP_out)
-        SI_out -= RefrozenRain # Subtract the amount of rain that is refrozen from the potentialSI
+        refrozen_rain = rain_refreezing(P_array[timestamp,:,:],T_array[timestamp,:,:],R2S,SI_out,SP_out)
+        SI_out -= refrozen_rain # Subtract the amount of rain that is refrozen from the potentialSI
 
         # Update output arrays for this timestep:
         # Total Melt = Snow Melt + Ice Melt
         # Net ablation = total melt - refreezing
-        # Net balance = Accumulation - net ablation
+        # Net balance = Accumulation (snow + rain that freezes) - net ablation (snowmelt + icemelt - refrozen snowmelt)
         # ===================================================================== 
         IceMelt[timestamp,:,:] = Mice
         SnowMelt[timestamp,:,:] = Msnow
-        RefrozenMelt[timestamp,:,:] = (Refreezing + RefrozenRain)
-        MassBal[timestamp,:,:] = New_snowfall - ((Msnow - RefrozenMelt[timestamp,:,:]) + Mice)  
+        RefrozenMelt[timestamp,:,:] = Refreezing
+        RefrozenRain[timestamp,:,:] = refrozen_rain
+        MassBal[timestamp,:,:] = New_snowfall + RefrozenRain[timestamp,:,:] - ((Msnow - RefrozenMelt[timestamp,:,:]) + Mice)  
 
         # Update snowpack and superimposed ice trackers for next timestep:
         # ===================================================================== 
         Snowpack_tracker[timestamp+1,:,:] = SP_out
         PotentialSI_tracker[timestamp+1,:,:] = SI_out   
-        CurrentSI_tracker[timestamp+1,:,:] = updated_superimposed_ice(RefrozenMelt[timestamp,:,:],IceMelt[timestamp,:,:],CurrentSI_tracker[timestamp,:,:])
+        CurrentSI_tracker[timestamp+1,:,:] = updated_superimposed_ice((RefrozenMelt[timestamp,:,:]+RefrozenRain[timestamp,:,:]),IceMelt[timestamp,:,:],CurrentSI_tracker[timestamp,:,:])
         
     # Save outputs for the year before starting next year:
     # =========================================================================
     print('Saving model outputs for',year)
     sys.stdout.flush()
     if SaveMBonly == False:
-        save_to_netcdf(IceMelt, 'Ice melt', os.path.join(OUTPUT_PATH,'Icemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
-        save_to_netcdf(SnowMelt, 'Snow melt', os.path.join(OUTPUT_PATH,'Snowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
-        save_to_netcdf(RefrozenMelt, 'Refreezing', os.path.join(OUTPUT_PATH,'Refreezing_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
-        save_to_netcdf(Snowpack_tracker[:-1], 'Snow depth', os.path.join(OUTPUT_PATH,'Snowdepth_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
-        save_to_netcdf(PotentialSI_tracker[:-1], 'Ptau', os.path.join(OUTPUT_PATH,'Ptau_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
-        save_to_netcdf(CurrentSI_tracker[:-1], 'Superimposed ice', os.path.join(OUTPUT_PATH,'Superimposedice_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
+        # Get daily values for each output:
+        
+        # Total snowmelt:
+        SnowMelt_daily = np.array([sum(SnowMelt[i:i+8]) for i in range(0, len(SnowMelt), 8)])
+        
+        # Refreezing of snowmelt:
+        RefrozenMelt_daily = np.array([sum(RefrozenMelt[i:i+8]) for i in range(0, len(RefrozenMelt), 8)])
+        
+        # Net snowmelt (snow melt that runs off = total snowmelt - refreezing)
+        NetSnowMelt = np.subtract(SnowMelt,RefrozenMelt)
+        NetSnowMelt_daily = np.array([sum(NetSnowMelt[i:i+8]) for i in range(0, len(NetSnowMelt), 8)])
+        
+        # Glacier ice melt:
+        Glacier_IceMelt = np.subtract(IceMelt,CurrentSI_tracker[:-1])
+        Glacier_IceMelt[np.where(Glacier_IceMelt < 0)] = 0
+        Glacier_IceMelt_daily = np.array([sum(Glacier_IceMelt[i:i+8]) for i in range(0, len(Glacier_IceMelt), 8)])
+        
+        # Superimposed ice melt:
+        Superimposed_IceMelt = np.subtract(IceMelt,Glacier_IceMelt)
+        Superimposed_IceMelt_daily = np.array([sum(Superimposed_IceMelt[i:i+8]) for i in range(0, len(Superimposed_IceMelt), 8)])
+                
+        # Rainfall:
+        Rain = np.array(P_array)
+        Rain[np.where(T_array <= R2S)] = 0
+        Rain_daily = np.array([sum(Rain[i:i+8]) for i in range(0, len(Rain), 8)])
+        
+        # Refreezing of rain:
+        RefrozenRain_daily = np.array([sum(RefrozenRain[i:i+8]) for i in range(0, len(RefrozenRain), 8)])
+        
+        # Net rainfall (rain that runs off = total rainfall - refreezing)
+        RainRunoff = np.subtract(Rain,RefrozenRain)
+        RainRunoff_daily = np.array([sum(RainRunoff[i:i+8]) for i in range(0, len(RainRunoff), 8)])
+        
+        # Accumulation:
+        Accumulation = np.array(P_array)
+        Accumulation[np.where(T_array > R2S)] = 0
+        Accumulation_daily = np.array([sum(Accumulation[i:i+8]) for i in range(0, len(Accumulation), 8)])
+        
+        # For the tracker arrays, just need to get the value once a day:
+        Snowpack = np.array([sum(Snowpack_tracker[:-1][i:i+1]) for i in range(0, len(Snowpack_tracker[:-1]), 8)])
+        Superimposedice = np.array([sum(CurrentSI_tracker[:-1][i:i+1]) for i in range(0, len(CurrentSI_tracker[:-1]), 8)])
+        Ptau = np.array([sum(PotentialSI_tracker[:-1][i:i+1]) for i in range(0, len(PotentialSI_tracker[:-1]), 8)])
+        
+        # Save to netcdf: 
+        save_to_netcdf(SnowMelt_daily, 'Snowmelt', os.path.join(OUTPUT_PATH,'Snowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(RefrozenMelt_daily, 'Refrozenmelt', os.path.join(OUTPUT_PATH,'Refrozenmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(NetSnowMelt_daily, 'Netsnowmelt', os.path.join(OUTPUT_PATH,'Netsnowmelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)
+        save_to_netcdf(Glacier_IceMelt_daily, 'Glaciericemelt', os.path.join(OUTPUT_PATH,'Glaciericemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)
+        save_to_netcdf(Superimposed_IceMelt_daily, 'Superimposedicemelt', os.path.join(OUTPUT_PATH,'Superimposedicemelt_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)
+        save_to_netcdf(Rain_daily, 'Rain', os.path.join(OUTPUT_PATH,'Rain_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(RefrozenRain_daily, 'Refrozenrain', os.path.join(OUTPUT_PATH,'Refrozenrain_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(RainRunoff_daily, 'Rainrunoff', os.path.join(OUTPUT_PATH,'Rainrunoff_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(Accumulation_daily, 'Accumulation', os.path.join(OUTPUT_PATH,'Accumulation_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        
+        save_to_netcdf(Snowpack, 'Snowdepth', os.path.join(OUTPUT_PATH,'Snowdepth_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+        save_to_netcdf(Ptau, 'Ptau', os.path.join(OUTPUT_PATH,'Ptau_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
+        save_to_netcdf(Superimposedice, 'Superimposedice', os.path.join(OUTPUT_PATH,'Superimposedice_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid)       
     else:
         pass
     
-    save_to_netcdf(MassBal, 'Net balance', os.path.join(OUTPUT_PATH,'Netbalance_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+    if (year >= 2007) and (year <=2018):
+        MassBal_daily = np.array([sum(MassBal[i:i+8]) for i in range(0, len(MassBal), 8)])
+        save_to_netcdf(MassBal_daily, 'Netbalance', os.path.join(OUTPUT_PATH,'Netbalance_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'), year, Xgrid, Ygrid) 
+    else:
+        pass
 
     inT.close()
     inP.close()
