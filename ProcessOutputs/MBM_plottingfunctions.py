@@ -16,13 +16,13 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 
 
-def load_hydrologic_year(sim,year,varname,var,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=False):
+def load_hydrologic_year(sim,year,varname,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=False):
     '''
     Returns a given variable from Oct 1 -- Sept 30 (hydrological year)
     '''
     
-    dates_yr1 = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(3)+'H')
-    dates_yr2 = pd.date_range(start= str(year+1) + '-01-01 00:00:00',end= str(year+1) + '-12-31 21:00:00',freq=str(3)+'H')
+    dates_yr1 = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='D')
+    dates_yr2 = pd.date_range(start= str(year+1) + '-01-01 00:00:00',end= str(year+1) + '-12-31 21:00:00',freq='D')
         
     # Concatenate variable from Oct 1 of current year to Sept 30 of following year    
     if NARRvar == True:
@@ -32,11 +32,11 @@ def load_hydrologic_year(sim,year,varname,var,NARR_INPUTS,MODEL_OUTPUTS,Glacier_
         inMB1 = Dataset(os.path.join(MODEL_OUTPUTS,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'),'r')
         inMB2 = Dataset(os.path.join(MODEL_OUTPUTS,varname + '_' + str(Glacier_ID) + '_' + str(year+1) + '_' + str(sim) + '.nc'),'r')
     
-    mb_array_year1 = inMB1.variables[var][:]
+    mb_array_year1 = inMB1.variables[varname][:]
     sys.stdout.flush()
     inMB1.close()
     
-    mb_array_year2 = inMB2.variables[var][:]
+    mb_array_year2 = inMB2.variables[varname][:]
     sys.stdout.flush()
     inMB2.close()
     
@@ -67,135 +67,122 @@ def calculate_mb_components_timeseries(sim,years,R2S,Glacier_grid,NARR_INPUTS,MO
         rain that refreezes
     '''
     massbal_l = []
-    totalsnowmelt_l = []
-    refrozen_melt_l = []
-    snowmelt_runoff_l = []
-    superimposed_icemelt_l = []
-    glacier_icemelt_l = []
+    snowmelt_l = []
+    refrozenmelt_l = []
+    netsnowmelt_l = []
+    glaciermelt_l = []
+    SImelt_l = []
     rain_l = []
-    rain_runoff_l = []
-    rain_refreezing_l = []
+    refrozenrain_l = []
+    rainrunoff_l = []
     accumulation_l = []
+    snowdepth_l = []
+    Ptau_l = []
+    SI_l = []
+    temp_l = []
     
     for year in years:
         print('Calculating runoff & mb variables for', year)
         # Get mass balance variable:
-        massbal = load_hydrologic_year(sim,year,'Netbalance','Net balance',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        
-        # Calculate the snow melt that runs off:
-        snowmelt = load_hydrologic_year(sim,year,'Snowmelt','Snow melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        refreezing = load_hydrologic_year(sim,year,'Refrozenmelt','Refreezing melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        
-        netsnowmelt = np.subtract(snowmelt,refreezing)
-        
-        # Calculate the ice melt (glacier ice and superimposed ice):
-        icemelt = load_hydrologic_year(sim,year,'Icemelt','Ice melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        total_superimposed_ice = load_hydrologic_year(sim,year,'Superimposedice','Superimposed ice',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        
-        glacier_icemelt = np.subtract(icemelt,total_superimposed_ice)
-        glacier_icemelt[np.where(glacier_icemelt < 0)] = 0
-        
-        superimposed_icemelt = np.subtract(icemelt,glacier_icemelt)
-        
-        # Calculate the runoff from rain and rain that refreezes:
-        precip = load_hydrologic_year(sim,year,'Precipitation','Precipitation',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=True)
-        temp = load_hydrologic_year(sim,year,'Temperature','Temperature',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=True)
-        rain_refreezing = load_hydrologic_year(sim,year,'Refrozenrain','Refreezing rain',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        rain = np.array(precip)
-        rain[np.where(temp <= R2S)] = 0
-        
-        rain_runoff = np.subtract(rain,rain_refreezing)
-        
-        # Calculate the accumulation:
-        accumulation = np.array(precip)
-        accumulation[np.where(temp > R2S)] = 0
+        massbal = load_hydrologic_year(sim,year,'Netbalance',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        snowmelt = load_hydrologic_year(sim,year,'Snowmelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        refrozenmelt = load_hydrologic_year(sim,year,'Refrozenmelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        netsnowmelt = load_hydrologic_year(sim,year,'Netsnowmelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        glaciermelt = load_hydrologic_year(sim,year,'Glaciericemelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        SImelt = load_hydrologic_year(sim,year,'Superimposedicemelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        rain = load_hydrologic_year(sim,year,'Rain',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        refrozenrain = load_hydrologic_year(sim,year,'Refrozenrain',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        rainrunoff = load_hydrologic_year(sim,year,'Rainrunoff',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        accumulation = load_hydrologic_year(sim,year,'Accumulation',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        snowdepth = load_hydrologic_year(sim,year,'Snowdepth',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        Ptau = load_hydrologic_year(sim,year,'Ptau',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        SI = load_hydrologic_year(sim,year,'Superimposedice',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        temp = load_hydrologic_year(sim,year,'Temperature',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=True)
         
         # Get timeseries from each component at a point location:
         if PointScale == True:
-            daily_massbal = np.sum(massbal[:,x,y].reshape(-1,8),axis=1)
-            daily_snowmelt = np.sum(snowmelt[:,x,y].reshape(-1,8),axis=1)
-            daily_refrozenmelt = np.sum(refreezing[:,x,y].reshape(-1,8),axis=1)
-            daily_netsnowmelt = np.sum(netsnowmelt[:,x,y].reshape(-1,8),axis=1)
-            daily_glaciericemelt = np.sum(glacier_icemelt[:,x,y].reshape(-1,8),axis=1)
-            daily_superimposedicemelt = np.sum(superimposed_icemelt[:,x,y].reshape(-1,8),axis=1)
-            daily_rainrunoff = np.sum(rain_runoff[:,x,y].reshape(-1,8),axis=1)
-            daily_rain = np.sum(rain[:,x,y].reshape(-1,8),axis=1)
-            daily_rainrefreezing = np.sum(rain_refreezing[:,x,y].reshape(-1,8),axis=1)
-            daily_accumulation = np.sum(accumulation[:,x,y].reshape(-1,8),axis=1)
+            mean_massbal = massbal[:,x,y]
+            mean_snowmelt = snowmelt[:,x,y]
+            mean_refrozenmelt = refrozenmelt[:,x,y]
+            mean_netsnowmelt = netsnowmelt[:,x,y]
+            mean_glaciericemelt = glaciermelt[:,x,y]
+            mean_superimposedicemelt = SImelt[:,x,y]
+            mean_rain = rain[:,x,y]
+            mean_refrozenrain = refrozenrain[:,x,y]
+            mean_rainrunoff = rainrunoff[:,x,y]
+            mean_accumulation = accumulation[:,x,y]
+            mean_snowdepth = snowdepth[:,x,y]
+            mean_Ptau = Ptau[:,x,y]
+            mean_SI = SI[:,x,y]
+            mean_temp = temp[:,x,y]
+            
         
         # Get timeseries from each component for the catchment wide average
-        elif Catchmentaverage == True:
+        elif Catchmentaverage == True:            
             mean_massbal = np.nanmean(np.nanmean(massbal,axis=1),axis=1)
-            mean_snowmelt =  np.nanmean(np.nanmean(snowmelt,axis=1),axis=1)
-            mean_refrozenmelt = np.nanmean(np.nanmean(refreezing,axis=1),axis=1)
+            mean_snowmelt = np.nanmean(np.nanmean(snowmelt,axis=1),axis=1)
+            mean_refrozenmelt = np.nanmean(np.nanmean(refrozenmelt,axis=1),axis=1)
             mean_netsnowmelt = np.nanmean(np.nanmean(netsnowmelt,axis=1),axis=1)
-            mean_glaciericemelt = np.nanmean(np.nanmean(glacier_icemelt,axis=1),axis=1)
-            mean_superimposedicemelt = np.nanmean(np.nanmean(superimposed_icemelt,axis=1),axis=1)
-            mean_rainrunoff = np.nanmean(np.nanmean(rain_runoff,axis=1),axis=1)
+            mean_glaciericemelt = np.nanmean(np.nanmean(glaciermelt,axis=1),axis=1)
+            mean_superimposedicemelt = np.nanmean(np.nanmean(SImelt,axis=1),axis=1)
             mean_rain = np.nanmean(np.nanmean(rain,axis=1),axis=1)
-            mean_rainrefreezing = np.nanmean(np.nanmean(rain_refreezing,axis=1),axis=1)
+            mean_refrozenrain = np.nanmean(np.nanmean(refrozenrain,axis=1),axis=1)
+            mean_rainrunoff = np.nanmean(np.nanmean(rainrunoff,axis=1),axis=1)
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
+            mean_snowdepth = np.nanmean(np.nanmean(snowdepth,axis=1),axis=1)
+            mean_Ptau = np.nanmean(np.nanmean(Ptau,axis=1),axis=1)
+            mean_SI = np.nanmean(np.nanmean(SI,axis=1),axis=1)
+            mean_temp = np.nanmean(np.nanmean(temp,axis=1),axis=1)
             
-            daily_massbal = np.sum(mean_massbal.reshape(-1,8),axis=1)
-            daily_snowmelt = np.sum(mean_snowmelt.reshape(-1,8),axis=1)
-            daily_refrozenmelt = np.sum(mean_refrozenmelt.reshape(-1,8),axis=1)
-            daily_netsnowmelt = np.sum(mean_netsnowmelt.reshape(-1,8),axis=1)
-            daily_glaciericemelt = np.sum(mean_glaciericemelt.reshape(-1,8),axis=1)
-            daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
-            daily_rainrunoff = np.sum(mean_rainrunoff.reshape(-1,8),axis=1)
-            daily_rainrefreezing = np.sum(mean_rainrefreezing.reshape(-1,8),axis=1)
-            daily_rain = np.sum(mean_rain.reshape(-1,8),axis=1)
-            daily_accumulation = np.sum(mean_accumulation.reshape(-1,8),axis=1)
-        
         # Get timeseries from each component for the glacier wide average
         elif KWaverage == True:
             for i in range(0,len(snowmelt)):
                 massbal[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 snowmelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
-                refreezing[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                refrozenmelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 netsnowmelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
-                glacier_icemelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
-                superimposed_icemelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
-                rain_runoff[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
-                rain_refreezing[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                glaciermelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                SImelt[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 rain[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                refrozenrain[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                rainrunoff[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
                 accumulation[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                snowdepth[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                Ptau[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                SI[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
+                temp[i][np.where(~np.isfinite(Glacier_grid))] = np.nan
     
             mean_massbal = np.nanmean(np.nanmean(massbal,axis=1),axis=1)
-            mean_snowmelt =  np.nanmean(np.nanmean(snowmelt,axis=1),axis=1)
-            mean_refrozenmelt = np.nanmean(np.nanmean(refreezing,axis=1),axis=1)
+            mean_snowmelt = np.nanmean(np.nanmean(snowmelt,axis=1),axis=1)
+            mean_refrozenmelt = np.nanmean(np.nanmean(refrozenmelt,axis=1),axis=1)
             mean_netsnowmelt = np.nanmean(np.nanmean(netsnowmelt,axis=1),axis=1)
-            mean_glaciericemelt = np.nanmean(np.nanmean(glacier_icemelt,axis=1),axis=1)
-            mean_superimposedicemelt = np.nanmean(np.nanmean(superimposed_icemelt,axis=1),axis=1)
-            mean_rainrunoff = np.nanmean(np.nanmean(rain_runoff,axis=1),axis=1)
+            mean_glaciericemelt = np.nanmean(np.nanmean(glaciermelt,axis=1),axis=1)
+            mean_superimposedicemelt = np.nanmean(np.nanmean(SImelt,axis=1),axis=1)
             mean_rain = np.nanmean(np.nanmean(rain,axis=1),axis=1)
-            mean_rainrefreezing = np.nanmean(np.nanmean(rain_refreezing,axis=1),axis=1)
+            mean_refrozenrain = np.nanmean(np.nanmean(refrozenrain,axis=1),axis=1)
+            mean_rainrunoff = np.nanmean(np.nanmean(rainrunoff,axis=1),axis=1)
             mean_accumulation = np.nanmean(np.nanmean(accumulation,axis=1),axis=1)
-            
-            daily_massbal = np.sum(mean_massbal.reshape(-1,8),axis=1)
-            daily_snowmelt = np.sum(mean_snowmelt.reshape(-1,8),axis=1)
-            daily_refrozenmelt= np.sum(mean_refrozenmelt.reshape(-1,8),axis=1)
-            daily_netsnowmelt = np.sum(mean_netsnowmelt.reshape(-1,8),axis=1)
-            daily_glaciericemelt = np.sum(mean_glaciericemelt.reshape(-1,8),axis=1)
-            daily_superimposedicemelt = np.sum(mean_superimposedicemelt.reshape(-1,8),axis=1)
-            daily_rainrunoff = np.sum(mean_rainrunoff.reshape(-1,8),axis=1)
-            daily_rain = np.sum(mean_rain.reshape(-1,8),axis=1)
-            daily_rainrefreezing = np.sum(mean_rainrefreezing.reshape(-1,8),axis=1)
-            daily_accumulation = np.sum(mean_accumulation.reshape(-1,8),axis=1)
-    
-        massbal_l.append(daily_massbal)
-        totalsnowmelt_l.append(daily_snowmelt)
-        refrozen_melt_l.append(daily_refrozenmelt)
-        snowmelt_runoff_l.append(daily_netsnowmelt)
-        superimposed_icemelt_l.append(daily_superimposedicemelt)
-        glacier_icemelt_l.append(daily_glaciericemelt)
-        rain_runoff_l.append(daily_rainrunoff)
-        rain_refreezing_l.append(daily_rainrefreezing)
-        rain_l.append(daily_rain)
-        accumulation_l.append(daily_accumulation)
+            mean_snowdepth = np.nanmean(np.nanmean(snowdepth,axis=1),axis=1)
+            mean_Ptau = np.nanmean(np.nanmean(Ptau,axis=1),axis=1)
+            mean_SI = np.nanmean(np.nanmean(SI,axis=1),axis=1)
+            mean_temp = np.nanmean(np.nanmean(temp,axis=1),axis=1)
         
-    return massbal_l, totalsnowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
-
+        massbal_l.append(mean_massbal)
+        snowmelt_l.append(mean_snowmelt)
+        refrozenmelt_l.append(mean_refrozenmelt)
+        netsnowmelt_l.append(mean_netsnowmelt)
+        glaciermelt_l.append(mean_glaciericemelt)
+        SImelt_l.append(mean_superimposedicemelt)
+        rain_l.append(mean_rain)
+        refrozenrain_l.append(mean_refrozenrain)
+        rainrunoff_l.append(mean_rainrunoff)
+        accumulation_l.append(mean_accumulation)
+        snowdepth_l.append(mean_snowdepth)
+        Ptau_l.append(mean_Ptau)
+        SI_l.append(mean_SI)
+        temp_l.append(mean_temp)
+        
+    return massbal_l, snowmelt_l, refrozenmelt_l, netsnowmelt_l, glaciermelt_l, SImelt_l, rain_l, refrozenrain_l, rainrunoff_l, accumulation_l, snowdepth_l, Ptau_l, SI_l, temp_l
 
 def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID):
     '''
@@ -217,77 +204,55 @@ def calculate_mb_components_distributed(sim,years,R2S,Glacier_grid,NARR_INPUTS,M
         accumulation
         rain that refreezes
     '''
-    
     massbal_l = []
-    total_snowmelt_l = []
-    refrozen_melt_l = []
-    snowmelt_runoff_l = []
-    superimposed_icemelt_l = []
-    glacier_icemelt_l = []
+    snowmelt_l = []
+    refrozenmelt_l = []
+    netsnowmelt_l = []
+    glaciermelt_l = []
+    SImelt_l = []
     rain_l = []
-    rain_runoff_l = []
-    rain_refreezing_l = []
+    refrozenrain_l = []
+    rainrunoff_l = []
     accumulation_l = []
+    snowdepth_l = []
+    Ptau_l = []
+    SI_l = []
+    temp_l = []
     
     for year in years:
         print('Calculating runoff & mb variables for', year)
-        
         # Get mass balance variable:
-        massbal = load_hydrologic_year(sim,year,'Netbalance','Net balance',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        cumulative_massbal = np.sum(massbal,axis=0)
-        
-        # Calculate the snow melt that runs off:
-        snowmelt = load_hydrologic_year(sim,year,'Snowmelt','Snow melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        total_snowmelt = np.sum(snowmelt,axis=0)
-        
-        refreezing = load_hydrologic_year(sim,year,'Refrozenmelt','Refreezing melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        total_refreezing = np.sum(refreezing,axis=0)
-        
-        netsnowmelt = np.subtract(snowmelt,refreezing)
-        total_netsnowmelt = np.sum(netsnowmelt,axis=0)
-        
-        # Calculate the ice melt (glacier ice and superimposed ice):
-        icemelt = load_hydrologic_year(sim,year,'Icemelt','Ice melt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        total_superimposed_ice = load_hydrologic_year(sim,year,'Superimposedice','Superimposed ice',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        
-        glacier_icemelt = np.subtract(icemelt,total_superimposed_ice)
-        glacier_icemelt[np.where(glacier_icemelt < 0)] = 0
-        total_glacier_icemelt = np.sum(glacier_icemelt,axis=0)
-        
-        superimposed_icemelt = np.subtract(icemelt,glacier_icemelt)
-        total_superimposed_icemelt = np.sum(superimposed_icemelt,axis=0)
-        
-        # Calculate the runoff from rain and rain that refreezes:
-        precip = load_hydrologic_year(sim,year,'Precipitation','Precipitation',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=True)
+        massbal = load_hydrologic_year(sim,year,'Netbalance',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        snowmelt = load_hydrologic_year(sim,year,'Snowmelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        refrozenmelt = load_hydrologic_year(sim,year,'Refrozenmelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        netsnowmelt = load_hydrologic_year(sim,year,'Netsnowmelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        glaciermelt = load_hydrologic_year(sim,year,'Glaciericemelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        SImelt = load_hydrologic_year(sim,year,'Superimposedicemelt',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        rain = load_hydrologic_year(sim,year,'Rain',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        refrozenrain = load_hydrologic_year(sim,year,'Refrozenrain',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        rainrunoff = load_hydrologic_year(sim,year,'Rainrunoff',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        accumulation = load_hydrologic_year(sim,year,'Accumulation',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        snowdepth = load_hydrologic_year(sim,year,'Snowdepth',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        Ptau = load_hydrologic_year(sim,year,'Ptau',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
+        SI = load_hydrologic_year(sim,year,'Superimposedice',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
         temp = load_hydrologic_year(sim,year,'Temperature','Temperature',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=True)
-        rain_refreezing = load_hydrologic_year(sim,year,'Refrozenrain','Refreezing rain',NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
-        total_rain_refreezing = np.sum(rain_refreezing,axis=0)
         
-        rain = np.array(precip)
-        rain[np.where(temp <= R2S)] = 0
-        total_rain = np.sum(rain,axis=0)
+        massbal_l.append(np.sum(massbal,axis=0))
+        snowmelt_l.append(np.sum(snowmelt,axis=0))
+        refrozenmelt_l.append(np.sum(refrozenmelt,axis=0))
+        netsnowmelt_l.append(np.sum(netsnowmelt,axis=0))
+        glaciermelt_l.append(np.sum(glaciermelt,axis=0))
+        SImelt_l.append(np.sum(SImelt,axis=0))
+        rain_l.append(np.sum(rain,axis=0))
+        refrozenrain_l.append(np.sum(refrozenrain,axis=0))
+        rainrunoff_l.append(np.sum(rainrunoff,axis=0))
+        accumulation_l.append(np.sum(accumulation,axis=0))
+        snowdepth_l.append(snowdepth[-1])
+        Ptau_l.append(Ptau[-1])
+        SI_l.append(SI[-1])
+        temp_l.append(np.mean(temp,axis=0))
         
-        rain_runoff = np.subtract(rain,rain_refreezing)
-        total_rain_runoff = np.sum(rain_runoff,axis=0)
-        
-        # Calculate the accumulation:
-        accumulation = np.array(precip)
-        accumulation[np.where(temp > R2S)] = 0
-        total_accumulation = np.sum(accumulation,axis=0)
-    
-        # KR_note: left off here
-        massbal_l.append(cumulative_massbal)
-        total_snowmelt_l.append(total_snowmelt)
-        refrozen_melt_l.append(total_refreezing)
-        snowmelt_runoff_l.append(total_netsnowmelt)
-        superimposed_icemelt_l.append(total_superimposed_icemelt)
-        glacier_icemelt_l.append(total_glacier_icemelt)
-        rain_runoff_l.append(total_rain_runoff)
-        rain_refreezing_l.append(total_rain_refreezing)
-        rain_l.append(total_rain)
-        accumulation_l.append(total_accumulation)
-        
-    return massbal_l, total_snowmelt_l, refrozen_melt_l, snowmelt_runoff_l, superimposed_icemelt_l, glacier_icemelt_l, rain_runoff_l, rain_refreezing_l, rain_l, accumulation_l
+    return massbal_l, snowmelt_l, refrozenmelt_l, netsnowmelt_l, glaciermelt_l, SImelt_l, rain_l, refrozenrain_l, rainrunoff_l, accumulation_l, snowdepth_l, Ptau_l, SI_l, temp_l
 
 def runoff_timeseries_12years(title,year1, years, daily_runoff_upperlim, cumu_runoff_upperlim, gl_icemelt,snowmelt_runoff, rain_runoff, superimp_icemelt):
     a = []
