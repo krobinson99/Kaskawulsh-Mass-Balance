@@ -15,11 +15,6 @@ import sys
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 
-def average_sim_results():
-    '''
-    Get the average result from a set of simulations
-    Output sim9999
-    '''
 
 def load_hydrologic_year(sim,year,varname,var,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,NARRvar=False):
     '''
@@ -450,9 +445,9 @@ def distributed_average_mass_balance(avg_years,all_years,dist_massbal,contour_le
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     legend.ax.tick_params(labelsize=14)
     plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
-    plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
     plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
-    plt.text(567000,6710000,str(avg_years[0]) + '--' + str(avg_years[-1]) + '\nmass balance\n= ' + str(kaskawulsh_mb) + ' m w.e. a$^{-1}$',fontsize=15)
+    #plt.text(567000,6710000,str(avg_years[0]) + '--' + str(avg_years[-1]) + '\nmass balance\n= ' + str(kaskawulsh_mb) + ' m w.e. a$^{-1}$',fontsize=15)
     plt.tight_layout()
 
 def massbalance_timeseries_12years(title,year1, years, daily_mb_abs_lim, cumu_mb_abs_lim, accumulation, refrozen_rain, netsnowmelt, superimp_icemelt, gl_icemelt):
@@ -489,7 +484,7 @@ def massbalance_timeseries_12years(title,year1, years, daily_mb_abs_lim, cumu_mb
         else:
             transition_date = str(dates[50:][np.where(np.cumsum(massbal)[50:] <=0)[0][0]])[:10]
         ax0 = ax.twinx()
-        ax0.plot(np.arange(0,len(dates)),np.cumsum(massbal),c='k',label='b$_{0}$ = ' + str(transition_date)[:10])
+        ax0.plot(np.arange(0,len(dates)),np.cumsum(massbal),c='k',label='$\dot{B}$ = 0 on ' + str(transition_date)[:10])
         #ax0.plot(np.arange(0,len(dates)),np.cumsum(gl_icemelt[year-years[0]]),c='turquoise',label='cumulative runoff')
         #ax0.plot(np.arange(0,len(dates)),np.cumsum(snowmelt[year-years[0]]),c='royalblue',label='cumulative runoff')
         #ax0.plot(np.arange(0,len(dates)),np.cumsum(superimp_icemelt[year-years[0]]),c='orange')
@@ -553,7 +548,7 @@ def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cu
 
     transition_date = dates[50:][np.where(np.cumsum(massbal)[50:] <=0)[0][0]]
     ax0 = ax.twinx()
-    ax0.plot(np.arange(0,len(dates)),np.cumsum(massbal),c='k',label='Cumulative balance\nb$_{0}$ = ' + str(transition_date)[5:10],linewidth=3)
+    ax0.plot(np.arange(0,len(dates)),np.cumsum(massbal),c='k',label='Cumulative balance\n$\dot{B}$ = 0 on ' + str(transition_date)[5:10],linewidth=3)
     #ax0.plot(np.arange(0,len(dates)),np.cumsum(gl_icemelt[year-years[0]]),c='turquoise',label='cumulative runoff')
     #ax0.plot(np.arange(0,len(dates)),np.cumsum(snowmelt[year-years[0]]),c='royalblue',label='cumulative runoff')
     #ax0.plot(np.arange(0,len(dates)),np.cumsum(superimp_icemelt[year-years[0]]),c='orange')
