@@ -633,7 +633,7 @@ def bilinear_interpolation(x, y, points):
            
 
 ###create empty netcdf container, need ref files in directory
-def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
+def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid, dt, precision):
 
     ###Create empty .nc file for MB values###
     f = Dataset(File_name, 'w', format='NETCDF4') #'w' stands for write
@@ -649,10 +649,15 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #Zs = f.createVariable('z', np.int32, 'z')
     Ys = f.createVariable('y', np.float32, 'y')
     Xs = f.createVariable('x', np.float32, 'x')  
-    mb = f.createVariable(var_n, np.float32, ('time', 'y', 'x'))
+    if precision == 32:
+        mb = f.createVariable(var_n, np.float32, ('time', 'y', 'x'))
+    elif precision == 64:
+        mb = f.createVariable(var_n, np.float64, ('time', 'y', 'x'))
+    else:
+        print('invalid precision kwarg')
         
     # Global Attributes 
-    f.description = 'Mass-Balance Model Input for Kaskawulsh Glacier (K. Robinson MSc Thesis)'   
+    f.description = 'Mass-Balance Model Input/Ouput (K. Robinson MSc Thesis)'   
     f.source = File_name
     # Variable Attributes  
     Ys.units = 'm'  
@@ -671,7 +676,12 @@ def save_to_netcdf(MB, var_n, File_name, year, Xgrid, Ygrid):
     #time_nc = fh.variables['time'][:]
     #b = fh.variables['time']
     #dtime = netCDF4.num2date(b[:], b.units)
-    dtime = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='D').to_pydatetime()
+    if dt == 3:
+        dtime = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='3H').to_pydatetime()
+    elif dt == 24:
+        dtime = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='D').to_pydatetime()
+    else:
+        print('invalid dt  kwarg')
     
     Xs[:] = XX #The "[:]" at the end of the variable instance is necessary
     Ys[:] = YY
