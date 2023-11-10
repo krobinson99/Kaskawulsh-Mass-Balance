@@ -18,7 +18,7 @@ from Model_functions_ver4 import shiftedColorMap
 
 # Get the tuning results:
 # =============================================================================
-params_file = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Tuning/Tuning_Params_Initial10k.csv' # Path to csv file containing MF, aice, asnow.
+params_file = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/Tuning/Tuning_Params_Initial10k_fullprecision.csv' # Path to csv file containing MF, aice, asnow.
 params = np.loadtxt(params_file,skiprows=1,delimiter=',') 
 aice = params[:,1]
 asnow = params[:,2]
@@ -37,19 +37,29 @@ mb9000_9999 = np.loadtxt('D:/TuningOutputs/Tuning_Sept23/mb_results_sim_9000-999
 mb = np.concatenate((mb0_1000,mb1001_2000,mb2001_3000,mb3001_4000,mb4001_4999,mb5000_5999,mb6000_6999,mb7000_7999,mb8000_8999,mb9000_9999),axis=0)
 
 simID = np.arange(0,len(mb))  
-  
+
+# =============================================================================
+# Remove sims where aice < asnow
+# =============================================================================
 mb_aice_geq_asnow = np.delete(mb,np.where(aice<asnow))
 simID_aice_geq_asnow = np.delete(simID,np.where(aice<asnow))
 
-simID_passing = simID_aice_geq_asnow[np.where((mb_aice_geq_asnow >= (-0.46-(3*0.17))) & (mb_aice_geq_asnow <= (-0.46+(3*0.17))))]
-mb_passing = mb_aice_geq_asnow[np.where((mb_aice_geq_asnow >= (-0.46-(3*0.17))) & (mb_aice_geq_asnow <= (-0.46+(3*0.17))))]
+target_mb = -0.46
+tagret_mb_stddev = 0.17
+
+# =============================================================================
+# Get simIDs and param values for all sims (excluding ones with aice <asnow) where the 2007-18 MB is within -0.46 +- 3std.dev
+# =============================================================================
+simID_passing = simID_aice_geq_asnow[np.where((mb_aice_geq_asnow >= (target_mb-(3*tagret_mb_stddev))) & (mb_aice_geq_asnow <= (target_mb+(3*tagret_mb_stddev))))]
+mb_passing = mb_aice_geq_asnow[np.where((mb_aice_geq_asnow >= (target_mb-(3*tagret_mb_stddev))) & (mb_aice_geq_asnow <= (target_mb+(3*tagret_mb_stddev))))]
 aice_passing = aice[simID_passing]
 asnow_passing = asnow[simID_passing]
 MF_passing = MF[simID_passing]
+
 # =============================================================================
 # Save params that pass tuning stage I in new csv:
 # =============================================================================
-d = {'aice': aice_passing, 'asnow': asnow_passing, 'MF': MF_passing}
+d = {'aice': list(aice_passing), 'asnow': list(asnow_passing), 'MF': list(MF_passing)}
 df = pd.DataFrame(data=d)
 #df.to_csv('Tuning_Params_StageI.csv')
 
@@ -60,7 +70,7 @@ df2 = pd.DataFrame(data=d2)
 # =============================================================================
 # Plot each param against the other params
 # =============================================================================
-shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.916666666,stop=1,name='massbal')
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.9509803921568628,stop=1,name='massbal')
 
 fig, (ax, ax2, cax) = plt.subplots(ncols=3,figsize=(9,9), 
                   gridspec_kw={"width_ratios":[1,1, 0.05]})
@@ -74,7 +84,7 @@ plt.tick_params(axis='both', left=False, top=False, right=False, bottom=False, l
 plt.subplot(3,3,2)
 #im = plt.scatter(asnow,MF,c=mb,cmap='massbal',edgecolor='k',s=40,vmin=-0.63,vmax=-0.29
 im = plt.scatter(asnow,MF,c='lightgrey',s=40)
-plt.scatter(asnow_passing,MF_passing,c=mb_passing,cmap='RdYlBu',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
+plt.scatter(asnow_passing,MF_passing,c=mb_passing,cmap='massbal',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
 plt.xlim(np.min(asnow)-0.3e-6,np.max(asnow)+0.3e-6)
 plt.ylim(np.min(MF)-0.3e-4,np.max(MF)+0.3e-4)
 pylab.ticklabel_format(axis='both',style='sci',scilimits=(0,0))
@@ -82,7 +92,7 @@ plt.xticks(fontsize=14);plt.yticks(fontsize=14)
 
 plt.subplot(3,3,3)
 plt.scatter(aice,MF,c='lightgrey',s=40)
-im = plt.scatter(aice_passing,MF_passing,c=mb_passing,cmap='RdYlBu',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
+im = plt.scatter(aice_passing,MF_passing,c=mb_passing,cmap='massbal',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
 plt.xlim(np.min(aice)-0.4e-6,np.max(aice)+0.4e-6)
 plt.ylim(np.min(MF)-0.3e-4,np.max(MF)+0.3e-4)
 pylab.ticklabel_format(axis='both',style='sci',scilimits=(0,0))
@@ -90,7 +100,7 @@ plt.xticks(fontsize=14);plt.yticks(fontsize=14)
 
 plt.subplot(3,3,4)
 plt.scatter(MF,asnow,c='lightgrey',s=40)
-plt.scatter(MF_passing,asnow_passing,c=mb_passing,cmap='RdYlBu',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
+plt.scatter(MF_passing,asnow_passing,c=mb_passing,cmap='massbal',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
 plt.ylim(np.min(asnow)-0.3e-6,np.max(asnow)+0.3e-6)
 plt.xlim(np.min(MF)-0.3e-4,np.max(MF)+0.3e-4)
 pylab.ticklabel_format(axis='both',style='sci',scilimits=(0,0))
@@ -102,7 +112,7 @@ plt.tick_params(axis='both', left=False, top=False, right=False, bottom=False, l
 
 plt.subplot(3,3,6)
 plt.scatter(aice,asnow,c='lightgrey',s=40)
-plt.scatter(aice_passing,asnow_passing,c=mb_passing,cmap='RdYlBu',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
+plt.scatter(aice_passing,asnow_passing,c=mb_passing,cmap='massbal',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
 plt.xlim(np.min(aice)-0.4e-6,np.max(aice)+0.4e-6)
 plt.ylim(np.min(asnow)-0.3e-6,np.max(asnow)+0.3e-6)
 pylab.ticklabel_format(axis='both',style='sci',scilimits=(0,0))
@@ -110,7 +120,7 @@ plt.xticks(fontsize=14);plt.yticks(fontsize=14)
 
 plt.subplot(3,3,7)
 plt.scatter(MF,aice,c='lightgrey',s=40)
-plt.scatter(MF_passing,aice_passing,c=mb_passing,cmap='RdYlBu',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
+plt.scatter(MF_passing,aice_passing,c=mb_passing,cmap='massbal',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
 plt.ylim(np.min(aice)-0.4e-6,np.max(aice)+0.4e-6)
 plt.xlim(np.min(MF)-0.3e-4,np.max(MF)+0.3e-4)
 pylab.ticklabel_format(axis='both',style='sci',scilimits=(0,0))
@@ -118,7 +128,7 @@ plt.xticks(fontsize=14);plt.yticks(fontsize=14)
 
 plt.subplot(3,3,8)
 plt.scatter(asnow,aice,c='lightgrey',s=40)
-plt.scatter(asnow_passing,aice_passing,c=mb_passing,cmap='RdYlBu',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
+plt.scatter(asnow_passing,aice_passing,c=mb_passing,cmap='massbal',edgecolor='k',s=40,vmin=-0.97,vmax=0.05)
 plt.ylim(np.min(aice)-0.4e-6,np.max(aice)+0.4e-6)
 plt.xlim(np.min(asnow)-0.3e-6,np.max(asnow)+0.3e-6)
 pylab.ticklabel_format(axis='both',style='sci',scilimits=(0,0))
@@ -211,6 +221,8 @@ plt.tight_layout()
 # =============================================================================
 # Eliminate runs where aice < asnow
 # =============================================================================
+mb_bins =  np.linspace(min(mb_aice_geq_asnow),max(mb_aice_geq_asnow),int(np.sqrt(len(mb_aice_geq_asnow))))
+
 plt.figure(figsize=(12,5))
 plt.title('All runs where a$_{ice}$ $\geq$ a$_{snow}$\nTotal = ' + str(len(mb_aice_geq_asnow)),fontsize=14)
 plt.hist(mb_aice_geq_asnow,mb_bins,rwidth=0.8,color='mediumblue',zorder=10)
@@ -225,12 +237,12 @@ plt.tight_layout()
 # =============================================================================
 # Plot mass balance results that fall under the MB normal distribution
 
-# x[np.where((p/np.max(p)*11)>=1)] # 11 is the number of sims in the bin centered on -0.46
+# x[np.where((p/np.max(p)*11)>=1)] # 11 is the number of sims in the bin centered on target_mb
 # approx range of mb_vals inside normal distribution is -1 to 0.1
 # =============================================================================
-mb_normaldist_bins =  np.linspace(-0.46-(3*0.17),-0.46+(3*0.17),int(np.sqrt(len(mb_passing))))
-mb_normaldist_bins =  np.linspace(-0.46-(3*0.17),-0.46+(3*0.17),24)
-bin_centers = np.arange(-0.46-(3*0.17)+(mb_normaldist_bins[1] - mb_normaldist_bins[0])/2,-0.46+(3.1*0.17)-(mb_normaldist_bins[1] - mb_normaldist_bins[0])/2,(mb_normaldist_bins[1] - mb_normaldist_bins[0]))
+mb_normaldist_bins =  np.linspace(target_mb-(3*tagret_mb_stddev),target_mb+(3*tagret_mb_stddev),int(np.sqrt(len(mb_passing))))
+mb_normaldist_bins =  np.linspace(target_mb-(3*tagret_mb_stddev),target_mb+(3*tagret_mb_stddev),24)
+bin_centers = np.arange(target_mb-(3*tagret_mb_stddev)+(mb_normaldist_bins[1] - mb_normaldist_bins[0])/2,target_mb+(3.1*tagret_mb_stddev)-(mb_normaldist_bins[1] - mb_normaldist_bins[0])/2,(mb_normaldist_bins[1] - mb_normaldist_bins[0]))
 
 plt.figure(figsize=(12,5))
 plt.grid(zorder=20)
@@ -242,7 +254,7 @@ plt.yticks(fontsize=14)
 #plt.xticks(np.arange(-0.98,0.12,0.04),np.round(np.arange(-0.98,0.12,0.04),2),fontsize=14,rotation=45)
 plt.xticks(bin_centers,np.round(bin_centers,2),fontsize=14,rotation=45)
 x = np.arange(-0.98,0.11,0.02) # aligns with the center of each bin
-p = norm.pdf(x, -0.46,0.17)
+p = norm.pdf(x, target_mb,tagret_mb_stddev)
 #plt.ylim(0,30)
 plt.plot(x, p/np.max(p)*np.histogram(mb_aice_geq_asnow,mb_normaldist_bins)[0][11], 'k', linewidth=4,zorder=30)
 plt.tight_layout()
