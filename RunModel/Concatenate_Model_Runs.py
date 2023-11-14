@@ -26,9 +26,9 @@ from Model_functions_ver4 import save_to_netcdf
 
 INPUT_FOLDER = 'D:/TuningOutputs/Tuning_Sept26'
 OUTPUT_FOLDER = 'D:/TuningOutputs/Tuning_Sept26'
-OUTPUT_ID = 9999
+OUTPUT_ID = 99999
 
-sims = np.arange(0,2)
+sims = np.arange(0,100)
 
 # Get sim param from the job array
 # =============================================================================
@@ -61,7 +61,7 @@ def concatenate_model_ouputs(year, sims, varname, var):
     
     print('year:',year)
     sys.stdout.flush()
-    dates = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq=str(3)+'H')  
+    dates = pd.date_range(start= str(year) + '-01-01 00:00:00',end= str(year) + '-12-31 21:00:00',freq='D')  
     
 # =============================================================================
 #   Calculate mean of all sims:
@@ -110,14 +110,19 @@ def concatenate_model_ouputs(year, sims, varname, var):
     
 #Call function for each of the model outputs:    
 # =============================================================================
-concatenate_model_ouputs(year,sims,'Icemelt', 'Ice melt')   
-# concatenate_model_ouputs(year,sims,'Snowmelt', 'Snow melt')   
-# concatenate_model_ouputs(year,sims,'Refrozenmelt', 'Refreezing melt')  
-# concatenate_model_ouputs(year,sims,'Refrozenrain', 'Refreezing rain')   
-# concatenate_model_ouputs(year,sims,'Netbalance', 'Net balance')  
-# concatenate_model_ouputs(year,sims,'Superimposedice', 'Superimposed ice')    
-# concatenate_model_ouputs(year,sims,'Snowdepth', 'Snow depth')  
-# concatenate_model_ouputs(year,sims,'Ptau', 'Ptau')    
+concatenate_model_ouputs(year,sims,'Snowmelt', 'Snowmelt')   
+concatenate_model_ouputs(year,sims,'Refrozenmelt', 'Refrozenmelt')   
+concatenate_model_ouputs(year,sims,'Netsnowmelt', 'Netsnowmelt')  
+concatenate_model_ouputs(year,sims,'Glaciericemelt', 'Glaciericemelt')   
+concatenate_model_ouputs(year,sims,'Superimposedicemelt', 'Superimposedicemelt')  
+concatenate_model_ouputs(year,sims,'Rain', 'Rain')    
+concatenate_model_ouputs(year,sims,'Refrozenrain', 'Refrozenrain')  
+concatenate_model_ouputs(year,sims,'Rainrunoff', 'Rainrunoff') 
+concatenate_model_ouputs(year,sims,'Accumulation', 'Accumulation') 
+concatenate_model_ouputs(year,sims,'Snowdepth', 'Snowdepth') 
+concatenate_model_ouputs(year,sims,'Ptau', 'Ptau')
+concatenate_model_ouputs(year,sims,'Superimposedice', 'Superimposedice')  
+concatenate_model_ouputs(year,sims,'Netbalance', 'Netbalance')
 # =============================================================================
 
   
