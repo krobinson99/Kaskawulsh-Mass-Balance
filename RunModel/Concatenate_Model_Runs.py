@@ -66,45 +66,24 @@ def concatenate_model_ouputs(year, sims, varname, var):
 # =============================================================================
 #   Calculate mean of all sims:
 # =============================================================================
-    mb_sum = np.zeros((len(dates),Xgrid.shape[0],Xgrid.shape[1])) 
+    all_sims = np.empty((len(sims),len(dates),Xgrid.shape[0],Xgrid.shape[1]))
     for sim in sims:
-        print('Calculating mean for sim:',sim)
+        print('Calculating mean and std dev. for sim:',sim)
         sys.stdout.flush()
         
         inMB = Dataset(os.path.join(INPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'),'r')
         mb = inMB.variables[var][:]
         sys.stdout.flush()
         inMB.close()
-    
-        mb_sum += np.array(mb)
         
-    mean_mb = np.array(mb_sum)/len(sims)
+        # Combine data from every sim into one array
+        all_sims[sim,:,:,:] = mb
+        
+    # Get the mean and std over axis 0 (the 100 sims), outputs should have shape (time,x,y)
+    mean_mb = np.nanmean(all_sims,axis=0)
+    std = np.std(all_sims,axis=0)
+        
     save_to_netcdf(mean_mb, var, os.path.join(OUTPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(OUTPUT_ID) + '.nc'), year, Xgrid, Ygrid) 
-    
-# =============================================================================
-#     Calculate mean standard deviation
-# =============================================================================
-    # mb_minus_mean = abs(mb - mean(mb))**2
-    # std dev = sqrt(sum(x)/len(sims))
-    
-    x = np.zeros((len(dates),Xgrid.shape[0],Xgrid.shape[1]))     
-    for sim in sims:
-        print('Calculating std. dev. for sim:',sim)
-        sys.stdout.flush()
-        
-        inMB = Dataset(os.path.join(INPUT_FOLDER,varname + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(sim) + '.nc'),'r')
-        mb = inMB.variables[var][:]
-        nanlocs = np.where(np.isnan(mb))
-        sys.stdout.flush()
-        inMB.close()    
-        
-        mb_minus_mean = np.abs(mb - mean_mb)**2
-        mb_minus_mean[nanlocs] = np.nan
-        x += np.array(mb_minus_mean)
-    
-    std = np.sqrt(mb_minus_mean/len(sims))
-    std[nanlocs] = np.nan
-    
     save_to_netcdf(std, var, os.path.join(OUTPUT_FOLDER,varname + '_' + 'std' + '_' + str(Glacier_ID) + '_' + str(year) + '_' + str(OUTPUT_ID) + '.nc'), year, Xgrid, Ygrid) 
     
     
