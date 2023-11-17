@@ -400,14 +400,11 @@ def massbalance_timeseries_12years(title,year1, years, daily_mb_abs_lim, cumu_mb
     fig.tight_layout()
     
     
-def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cumu_mb_abs_lim, accumulation, refrozen_rain, netsnowmelt, superimp_icemelt, gl_icemelt):
+def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cumu_mb_abs_lim, accumulation, refrozen_rain, netsnowmelt, superimp_icemelt, gl_icemelt, accumulation_std, refrozen_rain_std, netsnowmelt_std, superimp_icemelt_std, gl_icemelt_std):
     
-    snowfall_sum = np.zeros((365))
-    refrain_sum = np.zeros((365))
-    snowmelt_sum = np.zeros((365))
-    SImelt_sum = np.zeros((365))
-    gl_melt_sum = np.zeros((365))
-    
+    snowfall_sum, refrain_sum, snowmelt_sum, SImelt_sum, gl_melt_sum = np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365))
+    snowfallstd_sum, refrainstd_sum, snowmeltstd_sum, SImeltstd_sum, gl_meltstd_sum = np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365))
+
     for year in avg_years:
         i = year - all_years[0]
         snowfall_sum += np.array(accumulation[i][:365])
@@ -416,24 +413,41 @@ def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cu
         SImelt_sum += np.array(superimp_icemelt[i][:365])
         gl_melt_sum += np.array(gl_icemelt[i][:365]) 
         
+        snowfallstd_sum += np.array(accumulation_std[i][:365])
+        refrainstd_sum += np.array(refrozen_rain_std[i][:365])
+        snowmeltstd_sum += np.array(netsnowmelt_std[i][:365])
+        SImeltstd_sum += np.array(superimp_icemelt_std[i][:365])
+        gl_meltstd_sum += np.array(gl_icemelt_std[i][:365]) 
+        
     snowfall_mean = np.array(snowfall_sum/len(avg_years))
     refrain_mean = np.array(refrain_sum/len(avg_years))
     snowmelt_mean = np.array(snowmelt_sum/len(avg_years))
     SImelt_mean = np.array(SImelt_sum/len(avg_years))
     gl_melt_mean = np.array(gl_melt_sum/len(avg_years))
+      
+    snowfallstd_mean = np.array(snowfallstd_sum/len(avg_years))
+    refrainstd_mean = np.array(refrainstd_sum/len(avg_years))
+    snowmeltstd_mean = np.array(snowmeltstd_sum/len(avg_years))
+    SImeltstd_mean = np.array(SImeltstd_sum/len(avg_years))
+    gl_meltstd_mean = np.array(gl_meltstd_sum/len(avg_years))
 
+    total_accumulation = snowfall_mean + refrain_mean
+    total_accumulation_std = snowfallstd_mean + refrainstd_mean
     
+    total_ablation = snowmelt_mean + SImelt_mean + gl_melt_mean
+    total_ablation_std = snowmeltstd_mean + SImeltstd_mean + gl_meltstd_mean
+
+    dates = pd.date_range(start= str(2008) + '-10-01 00:00:00',end= str(2008+1) + '-09-30 21:00:00',freq='1D')   
+    time = np.arange(0,len(dates))
+
     # Plot the average
     fig, ax = plt.subplots(nrows=1, ncols=1,figsize=(8,5))
-    dates = pd.date_range(start= str(2008) + '-10-01 00:00:00',end= str(2008+1) + '-09-30 21:00:00',freq='1D')       
     ax.set_title(title + str(avg_years[0])+'-'+str(avg_years[-1]+1),fontsize=14)
     ax.set_ylabel('Mass Change (m w.e. d$^{-1}$)',fontsize=14)
-    
-    total_accumulation = snowfall_mean + refrain_mean
-    total_ablation = snowmelt_mean + SImelt_mean + gl_melt_mean
-
-    ax.plot(np.arange(0,len(dates)),total_accumulation,c='mediumblue',label='Accumulation')    
-    ax.plot(np.arange(0,len(dates)),-total_ablation,c='red',label='Ablation')    
+    ax.plot(time,total_accumulation,c='mediumblue',label='Accumulation')    
+    ax.plot(time,-total_ablation,c='red',label='Ablation')    
+    plt.fill_between(time,(total_accumulation-total_accumulation_std),(total_accumulation+total_accumulation_std),color='mediumblue',alpha=0.35)    
+    plt.fill_between(time,(-total_ablation-total_ablation_std),(-total_ablation+total_ablation_std),color='red',alpha=0.35)
     ax.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
     ax.set_xticklabels(['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],rotation=45,fontsize=14)
     ax.set_ylim(-daily_mb_abs_lim,daily_mb_abs_lim)
@@ -443,13 +457,15 @@ def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cu
     ax.margins(x=0)
     
     massbal = total_accumulation - total_ablation
+    max_mb = (total_accumulation + total_accumulation_std) - (total_ablation - total_ablation_std)
+    min_mb = (total_accumulation - total_accumulation_std) - (total_ablation + total_ablation_std)
 
     transition_date = dates[50:][np.where(np.cumsum(massbal)[50:] <=0)[0][0]]
     ax0 = ax.twinx()
-    ax0.plot(np.arange(0,len(dates)),np.cumsum(massbal),c='k',label='Cumulative balance\n$\dot{B}$ = 0 on ' + str(transition_date)[5:10],linewidth=3)
-    #ax0.plot(np.arange(0,len(dates)),np.cumsum(gl_icemelt[year-years[0]]),c='turquoise',label='cumulative runoff')
-    #ax0.plot(np.arange(0,len(dates)),np.cumsum(snowmelt[year-years[0]]),c='royalblue',label='cumulative runoff')
-    #ax0.plot(np.arange(0,len(dates)),np.cumsum(superimp_icemelt[year-years[0]]),c='orange')
+    ax0.plot(time,np.cumsum(massbal),c='k',label='Cumulative balance\n$\dot{B}$ = 0 on ' + str(transition_date)[5:10],linewidth=3)
+    plt.fill_between(time,np.cumsum(min_mb),np.cumsum(max_mb),color='k',alpha=0.35)    
+    ax.fill_between(time,-12,-10,color='grey',alpha=0.35,label='std. dev.')
+
     ax0.set_ylim(-cumu_mb_abs_lim,cumu_mb_abs_lim)
     ax0.set_ylabel('Cumulative Mass Balance (m w.e.)',fontsize=14)
     ax0.margins(x=0)
@@ -461,7 +477,6 @@ def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cu
     #plt.legend(by_label.values(), by_label.keys())
     ax.legend(by_label.values(), by_label.keys(),fontsize=14,loc='upper left', ncol=1, borderaxespad=0.19)
     fig.tight_layout()
-
 
 def snowrunoff_timeseries_12years(title,year1, years, daily_runoff_lower_lim, daily_runoff_upper_lim, cumu_runoff_lower_lim, cumu_runoff_upper_lim, totalsnowmelt, refreezing):
     a = []
@@ -856,3 +871,133 @@ def runoff_timeseries_average_discharge_withstddev(units,title,avg_years,all_yea
     #plt.legend(['Glacier ice melt','Snow melt','Rain','Superimposed ice melt'],fontsize=14,ncol=1,bbox_to_anchor=(1.3,0.8))
     plt.tight_layout()
 
+
+def runoff_timeseries_average_SLRformat(units,title,avg_years,all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map):
+    
+    ice_sum, snow_sum, rain_sum, SI_sum = np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365))
+    icestd_sum, snowstd_sum, rainstd_sum, SIstd_sum = np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365))
+
+    for year in avg_years:
+        i = year - all_years[0]
+        ice_sum += np.array(gl_icemelt[i][:365])
+        snow_sum += np.array(snowmelt_runoff[i][:365])
+        rain_sum += np.array(rain_runoff[i][:365])
+        SI_sum += np.array(superimp_icemelt[i][:365])
+        
+        icestd_sum += np.array(gl_icemelt_std[i][:365])
+        snowstd_sum += np.array(snowmelt_runoff_std[i][:365])
+        rainstd_sum += np.array(rain_runoff_std[i][:365])
+        SIstd_sum += np.array(superimp_icemelt_std[i][:365])
+        
+    # Get mean daily values and mean daily standard deviations across all years
+    ice_mean = np.array(ice_sum/len(avg_years))
+    snow_mean = np.array(snow_sum/len(avg_years))
+    rain_mean = np.array(rain_sum/len(avg_years))
+    SI_mean = np.array(SI_sum/len(avg_years))
+    total_runoff = ice_mean + snow_mean + rain_mean + SI_mean
+    
+    icestd_mean = np.array(icestd_sum/len(avg_years))
+    snowstd_mean = np.array(snowstd_sum/len(avg_years))
+    rainstd_mean = np.array(rainstd_sum/len(avg_years))
+    SIstd_mean = np.array(SIstd_sum/len(avg_years))
+    total_std = icestd_mean + snowstd_mean + rainstd_mean + SIstd_mean
+    
+    time = np.arange(0,len(total_runoff))
+    
+    area = np.where(np.isfinite(area_map))[0].shape[0]*(200*200)
+    # dc = Conversion from m w.e. / day to m3/s
+    # yc = Conversion from m w.e./year to km3/year
+    if units=='mwe':
+        dc = 1
+        yc = 1
+    elif units=='m3':
+        dc = area/(60*60*24) #m2/s
+        yc = area/1e9 #km2
+    fig, ax = plt.subplots(nrows=1, ncols=1,figsize=(8,5))
+    ax.set_title(title + str(avg_years[0])+'-'+str(avg_years[-1]+1),fontsize=14)
+    #ax.plot(time,total_runoff*dc,c='k',label='Total runoff')
+    ax.plot(time,ice_mean*dc,c='turquoise',label='Glacier ice melt')    
+    ax.plot(time,snow_mean*dc,c='royalblue',label='Snow melt')
+    ax.plot(time,rain_mean*dc,c='deeppink',label='Rain')
+    ax.plot(time,SI_mean*dc,c='darkorange',label='Superimposed ice melt')
+    
+    #plt.fill_between(time,(total_runoff-total_std)*dc,(total_runoff+total_std)*dc,color='k',alpha=0.35)
+    plt.fill_between(time,(ice_mean-icestd_mean)*dc,(ice_mean+icestd_mean)*dc,color='turquoise',alpha=0.35)    
+    plt.fill_between(time,(snow_mean-snowstd_mean)*dc,(snow_mean+snowstd_mean)*dc,color='royalblue',alpha=0.35)
+    plt.fill_between(time,(rain_mean-rainstd_mean)*dc,(rain_mean+rainstd_mean)*dc,color='deeppink',alpha=0.35)
+    plt.fill_between(time,(SI_mean-SIstd_mean)*dc,(SI_mean+SIstd_mean)*dc,color='darkorange',alpha=0.35)
+    
+    ax.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335,365])
+    ax.set_xticklabels(['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep',''],rotation=45,fontsize=14)
+    plt.xlim(0,420)
+    ax.set_ylim(0,daily_runoff_upperlim)
+    ax.grid()
+    ax.tick_params(axis='y',labelsize=14)
+    ax.margins(x=0)
+
+    ax0 = ax.twinx()
+    #ax0.plot(time,np.cumsum(total_runoff)*yc,c='k',label='Cumulative runoff',linewidth=3)
+    #ax0.plot(time,np.cumsum(ice_mean)*yc,c='turquoise',label='Glacier ice melt',linewidth=3)
+    #ax0.plot(time,np.cumsum(snow_mean)*yc,c='royalblue',label='Snow melt',linewidth=3)
+    #ax0.plot(time,np.cumsum(rain_mean)*yc,c='deeppink',label='Rain',linewidth=3)
+    #ax0.plot(time,np.cumsum(SI_mean)*yc,c='darkorange',label='Superimposed ice melt',linewidth=3)
+    ax0.set_ylim(0,cumu_runoff_upperlim)
+    ax0.tick_params(axis='y',labelsize=14)
+    ax0.margins(x=0)
+    
+    if units=='mwe':
+        ax.set_ylabel('Runoff (m w.e. day$^{-1}$)',fontsize=14)
+        ax0.set_ylabel('Cumulative Runoff (m w.e. a$^{-1}$)',fontsize=14)
+    elif units=='m3':
+        ax.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
+        ax0.set_ylabel('Cumulative Runoff (km$^3$ a$^{-1}$)',fontsize=14)
+    
+    width=10
+    plt.vlines(375, ymin=(np.cumsum(total_runoff-total_std)*yc)[-1], ymax=(np.cumsum(total_runoff+total_std)*yc)[-1], linewidth=width, color='k',alpha=0.3)
+    plt.hlines(y=(np.cumsum(total_runoff)*yc)[-1], xmin=375 - width / 2, xmax=375 + width / 2,colors='k',linewidth=4,label='Cumulative total runoff')
+    
+    plt.vlines(385, ymin=(np.cumsum(ice_mean-icestd_mean)*yc)[-1], ymax=(np.cumsum(ice_mean+icestd_mean)*yc)[-1], linewidth=width, color='turquoise',alpha=0.3)
+    plt.hlines(y=(np.cumsum(ice_mean)*yc)[-1], xmin=385 - width / 2, xmax=385 + width / 2,colors='turquoise',linewidth=4)
+    
+    plt.vlines(395, ymin=(np.cumsum(snow_mean-snowstd_mean)*yc)[-1], ymax=(np.cumsum(snow_mean+snowstd_mean)*yc)[-1], linewidth=width, color='royalblue',alpha=0.3)
+    plt.hlines(y=(np.cumsum(snow_mean)*yc)[-1], xmin=395 - width / 2, xmax=395 + width / 2,colors='royalblue',linewidth=4)
+    
+    plt.vlines(405, ymin=(np.cumsum(rain_mean-rainstd_mean)*yc)[-1], ymax=(np.cumsum(rain_mean+rainstd_mean)*yc)[-1], linewidth=width, color='deeppink',alpha=0.3)
+    plt.hlines(y=(np.cumsum(rain_mean)*yc)[-1], xmin=405 - width / 2, xmax=405 + width / 2,colors='deeppink',linewidth=4)
+    
+    plt.vlines(415, ymin=(np.cumsum(SI_mean-SIstd_mean)*yc)[-1], ymax=(np.cumsum(SI_mean+SIstd_mean)*yc)[-1], linewidth=width, color='darkorange',alpha=0.3)
+    plt.hlines(y=(np.cumsum(SI_mean)*yc)[-1], xmin=415 - width / 2, xmax=415 + width / 2,colors='darkorange',linewidth=4)
+    #plt.fill_between(time,np.cumsum(total_runoff-total_std)*yc,np.cumsum(total_runoff+total_std)*yc,color='k',alpha=0.35)
+    #plt.fill_between(time,np.cumsum(ice_mean-icestd_mean)*yc,np.cumsum(ice_mean+icestd_mean)*yc,color='turquoise',alpha=0.35)    
+    #plt.fill_between(time,np.cumsum(snow_mean-snowstd_mean)*yc,np.cumsum(snow_mean+snowstd_mean)*yc,color='royalblue',alpha=0.35)
+    #plt.fill_between(time,np.cumsum(rain_mean-rainstd_mean)*yc,np.cumsum(rain_mean+rainstd_mean)*yc,color='deeppink',alpha=0.35)
+    #plt.fill_between(time,np.cumsum(SI_mean-SIstd_mean)*yc,np.cumsum(SI_mean+SIstd_mean)*yc,color='darkorange',alpha=0.35)
+    ax.hlines(y=-10, xmin=375 - width / 2, xmax=375 + width / 2,colors='k',linewidth=4,label='Cumulative total runoff')
+    ax.fill_between(time,-12,-10,color='grey',alpha=0.35,label='Standard deviation')
+    
+    handles, labels = ax.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    #plt.legend(by_label.values(), by_label.keys())
+    ax.legend(by_label.values(), by_label.keys(),loc='upper left',fontsize=14, ncol=1, borderaxespad=0.19)
+    
+    # Create box plots for cumulative values in the second subplot
+    ax1 = plt.axes([0.05, 0.1, 0.45, 0.45])
+    #box_plot_data = [cum_ice_melt, cum_snow_melt, cum_superimposed_ice_melt, cum_rain]
+    #box_colors = ['blue', 'orange', 'green', 'red']
+    #box = ax2.boxplot(box_plot_data, positions=[1, 2, 3, 4], widths=0.15, patch_artist=True, showfliers=False)
+
+    piechart_colours = ['turquoise','royalblue','deeppink','darkorange']
+    fig = plt.figure(figsize=(5,5))
+    
+    total_runoff = np.sum(ice_mean + snow_mean + SI_mean + rain_mean)
+    gl_ice_percent = round((np.sum(ice_mean)/total_runoff)*100,1)
+    snow_percent = round((np.sum(snow_mean)/total_runoff)*100,1)
+    SIice_percent = round((np.sum(SI_mean)/total_runoff)*100,1)
+    rain_percent = round((np.sum(rain_mean)/total_runoff)*100,1)
+    
+    ax1.pie([gl_ice_percent,snow_percent,rain_percent,SIice_percent],autopct='%.1f%%',colors=piechart_colours, textprops={'fontsize': 14})
+    #fig.suptitle(title,fontsize=14,y=1.01) 
+    #plt.legend(['Glacier ice melt','Snow melt','Rain','Superimposed ice melt'],fontsize=14,ncol=1,bbox_to_anchor=(1.3,0.8))
+    plt.tight_layout()
+    
+    fig.tight_layout()
