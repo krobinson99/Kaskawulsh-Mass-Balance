@@ -26,7 +26,7 @@ calculate_mb_components_distributed, runoff_timeseries_12years, runoff_piecharts
 distributed_average_mass_balance, massbalance_timeseries_12years, \
 massbalance_timeseries_average, snowrunoff_timeseries_12years, snowrunoff_timeseries_average, \
 annualrunoff_stackedbar, date_of_zero_balance, runoff_timeseries_average_discharge_withstddev, calculate_stddev_timeseries, \
-runoff_timeseries_average_SLRformat
+runoff_timeseries_average_SLRformat, distributed_runoff
 
 MODEL_OUTPUTS = 'D:/Model Runs/REF_MODEL/Sim_99999_v2'
 NARR_INPUTS = 'D:/BiasCorrected_files/KRH' 
@@ -213,12 +213,20 @@ plt.ylim(0,1.7)
 # =============================================================================
 # Distributed plots:
 # =============================================================================
-shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.7734806629834254,stop=1,name='massbal')
-distributed_average_mass_balance(np.arange(2007,2018+1),years,dist_massbal,np.linspace(-7,2.05,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-plt.scatter(Xgrid[57,216],Ygrid[57,216],s=100,c='k')
-plt.scatter(Xgrid[210,231],Ygrid[210,231],s=100,c='k')
-plt.scatter(Xgrid[87,67],Ygrid[87,67],s=100,c='k')
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.8333333333333334,stop=1,name='massbal')
+distributed_average_mass_balance(np.arange(2007,2017+1),years,massbal_dist,np.linspace(-10,2.05,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 #plt.savefig(os.path.join(MODEL_OUTPUTS,'2007-2018_massbalance.png'),bbox_inches='tight')
+
+distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,10,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,10,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_SImelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
 
 # =============================================================================
 # Practice uncertainty plots:
