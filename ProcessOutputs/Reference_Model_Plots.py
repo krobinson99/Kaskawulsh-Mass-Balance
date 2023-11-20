@@ -170,7 +170,7 @@ runoff_piecharts_12years('Glacier-wide average',2007,years,gl_icemelt_kw,netsnow
 massbalance_timeseries_12years('Glacier-wide average mass balance',2007, years, 0.055, 1.5, accumulation_kw, refrozen_rain_kw ,netsnowmelt_kw, superimp_icemelt_kw, gl_icemelt_kw)
 #fig.savefig(os.path.join(MODEL_OUTPUTS,'KW_massbalance_2007-2018.png'),bbox_inches='tight')
 
-massbalance_timeseries_average('Glacier-wide average mass balance: ',np.arange(2007,2017+1),years,0.025,0.8, accumulation_allgl, refrozen_rain_allgl, netsnowmelt_allgl, superimp_icemelt_allgl, gl_icemelt_allgl, accumulation_allgl_std, refrozen_rain_allgl_std, netsnowmelt_allgl_std, superimp_icemelt_allgl_std, gl_icemelt_allgl_std)
+massbalance_timeseries_average('All glacierized area: mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_allgl, refrozen_rain_allgl, netsnowmelt_allgl, superimp_icemelt_allgl, gl_icemelt_allgl, accumulation_allgl_std, refrozen_rain_allgl_std, netsnowmelt_allgl_std, superimp_icemelt_allgl_std, gl_icemelt_allgl_std)
 
 snowrunoff_timeseries_12years('Glacier-wide average snow melt runoff',2007, years, -0.015, 0.035, -0.3428571428571429, 0.8, totalsnowmelt_kw, refreezing_kw)
 

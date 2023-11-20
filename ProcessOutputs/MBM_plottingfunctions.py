@@ -324,7 +324,7 @@ def runoff_piecharts_12years(title,year1,years,gl_icemelt, netsnowmelt, rain_run
     plt.tight_layout()
     
     
-def distributed_average_mass_balance(avg_years,all_years,dist_massbal,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+def distributed_average_mass_balance(model_name,avg_years,all_years,dist_massbal,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
 
     MB_ARRAY = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
     for year in avg_years:
@@ -335,16 +335,17 @@ def distributed_average_mass_balance(avg_years,all_years,dist_massbal,contour_le
     print(np.nanmin(np.nanmean(MB_ARRAY,axis=0)),np.nanmax(np.nanmean(MB_ARRAY,axis=0)))  
     
     plt.figure(figsize=(9,5))
+    plt.title(model_name,fontsize=14)
     plt.contourf(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),cmap='massbal',levels=contour_levels)
     plt.axis('equal')
-    legend = plt.colorbar(ticks=np.arange(-10,3))
+    legend = plt.colorbar(ticks=np.arange(-20,5,2))
     legend.ax.set_ylabel('Mass Balance (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
     plt.xlabel('Easting (m)',fontsize=14)
     plt.ylabel('Northing (m)',fontsize=14)
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     legend.ax.tick_params(labelsize=14)
     plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
-    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=1)
     plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
     plt.text(567000,6710000,str(avg_years[0]) + '--' + str(avg_years[-1]+1) + '\nmass balance\n= ' + str(kaskawulsh_mb) + ' m w.e. a$^{-1}$',fontsize=15)
     plt.tight_layout()
@@ -366,7 +367,7 @@ def distributed_runoff(avg_years,all_years,netsnowmelt_dist,gl_icemelt_dist,supe
     plt.figure(figsize=(9,5))
     plt.contourf(Xgrid,Ygrid,Runoff,cmap=cmocean.cm.ice_r,levels=contour_levels)
     plt.axis('equal')
-    legend = plt.colorbar(ticks=np.linspace(0,10,11))
+    legend = plt.colorbar(ticks=np.linspace(0,20,11))
     legend.ax.set_ylabel('Total runoff (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
     plt.xlabel('Easting (m)',fontsize=14)
     plt.ylabel('Northing (m)',fontsize=14)
@@ -395,7 +396,7 @@ def distributed_glaciericemelt(avg_years,all_years,netsnowmelt_dist,gl_icemelt_d
     plt.figure(figsize=(9,5))
     plt.contourf(Xgrid,Ygrid,Runoff,cmap=cmocean.cm.ice_r,levels=contour_levels)
     plt.axis('equal')
-    legend = plt.colorbar(ticks=np.linspace(0,10,11))
+    legend = plt.colorbar(ticks=np.linspace(0,20,11))
     legend.ax.set_ylabel('Runoff from glacier ice melt (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
     plt.xlabel('Easting (m)',fontsize=14)
     plt.ylabel('Northing (m)',fontsize=14)
@@ -610,8 +611,8 @@ def massbalance_timeseries_average(title,avg_years,all_years,daily_mb_abs_lim,cu
     transition_date = dates[50:][np.where(np.cumsum(massbal)[50:] <=0)[0][0]]
     ax0 = ax.twinx()
     ax0.plot(time,np.cumsum(massbal),c='k',label='Cumulative balance\n$\dot{B}$ = 0 on ' + str(transition_date)[5:10],linewidth=3)
-    plt.fill_between(time,np.cumsum(min_mb),np.cumsum(max_mb),color='k',alpha=0.35)    
-    ax.fill_between(time,-12,-10,color='grey',alpha=0.35,label='std. dev.')
+    #plt.fill_between(time,np.cumsum(min_mb),np.cumsum(max_mb),color='k',alpha=0.35)    
+    #ax.fill_between(time,-12,-10,color='grey',alpha=0.35,label='std. dev.')
 
     ax0.set_ylim(-cumu_mb_abs_lim,cumu_mb_abs_lim)
     ax0.set_ylabel('Cumulative Mass Balance (m w.e.)',fontsize=14)
@@ -1148,3 +1149,172 @@ def runoff_timeseries_average_SLRformat(units,title,avg_years,all_years,daily_ru
     plt.tight_layout()
     
     fig.tight_layout()
+    
+# =============================================================================
+# FUNCTIONS TO PLOT THE DIFFERENCES BETWEEN TWO MODELS 
+# =============================================================================
+    
+def distributed_mass_balance_difference(model_name,avg_years,all_years,massbal_dist_ref,massbal_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+
+    MB_ARRAY_REF = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_REF[year-avg_years[0],:,:] = massbal_dist_ref[year-all_years[0]]
+    MB_REF = np.nanmean(MB_ARRAY_REF,axis=0)
+        
+    MB_ARRAY_ALT = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_ALT[year-avg_years[0],:,:] = massbal_dist_alt[year-all_years[0]]
+    MB_ALT = np.nanmean(MB_ARRAY_ALT,axis=0)
+    
+    DIFF = np.array(MB_REF-MB_ALT)
+    DIFF[np.where(DIFF==0)] = np.nan
+        
+    print(np.nanmin(DIFF),np.nanmax(DIFF))
+    
+    plt.figure(figsize=(9,5))
+    plt.title('Mass Balance ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
+    plt.contourf(Xgrid,Ygrid,DIFF,cmap='massbal_diff',levels=contour_levels)
+    plt.axis('equal')
+    legend = plt.colorbar(ticks=np.arange(-20,20,1))
+    legend.ax.set_ylabel('Difference (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
+    plt.xlabel('Easting (m)',fontsize=14)
+    plt.ylabel('Northing (m)',fontsize=14)
+    plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
+    legend.ax.tick_params(labelsize=14)
+    plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=1)
+    plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    #plt.text(567000,6710000,str(avg_years[0]) + '--' + str(avg_years[-1]+1) + '\nmass balance\n= ' + str(kaskawulsh_mb) + ' m w.e. a$^{-1}$',fontsize=15)
+    plt.tight_layout()
+    
+def distributed_runoff_difference(model_name,avg_years,all_years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,netsnowmelt_dist_alt,gl_icemelt_dist_alt,superimp_icemelt_dist_alt,rain_runoff_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+
+    MB_ARRAY_REF = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_REF[year-avg_years[0],:,:] = netsnowmelt_dist_ref[year-all_years[0]] + gl_icemelt_dist_ref[year-all_years[0]] + superimp_icemelt_dist_ref[year-all_years[0]] + rain_runoff_dist_ref[year-all_years[0]]
+    MB_REF = np.nanmean(MB_ARRAY_REF,axis=0)
+        
+    MB_ARRAY_ALT = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_ALT[year-avg_years[0],:,:] = netsnowmelt_dist_alt[year-all_years[0]] + gl_icemelt_dist_alt[year-all_years[0]] + superimp_icemelt_dist_alt[year-all_years[0]] + rain_runoff_dist_alt[year-all_years[0]]
+    MB_ALT = np.nanmean(MB_ARRAY_ALT,axis=0)
+    
+    DIFF = np.array(MB_REF-MB_ALT)
+    DIFF[np.where(DIFF==0)] = np.nan
+        
+    print(np.nanmin(DIFF),np.nanmax(DIFF))    
+    
+    plt.figure(figsize=(9,5))
+    plt.title('Total Runoff ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
+    plt.contourf(Xgrid,Ygrid,DIFF,cmap='runoff_diff',levels=contour_levels)
+    plt.axis('equal')
+    legend = plt.colorbar(ticks=np.arange(-20,20))
+    legend.ax.set_ylabel('Difference (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
+    plt.xlabel('Easting (m)',fontsize=14)
+    plt.ylabel('Northing (m)',fontsize=14)
+    plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
+    legend.ax.tick_params(labelsize=14)
+    plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=3,alpha=1)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
+    plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    plt.tight_layout()
+    
+def distributed_glaciermelt_difference(model_name,avg_years,all_years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,netsnowmelt_dist_alt,gl_icemelt_dist_alt,superimp_icemelt_dist_alt,rain_runoff_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+
+    MB_ARRAY_REF = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_REF[year-avg_years[0],:,:] = gl_icemelt_dist_ref[year-all_years[0]] 
+    MB_REF = np.nanmean(MB_ARRAY_REF,axis=0)
+        
+    MB_ARRAY_ALT = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_ALT[year-avg_years[0],:,:] = gl_icemelt_dist_alt[year-all_years[0]] 
+    MB_ALT = np.nanmean(MB_ARRAY_ALT,axis=0)
+    
+    DIFF = np.array(MB_REF-MB_ALT)
+    DIFF[np.where(DIFF==0)] = np.nan
+        
+    print(np.nanmin(DIFF),np.nanmax(DIFF))    
+    
+    plt.figure(figsize=(9,5))
+    plt.title('Total glacier ice melt ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
+    plt.contourf(Xgrid,Ygrid,DIFF,cmap='runoff_diff',levels=contour_levels)
+    plt.axis('equal')
+    legend = plt.colorbar(ticks=np.arange(-20,20))
+    legend.ax.set_ylabel('Difference (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
+    plt.xlabel('Easting (m)',fontsize=14)
+    plt.ylabel('Northing (m)',fontsize=14)
+    plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
+    legend.ax.tick_params(labelsize=14)
+    plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=3,alpha=1)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
+    plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    plt.tight_layout()
+    
+def distributed_snowrunoff_difference(model_name,avg_years,all_years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,netsnowmelt_dist_alt,gl_icemelt_dist_alt,superimp_icemelt_dist_alt,rain_runoff_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+
+    MB_ARRAY_REF = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_REF[year-avg_years[0],:,:] = netsnowmelt_dist_ref[year-all_years[0]]
+    MB_REF = np.nanmean(MB_ARRAY_REF,axis=0)
+        
+    MB_ARRAY_ALT = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_ALT[year-avg_years[0],:,:] = netsnowmelt_dist_alt[year-all_years[0]] 
+    MB_ALT = np.nanmean(MB_ARRAY_ALT,axis=0)
+    
+    DIFF = np.array(MB_REF-MB_ALT)
+    DIFF[np.where(DIFF==0)] = np.nan
+        
+    print(np.nanmin(DIFF),np.nanmax(DIFF))    
+    
+    plt.figure(figsize=(9,5))
+    plt.title('Runoff from snow melt ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
+    plt.contourf(Xgrid,Ygrid,DIFF,cmap='snowmelt_diff',levels=contour_levels)
+    plt.axis('equal')
+    legend = plt.colorbar(ticks=np.arange(-1,1,0.01))
+    legend.ax.set_ylabel('Difference (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
+    plt.xlabel('Easting (m)',fontsize=14)
+    plt.ylabel('Northing (m)',fontsize=14)
+    plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
+    legend.ax.tick_params(labelsize=14)
+    plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=3,alpha=1)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
+    plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    plt.tight_layout()
+    
+def distributed_rainrunoff_difference(model_name,avg_years,all_years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,netsnowmelt_dist_alt,gl_icemelt_dist_alt,superimp_icemelt_dist_alt,rain_runoff_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+
+    MB_ARRAY_REF = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_REF[year-avg_years[0],:,:] =  rain_runoff_dist_ref[year-all_years[0]]
+    MB_REF = np.nanmean(MB_ARRAY_REF,axis=0)
+        
+    MB_ARRAY_ALT = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
+    for year in avg_years:
+        MB_ARRAY_ALT[year-avg_years[0],:,:] =  rain_runoff_dist_alt[year-all_years[0]]
+    MB_ALT = np.nanmean(MB_ARRAY_ALT,axis=0)
+    
+    DIFF = np.array(MB_REF-MB_ALT)
+    DIFF[np.where(DIFF==0)] = np.nan
+        
+    print(np.nanmin(DIFF),np.nanmax(DIFF))    
+    
+    plt.figure(figsize=(9,5))
+    plt.title('Runoff from rainfall ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
+    plt.contourf(Xgrid,Ygrid,DIFF,cmap='rainrunoff_diff',levels=contour_levels)
+    plt.axis('equal')
+    legend = plt.colorbar(ticks=np.arange(-0.004,0.00001,0.001))
+    legend.ax.set_ylabel('Difference (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
+    plt.xlabel('Easting (m)',fontsize=14)
+    plt.ylabel('Northing (m)',fontsize=14)
+    plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
+    legend.ax.tick_params(labelsize=14)
+    plt.contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=3,alpha=1)
+    #plt.contour(Xgrid,Ygrid,np.nanmean(MB_ARRAY,axis=0),levels=0,colors='k',linewidths=1,alpha=0.8,linestyles = 'dashed')
+    plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    plt.tight_layout()

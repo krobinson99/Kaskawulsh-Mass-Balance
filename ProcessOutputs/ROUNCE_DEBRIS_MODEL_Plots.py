@@ -32,7 +32,8 @@ runoff_timeseries_average_SLRformat, distributed_runoff, distributed_glaciericem
 distributed_SImelt
 
 # Functions to plot the differences between two models:
-from MBM_plottingfunctions import distributed_mass_balance_difference
+from MBM_plottingfunctions import distributed_mass_balance_difference, distributed_runoff_difference, \
+distributed_glaciermelt_difference, distributed_rainrunoff_difference
 
 model_name = 'ROUNCE_DEBRIS'
 MODEL_OUTPUTS_REFMODEL = 'D:/Model Runs/REF_MODEL'
@@ -78,10 +79,10 @@ snowdepth_kw_std, Ptau_kw_std, SI_kw_std = calculate_stddev_timeseries(sim,years
 #  REF MODEL: KW AVERAGE
 # =============================================================================
 massbal_kw_ref, totalsnowmelt_kw_ref, refreezing_kw_ref, netsnowmelt_kw_ref, gl_icemelt_kw_ref, superimp_icemelt_kw_ref, rain_kw_ref, refrozen_rain_kw_ref, rain_runoff_kw_ref, accumulation_kw_ref, \
-snowdepth_kw_ref, Ptau_kw_ref, SI_kw_ref, temp_kw_ref = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_ROUNCEDEBRIS,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+snowdepth_kw_ref, Ptau_kw_ref, SI_kw_ref, temp_kw_ref = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_REFMODEL,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
 
 massbal_kw_ref_std, totalsnowmelt_kw_ref_std, refreezing_kw_ref_std, netsnowmelt_kw_ref_std, gl_icemelt_kw_ref_std, superimp_icemelt_kw_ref_std, rain_kw_ref_std, refrozen_rain_kw_ref_std, rain_runoff_kw_ref_std, accumulation_kw_ref_std, \
-snowdepth_kw_ref_std, Ptau_kw_ref_std, SI_kw_ref_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_ROUNCEDEBRIS,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+snowdepth_kw_ref_std, Ptau_kw_ref_std, SI_kw_ref_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_REFMODEL,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
 
 
 
@@ -152,16 +153,46 @@ distributed_mass_balance_difference(model_name,np.arange(1980,2021+1),years,mass
 
 distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
-def distributed_runoff_difference(model_name,avg_years,all_years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,netsnowmelt_dist_alt,gl_icemelt_dist_alt,superimp_icemelt_dist_alt,rain_runoff_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
+#shiftedColorMap(matplotlib.cm.BrBG,start=0,midpoint=0.7894736842105263,stop=1,name='runoff_diff')
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.79,stop=1,name='runoff_diff')
+distributed_runoff_difference(model_name,np.arange(1980,2021+1),years,netsnowmelt_dist_ref,\
+                              gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,\
+                              netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,\
+                              np.linspace(-7.5,2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_glaciermelt_difference(model_name,np.arange(1980,2021+1),years,netsnowmelt_dist_ref,\
+                              gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,\
+                              netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,\
+                              np.linspace(-7.5,2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.9649122807017544,stop=1,name='snowmelt_diff')
+distributed_snowrunoff_difference(model_name,np.arange(1980,2021+1),years,netsnowmelt_dist_ref,\
+                              gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,\
+                              netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,\
+                              np.linspace(-0.055,0.002,40),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=1,stop=0.7,name='rainrunoff_diff')
+distributed_rainrunoff_difference(model_name,np.arange(1980,2021+1),years,netsnowmelt_dist_ref,\
+                              gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,\
+                              netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,\
+                              np.linspace(-0.003,0,10),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+def distributed_SImelt_difference(model_name,avg_years,all_years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,netsnowmelt_dist_alt,gl_icemelt_dist_alt,superimp_icemelt_dist_alt,rain_runoff_dist_alt,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
 
     MB_ARRAY_REF = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
     for year in avg_years:
-        MB_ARRAY_REF[year-avg_years[0],:,:] = netsnowmelt_dist_ref[year-all_years[0]] + gl_icemelt_dist_ref[year-all_years[0]] + superimp_icemelt_dist_ref[year-all_years[0]] + rain_runoff_dist_ref[year-all_years[0]]
+        MB_ARRAY_REF[year-avg_years[0],:,:] =  superimp_icemelt_dist_ref[year-all_years[0]]
     MB_REF = np.nanmean(MB_ARRAY_REF,axis=0)
         
     MB_ARRAY_ALT = np.empty((len(avg_years),Sfc.shape[0],Sfc.shape[1]))
     for year in avg_years:
-        MB_ARRAY_ALT[year-avg_years[0],:,:] = netsnowmelt_dist_alt[year-all_years[0]] + gl_icemelt_dist_alt[year-all_years[0]] + superimp_icemelt_dist_alt[year-all_years[0]] + rain_runoff_dist_alt[year-all_years[0]]
+        MB_ARRAY_ALT[year-avg_years[0],:,:] = superimp_icemelt_dist_alt[year-all_years[0]]
     MB_ALT = np.nanmean(MB_ARRAY_ALT,axis=0)
     
     DIFF = np.array(MB_REF-MB_ALT)
@@ -170,10 +201,10 @@ def distributed_runoff_difference(model_name,avg_years,all_years,netsnowmelt_dis
     print(np.nanmin(DIFF),np.nanmax(DIFF))    
     
     plt.figure(figsize=(9,5))
-    plt.title('Total Runoff ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
-    plt.contourf(Xgrid,Ygrid,DIFF,cmap='runoff_diff',levels=contour_levels)
+    plt.title('Superimposed ice melt ' + str(avg_years[0]) + '--' + str(avg_years[-1]+1) +'\nREF_MODEL minus ' + model_name,fontsize=14)
+    plt.contourf(Xgrid,Ygrid,DIFF,cmap='SImelt_diff',levels=contour_levels)
     plt.axis('equal')
-    legend = plt.colorbar(ticks=np.arange(-20,20))
+    legend = plt.colorbar(ticks=np.arange(-1,1,0.01))
     legend.ax.set_ylabel('Difference (m w.e. a$^{-1}$)', rotation=270,fontsize=14,labelpad=25)
     plt.xlabel('Easting (m)',fontsize=14)
     plt.ylabel('Northing (m)',fontsize=14)
@@ -185,21 +216,11 @@ def distributed_runoff_difference(model_name,avg_years,all_years,netsnowmelt_dis
     plt.contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
     plt.tight_layout()
 
-#shiftedColorMap(matplotlib.cm.BrBG,start=0,midpoint=0.7894736842105263,stop=1,name='runoff_diff')
-shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.79,stop=1,name='runoff_diff')
-distributed_runoff_difference(model_name,np.arange(1980,2021+1),years,netsnowmelt_dist_ref,\
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.5,stop=1,name='SImelt_diff')
+distributed_SImelt_difference(model_name,np.arange(1980,2021+1),years,netsnowmelt_dist_ref,\
                               gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,\
                               netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,\
-                              np.linspace(-7.5,2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-
-
-
-
-distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-
-distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-
-distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+                              np.linspace(-0.02,0.02,21),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
 distributed_SImelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
@@ -246,14 +267,13 @@ runoff_timeseries_average_discharge_withstddev('m3','Average runoff from the gla
 
 runoff_timeseries_average_SLRformat('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_allgl, netsnowmelt_allgl, rain_runoff_allgl, superimp_icemelt_allgl, gl_icemelt_allgl_std, netsnowmelt_allgl_std, rain_runoff_allgl_std, superimp_icemelt_allgl_std,All_glacierized_area)
 
-
 runoff_piecharts_12years('Glacier-wide average',2007,years,gl_icemelt_kw,netsnowmelt_kw, rain_runoff_kw, superimp_icemelt_kw)
 #fig.savefig(os.path.join(MODEL_OUTPUTS,'KWaverage_runoff_piecharts_2007-2018.png'),bbox_inches='tight')
 
 massbalance_timeseries_12years('Glacier-wide average mass balance',2007, years, 0.055, 1.5, accumulation_kw, refrozen_rain_kw ,netsnowmelt_kw, superimp_icemelt_kw, gl_icemelt_kw)
 #fig.savefig(os.path.join(MODEL_OUTPUTS,'KW_massbalance_2007-2018.png'),bbox_inches='tight')
 
-massbalance_timeseries_average('Glacier-wide average mass balance: ',np.arange(2007,2017+1),years,0.025,0.8, accumulation_allgl, refrozen_rain_allgl, netsnowmelt_allgl, superimp_icemelt_allgl, gl_icemelt_allgl, accumulation_allgl_std, refrozen_rain_allgl_std, netsnowmelt_allgl_std, superimp_icemelt_allgl_std, gl_icemelt_allgl_std)
+massbalance_timeseries_average('All glacierized area: mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_allgl, refrozen_rain_allgl, netsnowmelt_allgl, superimp_icemelt_allgl, gl_icemelt_allgl, accumulation_allgl_std, refrozen_rain_allgl_std, netsnowmelt_allgl_std, superimp_icemelt_allgl_std, gl_icemelt_allgl_std)
 
 snowrunoff_timeseries_12years('Glacier-wide average snow melt runoff',2007, years, -0.015, 0.035, -0.3428571428571429, 0.8, totalsnowmelt_kw, refreezing_kw)
 
