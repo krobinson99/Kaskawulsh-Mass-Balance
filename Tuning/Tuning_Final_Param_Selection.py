@@ -249,11 +249,11 @@ for bin_edge in range(0,len(mb_normaldist_bins)-1):
     #print(bin_edge,left_edge,right_edge)
     
     bin_center = np.round((left_edge + right_edge)/2,2)
-    #print(bin_edge,bin_center)
+    print(bin_edge,bin_center)
     
     # Get number of sims in this bin allowed by the normal distribution
     N = int(np.round((p_scaled[np.where(np.round(bin_centers,2)==bin_center)[0][0]])))
-    print(bin_edge,p_scaled[np.where(np.round(bin_centers,2)==bin_center)[0][0]],N)
+    print(bin_center,p_scaled[np.where(np.round(bin_centers,2)==bin_center)[0][0]],N)
     
     if N == 0:
         pass
@@ -287,10 +287,9 @@ simID_final = simID_passing[simID_under_normaldist]
 # Save final params for this model"
 # =============================================================================
 
-d = {'aice': aice_final, 'asnow': asnow_final, 'MF': MF_final}
+d = {'aice': list(aice_final), 'asnow': list(asnow_final), 'MF': list(MF_final)}
 df = pd.DataFrame(data=d)
-#df.to_csv('Tuning_Params_Final_' + model_name + '.csv')
-    
+df.to_csv('Tuning_Params_Final_' + model_name + '.csv')
     
 # =============================================================================
 # Plot the final parameter selection
@@ -420,4 +419,107 @@ plt.margins(x=0)
 #handles, labels = ax.get_legend_handles_labels()
 #by_label = dict(zip(labels, handles))
 fig.legend(fontsize=14,bbox_to_anchor=(0.71,1.1), ncol=3, borderaxespad=0.19)
+plt.tight_layout()
+
+
+# =============================================================================
+# =============================================================================
+# # Compare final sims from ref model to those from ROUNCE_DEBRIS Model:
+# =============================================================================
+# =============================================================================
+rouncedebris = np.loadtxt('D:/TuningOutputs/ROUNCE_DEBRIS/MB_Final_ROUNCE_DEBRIS.csv',skiprows=1,delimiter=',') 
+simID_final_rouncedebris = rouncedebris[:,1]
+mb_under_normaldist_rouncedebris = rouncedebris[:,2]
+snowlines_under_normaldist_rouncedebris = rouncedebris[:,3]
+
+rouncedebris_params = np.loadtxt('D:/TuningOutputs/ROUNCE_DEBRIS/Params_Final_ROUNCE_DEBRIS.csv',skiprows=1,delimiter=',') 
+aice_final_rouncedebris = rouncedebris_params[:,1]
+asnow_final_rouncedebris = rouncedebris_params[:,2]
+MF_final_rouncedebris = rouncedebris_params[:,3]
+
+# How many sims are in this range for both the ref model and the rounce model?
+# Convert arrays to sets and find the intersection
+set1 = set(simID_final)
+set2 = set(simID_final_rouncedebris)
+common_elements = set1.intersection(set2)
+
+# Get the count of common elements
+num_common_elements = len(common_elements)
+
+print(f"There are {num_common_elements} common integers between the two arrays.")
+    
+plt.figure(figsize=(6,6))
+plt.title('Final param selection\nTotal = ' + str(len(mb_under_normaldist)),fontsize=14)
+#plt.scatter(final_scores_norm,mb_passing,c='darkblue',s=20,label='sims within\nMB$_{mean}$ $\pm$ 3$\sigma$')
+plt.scatter(snowlines_under_normaldist,mb_under_normaldist,c='red',edgecolor='red',s=20,label='REF_MODEL')
+plt.scatter(snowlines_under_normaldist_rouncedebris,mb_under_normaldist_rouncedebris,c='mediumblue',edgecolor='mediumblue',s=20,label='ROUNCE_DEBRIS')
+#plt.scatter(final_scores_norm[np.where(aice_passing>asnow_passing)],mb_passing[np.where(aice_passing>asnow_passing)],c='darkblue',label='a$_{ice}$ $\geq$ a$_{snow}$')
+plt.xlabel('Snowline Score (normalized)',fontsize=14)
+plt.ylabel('2007--2018 Mass Balance',fontsize=14)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
+plt.grid()
+plt.xticks(np.arange(0.85,0.9,0.01))
+plt.legend(fontsize=14,loc='upper left')
+plt.tight_layout()
+
+aice_bins = np.linspace(0,2.1e-5,20)
+asnow_bins = np.linspace(0,4.7e-6,20)
+MF_bins = np.linspace(0,8.9e-4,20)
+
+fig, (ax) = plt.subplots(ncols=3,figsize=(12,5),gridspec_kw={"width_ratios":[1,1,1]},sharey=True)
+fig.subplots_adjust(wspace=0.3)
+
+plt.subplot(1,3,1)
+plt.title('a$_{ice}$',fontsize=14)
+plt.hist(aice_final,aice_bins,rwidth=1,color='red',zorder=5,alpha=0.5,label='REF_MODEL')
+plt.hist(aice_final_rouncedebris,aice_bins,rwidth=1,color='mediumblue',zorder=5,alpha=0.5,label='ROUNCE_DEBRIS')
+plt.hist(aice_final,aice_bins, histtype='step', stacked=True, fill=False,color='red',linewidth=3,zorder=10)
+plt.hist(aice_final_rouncedebris,aice_bins, histtype='step', stacked=True, fill=False,color='mediumblue',linewidth=3,zorder=10)
+plt.ylim(0,75)
+plt.ylabel('Frequency',fontsize=14)
+plt.vlines(x=np.mean(aice_final),ymin=0,ymax=1200,linestyle='--',color='red',linewidth=2)
+plt.vlines(x=np.mean(aice_final_rouncedebris),ymin=0,ymax=1200,linestyle='--',color='mediumblue',linewidth=2)
+plt.vlines(x=np.mean(aice_final_rouncedebris),ymin=-10,ymax=-9,linestyle='--',color='k',linewidth=2,label='Mean param value')
+#plt.xticks([0,0.000003396],['0','3.4x10$^{-6}$'])
+plt.xticks(np.arange(0,2.2e-5,0.3e-5))
+plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+x = np.linspace(np.min(aice), np.max(aice), 100)
+p = norm.pdf(x, 0.000003396, 0.00000438)
+plt.plot(x, p/np.max(p)*40, 'k', linewidth=2,label='Normal distribution')
+plt.margins(x=0)
+
+plt.subplot(1,3,2)
+plt.title('a$_{snow}$',fontsize=14)
+plt.hist(asnow_final,asnow_bins,rwidth=1,color='red',zorder=5,alpha=0.5)
+plt.hist(asnow_final_rouncedebris,asnow_bins,rwidth=1,color='mediumblue',zorder=5,alpha=0.5)
+plt.hist(asnow_final,asnow_bins, histtype='step', stacked=True, fill=False,color='red',linewidth=3,zorder=10)
+plt.hist(asnow_final_rouncedebris,asnow_bins, histtype='step', stacked=True, fill=False,color='mediumblue',linewidth=3,zorder=10)
+plt.ylim(0,75)
+plt.vlines(x=np.mean(asnow_final),ymin=0,ymax=1200,linestyle='--',color='red',linewidth=2)
+plt.vlines(x=np.mean(asnow_final_rouncedebris),ymin=0,ymax=1200,linestyle='--',color='mediumblue',linewidth=2)
+plt.xticks(np.arange(0,4.7e-6,0.6e-6))
+plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+x = np.linspace(np.min(asnow), np.max(asnow), 100)
+p = norm.pdf(x, 0.000001546,0.00000085)
+plt.plot(x, p/np.max(p)*40, 'k', linewidth=2)
+plt.margins(x=0)
+
+plt.subplot(1,3,3)
+plt.title('$MF$',fontsize=14)
+plt.hist(MF_final,MF_bins,rwidth=1,color='red',zorder=5,alpha=0.5)
+plt.hist(MF_final_rouncedebris,MF_bins,rwidth=1,color='mediumblue',zorder=5,alpha=0.5)
+plt.hist(MF_final,MF_bins, histtype='step', stacked=True, fill=False,color='red',linewidth=3,zorder=10)
+plt.hist(MF_final_rouncedebris,MF_bins, histtype='step', stacked=True, fill=False,color='mediumblue',linewidth=3,zorder=10)
+plt.ylim(0,75)
+plt.vlines(x=np.mean(MF_final),ymin=0,ymax=1200,linestyle='--',color='red',linewidth=2)
+plt.vlines(x=np.mean(MF_final_rouncedebris),ymin=0,ymax=1200,linestyle='--',color='mediumblue',linewidth=2)
+plt.xticks(np.arange(0,8.9e-4,1.2e-4))
+plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+x = np.linspace(np.min(MF), np.max(MF), 100)
+p = norm.pdf(x, 0.0002707,0.0001632)
+plt.plot(x, p/np.max(p)*40, 'k', linewidth=2)
+plt.margins(x=0)
+
+fig.legend(fontsize=14,bbox_to_anchor=(0.95,1.1), ncol=4, borderaxespad=0.19)
 plt.tight_layout()
