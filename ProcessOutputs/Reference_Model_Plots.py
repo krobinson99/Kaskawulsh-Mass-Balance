@@ -26,8 +26,10 @@ calculate_mb_components_distributed, runoff_timeseries_12years, runoff_piecharts
 distributed_average_mass_balance, massbalance_timeseries_12years, \
 massbalance_timeseries_average, snowrunoff_timeseries_12years, snowrunoff_timeseries_average, \
 annualrunoff_stackedbar, date_of_zero_balance, runoff_timeseries_average_discharge_withstddev, calculate_stddev_timeseries, \
-runoff_timeseries_average_SLRformat, distributed_runoff
+runoff_timeseries_average_SLRformat, distributed_runoff, distributed_glaciericemelt, distributed_snowrunoff, distributed_rainrunoff, \
+distributed_SImelt
 
+model_name = 'REF_MODEL'
 MODEL_OUTPUTS = 'D:/Model Runs/REF_MODEL/Sim_99999_v2'
 NARR_INPUTS = 'D:/BiasCorrected_files/KRH' 
 sim = 99999
@@ -61,6 +63,13 @@ All_glacierized_area[np.where(Sfc==1)] = np.nan
 # =============================================================================
 massbal_kw, totalsnowmelt_kw, refreezing_kw, netsnowmelt_kw, gl_icemelt_kw, superimp_icemelt_kw, rain_kw, refrozen_rain_kw, rain_runoff_kw, accumulation_kw, \
 snowdepth_kw, Ptau_kw, SI_kw, temp_kw = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+
+massbal_kw_std, totalsnowmelt_kw_std, refreezing_kw_std, netsnowmelt_kw_std, gl_icemelt_kw_std, superimp_icemelt_kw_std, rain_kw_std, refrozen_rain_kw_std, rain_runoff_kw_std, accumulation_kw_std, \
+snowdepth_kw_std, Ptau_kw_std, SI_kw_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+
+# =============================================================================
+# Distributed fields
+# =============================================================================
 
 massbal_dist, totalsnowmelt_dist, refreezing_dist, netsnowmelt_dist, gl_icemelt_dist, superimp_icemelt_dist, rain_dist, refrozen_rain_dist, rain_runoff_dist, accumulation_dist, \
 snowdepth_dist, Ptau_dist, SI_dist, temp_dist = calculate_mb_components_distributed(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID)
@@ -213,13 +222,13 @@ plt.ylim(0,1.7)
 # =============================================================================
 # Distributed plots:
 # =============================================================================
-shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.8333333333333334,stop=1,name='massbal')
-distributed_average_mass_balance(np.arange(2007,2017+1),years,massbal_dist,np.linspace(-10,2.05,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.888283378746594,stop=1,name='massbal')
+distributed_average_mass_balance(model_name,np.arange(2007,2017+1),years,massbal_dist,np.linspace(-16.3,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 #plt.savefig(os.path.join(MODEL_OUTPUTS,'2007-2018_massbalance.png'),bbox_inches='tight')
 
-distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,10,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
-distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,10,17),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
 distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
