@@ -769,7 +769,7 @@ def annual_massbalance_barchart(title,years,plotting_years,mb_abs_lim,accumulati
     #ax.set_xticklabels(['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],rotation=45,fontsize=14)
     ax.set_ylim(-mb_abs_lim,mb_abs_lim)
     ax.grid(zorder=-10)
-    ax.axhline(y=0,xmin=0,xmax=len(dates),linestyle='--',c='k')
+    ax.axhline(y=0,xmin=0,xmax=len(plotting_years),linestyle='--',c='k')
     ax.tick_params(axis='y',labelsize=14)
     ax.tick_params(axis='x',labelsize=14)
     ax.margins(x=0.01)
@@ -1816,7 +1816,7 @@ def massbalance_timeseries_comparison(title,avg_years,all_years,daily_mb_abs_lim
     fig.tight_layout()
     
     
-def compare_date_of_zero_balance(years,mb_alt,mb_ref):
+def compare_date_of_zero_balance(years,mb_ref,mb_alt):
     # transition date
     transition_dates_alt = []
     transition_DOYs_alt = []
@@ -2028,7 +2028,7 @@ def percent_difference_with_direction(A, B):
 
     return percent_diff if direction == "Increase" else -percent_diff
 
-def compare_hydrographs_differences(units,title,avg_years,all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt_ref, snowmelt_runoff_ref, rain_runoff_ref, superimp_icemelt_ref,gl_icemelt_std_ref, snowmelt_runoff_std_ref, rain_runoff_std_ref, superimp_icemelt_std_ref, \
+def compare_hydrographs_differences(units,title,avg_years,all_years,lowerlim,upperlim,gl_icemelt_ref, snowmelt_runoff_ref, rain_runoff_ref, superimp_icemelt_ref,gl_icemelt_std_ref, snowmelt_runoff_std_ref, rain_runoff_std_ref, superimp_icemelt_std_ref, \
                                         gl_icemelt_alt, snowmelt_runoff_alt, rain_runoff_alt, superimp_icemelt_alt,gl_icemelt_std_alt, snowmelt_runoff_std_alt, rain_runoff_std_alt, superimp_icemelt_std_alt,area_map):
     
     ice_sum, snow_sum, rain_sum, SI_sum = np.zeros((365)), np.zeros((365)), np.zeros((365)), np.zeros((365))
@@ -2117,7 +2117,7 @@ def compare_hydrographs_differences(units,title,avg_years,all_years,daily_runoff
     ax.grid()
     #plt.xlim(0,395)
     plt.xlim(0,365)
-    ax.set_ylim(-daily_runoff_upperlim,daily_runoff_upperlim)
+    ax.set_ylim(lowerlim,upperlim)
 
     ax.tick_params(axis='y',labelsize=14)
     ax.margins(x=0)
@@ -2127,11 +2127,11 @@ def compare_hydrographs_differences(units,title,avg_years,all_years,daily_runoff
     #ax0.tick_params(axis='y',labelsize=14)
     #ax0.margins(x=0)
     
-    #if units=='mwe':
-    #    ax.set_ylabel('Difference (m w.e. day$^{-1}$)',fontsize=14)
+    if units=='mwe':
+        ax.set_ylabel('Difference (m w.e. day$^{-1}$)',fontsize=14)
     #    ax0.set_ylabel('Cumulative difference (m w.e. a$^{-1}$)',fontsize=14)
-    #elif units=='m3':
-    #    ax.set_ylabel('Difference (m$^3$ s$^{-1}$)',fontsize=14)
+    elif units=='m3':
+        ax.set_ylabel('Difference (m$^3$ s$^{-1}$)',fontsize=14)
     #    ax0.set_ylabel('Cumulative difference (km$^3$ a$^{-1}$)',fontsize=14)
     
     #width=10
