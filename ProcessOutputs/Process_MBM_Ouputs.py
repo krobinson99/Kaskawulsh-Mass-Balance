@@ -16,11 +16,14 @@ import os
 
 sys.path.insert(2,'F:\Mass Balance Model\Kaskawulsh-Mass-Balance\ProcessOutputs')
 from MBM_plottingfunctions import calculate_mb_components_timeseries, \
-calculate_stddev_timeseries, calculate_mb_components_distributed, full_save
+calculate_stddev_timeseries, calculate_mb_components_distributed, full_save, \
+load_hydrologic_year, save_distributed_outputs_as_txt
 
 
 MODEL_OUTPUTS_REFMODEL = 'D:/Model Runs/REF_MODEL/Sim_99999_v2'
 MODEL_OUTPUTS_ROUNCEDEBRIS = 'D:/Model Runs/ROUNCE_DEBRIS'
+MODEL_OUTPUTS_UNCORRECTEDACC = 'D:/Model Runs/UNCORRECTED_ACC'
+
 
 NARR_INPUTS = 'D:/BiasCorrected_files/KRH' 
 sim = 99999
@@ -99,10 +102,16 @@ snowdepth_kw_ref_std, Ptau_kw_ref_std, SI_kw_ref_std],years,MODEL_OUTPUTS_REFMOD
 #  REF MODEL: Debris-covered gridcell at the terminus
 # =============================================================================
 massbal_deb_ref, totalsnowmelt_deb_ref, refreezing_deb_ref, netsnowmelt_deb_ref, gl_icemelt_deb_ref, superimp_icemelt_deb_ref, rain_deb_ref, refrozen_rain_deb_ref, rain_runoff_deb_ref, accumulation_deb_ref, \
-snowdepth_deb_ref, Ptau_deb_ref, SI_deb_ref, temp_deb_ref = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_REFMODEL,Glacier_ID,13,314,PointScale=False,KWaverage=True,Catchmentaverage=False)
+snowdepth_deb_ref, Ptau_deb_ref, SI_deb_ref, temp_deb_ref = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_REFMODEL,Glacier_ID,13,314,PointScale=True,KWaverage=False,Catchmentaverage=False)
+
+full_save([massbal_deb_ref, totalsnowmelt_deb_ref, refreezing_deb_ref, netsnowmelt_deb_ref, gl_icemelt_deb_ref, superimp_icemelt_deb_ref, rain_deb_ref, refrozen_rain_deb_ref, rain_runoff_deb_ref, accumulation_deb_ref, \
+snowdepth_deb_ref, Ptau_deb_ref, SI_deb_ref],years,MODEL_OUTPUTS_REFMODEL,'REF_MODEL',varnames,'deb')
 
 massbal_deb_ref_std, totalsnowmelt_deb_ref_std, refreezing_deb_ref_std, netsnowmelt_deb_ref_std, gl_icemelt_deb_ref_std, superimp_icemelt_deb_ref_std, rain_deb_ref_std, refrozen_rain_deb_ref_std, rain_runoff_deb_ref_std, accumulation_deb_ref_std, \
 snowdepth_deb_ref_std, Ptau_deb_ref_std, SI_deb_ref_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_REFMODEL,Glacier_ID,13,314,PointScale=True,KWaverage=False,Catchmentaverage=False)
+
+full_save([massbal_deb_ref_std, totalsnowmelt_deb_ref_std, refreezing_deb_ref_std, netsnowmelt_deb_ref_std, gl_icemelt_deb_ref_std, superimp_icemelt_deb_ref_std, rain_deb_ref_std, refrozen_rain_deb_ref_std, rain_runoff_deb_ref_std, accumulation_deb_ref_std, \
+snowdepth_deb_ref_std, Ptau_deb_ref_std, SI_deb_ref_std],years,MODEL_OUTPUTS_REFMODEL,'REF_MODEL',varnames,'deb_std')
 
 # =============================================================================
 #  REF_MODEL: Distributed totals
@@ -110,7 +119,8 @@ snowdepth_deb_ref_std, Ptau_deb_ref_std, SI_deb_ref_std = calculate_stddev_times
 massbal_dist_ref, totalsnowmelt_dist_ref, refreezing_dist_ref, netsnowmelt_dist_ref, gl_icemelt_dist_ref, superimp_icemelt_dist_ref, rain_dist_ref, refrozen_rain_dist_ref, rain_runoff_dist_ref, accumulation_dist_ref, \
 snowdepth_dist_ref, Ptau_dist_ref, SI_dist_ref, temp_dist_ref = calculate_mb_components_distributed(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_REFMODEL,Glacier_ID)
 
-
+save_distributed_outputs_as_txt([massbal_dist_ref, totalsnowmelt_dist_ref, refreezing_dist_ref, netsnowmelt_dist_ref, gl_icemelt_dist_ref, superimp_icemelt_dist_ref, rain_dist_ref, refrozen_rain_dist_ref, rain_runoff_dist_ref, accumulation_dist_ref, \
+snowdepth_dist_ref, Ptau_dist_ref, SI_dist_ref, temp_dist_ref],varnames,years,MODEL_OUTPUTS_REFMODEL,'REF_MODEL')
 
 
 
@@ -170,14 +180,88 @@ snowdepth_kw_std, Ptau_kw_std, SI_kw_std],years,MODEL_OUTPUTS_ROUNCEDEBRIS,'ROUN
 massbal_deb, totalsnowmelt_deb, refreezing_deb, netsnowmelt_deb, gl_icemelt_deb, superimp_icemelt_deb, rain_deb, refrozen_rain_deb, rain_runoff_deb, accumulation_deb, \
 snowdepth_deb, Ptau_deb, SI_deb, temp_deb = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_ROUNCEDEBRIS,Glacier_ID,13,314,PointScale=True,KWaverage=False,Catchmentaverage=False)
 
+full_save([massbal_deb, totalsnowmelt_deb, refreezing_deb, netsnowmelt_deb, gl_icemelt_deb, superimp_icemelt_deb, rain_deb, refrozen_rain_deb, rain_runoff_deb, accumulation_deb, \
+snowdepth_deb, Ptau_deb, SI_deb],years,MODEL_OUTPUTS_ROUNCEDEBRIS,'ROUNCE_DEBRIS',varnames,'deb')
+
 massbal_deb_std, totalsnowmelt_deb_std, refreezing_deb_std, netsnowmelt_deb_std, gl_icemelt_deb_std, superimp_icemelt_deb_std, rain_deb_std, refrozen_rain_deb_std, rain_runoff_deb_std, accumulation_deb_std, \
 snowdepth_deb_std, Ptau_deb_std, SI_deb_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_ROUNCEDEBRIS,Glacier_ID,13,314,PointScale=True,KWaverage=False,Catchmentaverage=False)
+
+full_save([massbal_deb_std, totalsnowmelt_deb_std, refreezing_deb_std, netsnowmelt_deb_std, gl_icemelt_deb_std, superimp_icemelt_deb_std, rain_deb_std, refrozen_rain_deb_std, rain_runoff_deb_std, accumulation_deb_std, \
+snowdepth_deb_std, Ptau_deb_std, SI_deb_std],years,MODEL_OUTPUTS_ROUNCEDEBRIS,'ROUNCE_DEBRIS',varnames,'deb_std')
 
 # =============================================================================
 #  ROUNCE_DEBRIS: Distributed totals
 # =============================================================================
 massbal_dist, totalsnowmelt_dist, refreezing_dist, netsnowmelt_dist, gl_icemelt_dist, superimp_icemelt_dist, rain_dist, refrozen_rain_dist, rain_runoff_dist, accumulation_dist, \
 snowdepth_dist, Ptau_dist, SI_dist, temp_dist = calculate_mb_components_distributed(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_ROUNCEDEBRIS,Glacier_ID)
+
+save_distributed_outputs_as_txt([massbal_dist, totalsnowmelt_dist, refreezing_dist, netsnowmelt_dist, gl_icemelt_dist, superimp_icemelt_dist, rain_dist, refrozen_rain_dist, rain_runoff_dist, accumulation_dist, \
+snowdepth_dist, Ptau_dist, SI_dist, temp_dist],varnames,years,MODEL_OUTPUTS_ROUNCEDEBRIS,'ROUNCE_DEBRIS')
+
+
+
+
+
+
+
+# =============================================================================
+#  UNCORRECTED_ACC: Catchment-wide average
+# =============================================================================
+massbal_krh_uncorracc, totalsnowmelt_krh_uncorracc, refreezing_krh_uncorracc, netsnowmelt_krh_uncorracc, gl_icemelt_krh_uncorracc, superimp_icemelt_krh_uncorracc, rain_krh_uncorracc, refrozen_rain_krh_uncorracc, rain_runoff_krh_uncorracc, accumulation_krh_uncorracc, \
+snowdepth_krh_uncorracc, Ptau_krh_uncorracc, SI_krh_uncorracc, temp_krh_uncorracc = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID,0,0,PointScale=False,KWaverage=False,Catchmentaverage=True)
+
+#full_save([massbal_krh_uncorracc, totalsnowmelt_krh_uncorracc, refreezing_krh_uncorracc, netsnowmelt_krh_uncorracc, gl_icemelt_krh_uncorracc, superimp_icemelt_krh_uncorracc, rain_krh_uncorracc, refrozen_rain_krh_uncorracc, rain_runoff_krh_uncorracc, accumulation_krh_uncorracc, 
+#snowdepth_krh_uncorracc, Ptau_krh_uncorracc, SI_krh_uncorracc, temp_krh_uncorracc],years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC',varnames,'krh')
+
+massbal_krh_uncorracc_std, totalsnowmelt_krh_uncorracc_std, refreezing_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, gl_icemelt_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std, rain_krh_uncorracc_std, refrozen_rain_krh_uncorracc_std, rain_runoff_krh_uncorracc_std, accumulation_krh_uncorracc_std, \
+snowdepth_krh_uncorracc_std, Ptau_krh_uncorracc_std, SI_krh_uncorracc_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID,0,0,PointScale=False,KWaverage=False,Catchmentaverage=True)
+
+#full_save([massbal_krh_uncorracc_std, totalsnowmelt_krh_uncorracc_std, refreezing_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, gl_icemelt_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std, rain_krh_uncorracc_std, refrozen_rain_krh_uncorracc_std, rain_runoff_krh_uncorracc_std, accumulation_krh_uncorracc_std, 
+#snowdepth_krh_uncorracc_std, Ptau_krh_uncorracc_std, SI_krh_uncorracc_std],years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC',varnames,'krh_std')
+# =============================================================================
+#  UNCORRECTED_ACC: All glacierized area
+# =============================================================================
+massbal_allgl_uncorracc, totalsnowmelt_allgl_uncorracc, refreezing_allgl_uncorracc, netsnowmelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, rain_allgl_uncorracc, refrozen_rain_allgl_uncorracc, rain_runoff_allgl_uncorracc, accumulation_allgl_uncorracc, \
+snowdepth_allgl_uncorracc, Ptau_allgl_uncorracc, SI_allgl_uncorracc, temp_allgl_uncorracc = calculate_mb_components_timeseries(sim,years,R2S,All_glacierized_area,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+
+#full_save([massbal_allgl_uncorracc, totalsnowmelt_allgl_uncorracc, refreezing_allgl_uncorracc, netsnowmelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, rain_allgl_uncorracc, refrozen_rain_allgl_uncorracc, rain_runoff_allgl_uncorracc, accumulation_allgl_uncorracc, 
+#snowdepth_allgl_uncorracc, Ptau_allgl_uncorracc, SI_allgl_uncorracc, temp_allgl_uncorracc],years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC',varnames,'allgl')
+
+massbal_allgl_uncorracc_std, totalsnowmelt_allgl_uncorracc_std, refreezing_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, gl_icemelt_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std, rain_allgl_uncorracc_std, refrozen_rain_allgl_uncorracc_std, rain_runoff_allgl_uncorracc_std, accumulation_allgl_uncorracc_std, \
+snowdepth_allgl_uncorracc_std, Ptau_allgl_uncorracc_std, SI_allgl_uncorracc_std = calculate_stddev_timeseries(sim,years,R2S,All_glacierized_area,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+
+#full_save([massbal_allgl_uncorracc_std, totalsnowmelt_allgl_uncorracc_std, refreezing_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, gl_icemelt_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std, rain_allgl_uncorracc_std, refrozen_rain_allgl_uncorracc_std, rain_runoff_allgl_uncorracc_std, accumulation_allgl_uncorracc_std, 
+#snowdepth_allgl_uncorracc_std, Ptau_allgl_uncorracc_std, SI_allgl_uncorracc_std],years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC',varnames,'allgl_std')
+
+# =============================================================================
+#  UNCORRECTED_ACC: Kaskawulsh
+# =============================================================================
+massbal_kw_uncorracc, totalsnowmelt_kw_uncorracc, refreezing_kw_uncorracc, netsnowmelt_kw_uncorracc, gl_icemelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, rain_kw_uncorracc, refrozen_rain_kw_uncorracc, rain_runoff_kw_uncorracc, accumulation_kw_uncorracc, \
+snowdepth_kw_uncorracc, Ptau_kw_uncorracc, SI_kw_uncorracc, temp_kw_uncorracc = calculate_mb_components_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+
+#full_save([massbal_kw_uncorracc, totalsnowmelt_kw_uncorracc, refreezing_kw_uncorracc, netsnowmelt_kw_uncorracc, gl_icemelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, rain_kw_uncorracc, refrozen_rain_kw_uncorracc, rain_runoff_kw_uncorracc, accumulation_kw_uncorracc, 
+#snowdepth_kw_uncorracc, Ptau_kw_uncorracc, SI_kw_uncorracc, temp_kw_uncorracc],years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC',varnames,'kw')
+
+massbal_kw_uncorracc_std, totalsnowmelt_kw_uncorracc_std, refreezing_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, gl_icemelt_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std, rain_kw_uncorracc_std, refrozen_rain_kw_uncorracc_std, rain_runoff_kw_uncorracc_std, accumulation_kw_uncorracc_std, \
+snowdepth_kw_uncorracc_std, Ptau_kw_uncorracc_std, SI_kw_uncorracc_std = calculate_stddev_timeseries(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID,0,0,PointScale=False,KWaverage=True,Catchmentaverage=False)
+
+#full_save([massbal_kw_uncorracc_std, totalsnowmelt_kw_uncorracc_std, refreezing_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, gl_icemelt_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std, rain_kw_uncorracc_std, refrozen_rain_kw_uncorracc_std, rain_runoff_kw_uncorracc_std, accumulation_kw_uncorracc_std, 
+#snowdepth_kw_uncorracc_std, Ptau_kw_uncorracc_std, SI_kw_uncorracc_std],years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC',varnames,'kw_std')
+
+# =============================================================================
+#  UNCORRECTED_ACC: Distributed totals
+# =============================================================================
+massbal_dist_uncorracc, totalsnowmelt_dist_uncorracc, refreezing_dist_uncorracc, netsnowmelt_dist_uncorracc, gl_icemelt_dist_uncorracc, superimp_icemelt_dist_uncorracc, rain_dist_uncorracc, refrozen_rain_dist_uncorracc, rain_runoff_dist_uncorracc, accumulation_dist_uncorracc, \
+snowdepth_dist_uncorracc, Ptau_dist_uncorracc, SI_dist_uncorracc, temp_dist_uncorracc = calculate_mb_components_distributed(sim,years,R2S,KRH_tributaries,NARR_INPUTS,MODEL_OUTPUTS_UNCORRECTEDACC,Glacier_ID)
+
+#save_distributed_outputs_as_txt([massbal_dist_uncorracc, totalsnowmelt_dist_uncorracc, refreezing_dist_uncorracc, netsnowmelt_dist_uncorracc, gl_icemelt_dist_uncorracc, superimp_icemelt_dist_uncorracc, rain_dist_uncorracc, refrozen_rain_dist_uncorracc, rain_runoff_dist_uncorracc, accumulation_dist_uncorracc, 
+#snowdepth_dist_uncorracc, Ptau_dist_uncorracc, SI_dist_uncorracc, temp_dist_uncorracc],varnames,years,MODEL_OUTPUTS_UNCORRECTEDACC,'UNCORRECTED_ACC')
+
+
+
+
+
+
 
 
 
