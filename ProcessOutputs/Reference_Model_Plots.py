@@ -13,6 +13,8 @@ import os
 import cmocean
 from scipy.optimize import curve_fit
 from scipy.signal import savgol_filter
+from matplotlib.gridspec import GridSpec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 
@@ -32,7 +34,7 @@ massbalance_timeseries_difference, compare_hydrographs, compare_date_of_zero_bal
 distributed_runoff_difference, distributed_glaciermelt_difference, distributed_rainrunoff_difference, \
 distributed_snowrunoff_difference, distributed_SImelt_difference, surface_elevation_profiles, \
 cumulative_and_annual_massbal, Bmod_vs_Bcal, distributed_runoff_components, \
-runoff_contribution_timeseries, runoff_timeseries_with_zerophaseshift
+runoff_contribution_timeseries, runoff_timeseries_with_zerophaseshift, distributed_runoff_allcomponents
 
 REF_MODEL_PATH = 'D:/Model Runs/REF_MODEL/Sim_99999_v2'
 ROUNCE_DEBRIS_PATH = 'D:/Model Runs/ROUNCE_DEBRIS'
@@ -305,86 +307,150 @@ massbalance_timeseries_12years('Kaskawulsh mass balance',1980, years, 0.055, 1.5
 massbalance_timeseries_12years('Terminus mass balance',2007, years, 0.15, 10, accumulation_deb_ref, refrozen_rain_deb_ref ,netsnowmelt_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref)
 
 # Average runoff
-runoff_timeseries_average_SLRformat('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc) #plt.savefig('D:/Model Runs/REF_MODEL/Plots/Hydrograph_Catchmentwide_1980-2022_REFMODEL.pdf',bbox_inches='tight')
+runoff_timeseries_average_SLRformat('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,450,2.7,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc) #plt.savefig('D:/Model Runs/REF_MODEL/Plots/Hydrograph_Catchmentwide_1980-2022_REFMODEL.pdf',bbox_inches='tight')
 runoff_timeseries_average_SLRformat('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref,gl_icemelt_allgl_ref_std, netsnowmelt_allgl_ref_std, rain_runoff_allgl_ref_std, superimp_icemelt_allgl_ref_std,All_glacierized_area)
 runoff_timeseries_average_SLRformat('m3','Kaskawulsh runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_kw_ref, netsnowmelt_kw_ref, rain_runoff_kw_ref, superimp_icemelt_kw_ref,gl_icemelt_kw_ref_std, netsnowmelt_kw_ref_std, rain_runoff_kw_ref_std, superimp_icemelt_kw_ref_std,KRH_tributaries)
 runoff_timeseries_average_SLRformat('m3','Runoff at the terminus: ',np.arange(1980,2021+1),years,0.1,0.0008,gl_icemelt_deb_ref, netsnowmelt_deb_ref, rain_runoff_deb_ref, superimp_icemelt_deb_ref,gl_icemelt_deb_ref_std, netsnowmelt_deb_ref_std, rain_runoff_deb_ref_std, superimp_icemelt_deb_ref_std,np.ones((1,1)))
 
 runoff_percentile_curves('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
 
-# Plot fitted gaussian curves
-piechart_colours = ['turquoise','royalblue','deeppink','darkorange']
-def plot_pie_chart(ax, sizes, labels):
-    ax.pie(sizes, colors=piechart_colours)
+
+t, tr1980s, gl1980s, sn1980s, ra1980s, si1980s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(1980,1990),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, tr1990s, gl1990s, sn1990s, ra1990s, si1990s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(1990,2000),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, tr2000s, gl2000s, sn2000s, ra2000s, si2000s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(2000,2010),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, tr2010s, gl2010s, sn2010s, ra2010s, si2010s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(2010,2020),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
 
 
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2,figsize=(10,6))
-runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','a) ',np.arange(1980,1990),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+fig = plt.figure(figsize=(10,6),constrained_layout=True)
+gs = GridSpec(4, 2, figure=fig)
+ax1 = fig.add_subplot(gs[0:2, 0])
+ax1.plot(t[182:],tr1980s[182:],label='1980-1990',color='khaki',linewidth=2)
+ax1.plot(t[182:],tr1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+ax1.plot(t[182:],tr2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+ax1.plot(t[182:],tr2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+ax1.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+ax1.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+ax1.grid()
+ax1.tick_params(axis='both',labelsize=14)
+ax1.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
 ax1.set_xlim(182,365)
-ax1.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
-axins1 = inset_axes(ax1,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax1.transAxes)
+ax1.set_ylim(0,325)
+ax1.text(185,304,'a) Total runoff',fontsize=14,weight='bold')
+ax1.text(185,251,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+ax1.text(185,225,str(int(np.round(np.max(tr1980s)))),color='khaki',fontsize=14,weight='bold')
+ax1.text(185,200,str(int(np.round(np.max(tr1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+ax1.text(185,175,str(int(np.round(np.max(tr2000s)))),color='steelblue',fontsize=14,weight='bold')
+ax1.text(185,150,str(int(np.round(np.max(tr2010s)))),color='midnightblue',fontsize=14,weight='bold')
+#ax1.vlines(t[np.where(tr1980s==np.max(tr1980s))],0,np.max(tr1980s),color='khaki',linewidth=3,linestyle='--')
+#ax1.vlines(t[np.where(tr1990s==np.max(tr1990s))],0,np.max(tr1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+#ax1.vlines(t[np.where(tr2000s==np.max(tr2000s))],0,np.max(tr2000s),color='steelblue',linewidth=3,linestyle='--')
+#ax1.vlines(t[np.where(tr2010s==np.max(tr2010s))],0,np.max(tr2010s),color='midnightblue',linewidth=3,linestyle='--')
 
-runoff_timeseries_with_zerophaseshift(ax2,51,3,'m3','b) ',np.arange(1990,2000),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+# Print max discharge rate and date on 
+
+ax2 = fig.add_subplot(gs[2:, 0])
+ax2.plot(t[182:],gl1980s[182:],label='1980-1990',color='khaki',linewidth=2)
+ax2.plot(t[182:],gl1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+ax2.plot(t[182:],gl2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+ax2.plot(t[182:],gl2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+ax2.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+ax2.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+ax2.grid()
+ax2.tick_params(axis='both',labelsize=14)
+ax2.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
 ax2.set_xlim(182,365)
-axins2 = inset_axes(ax2,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax2.transAxes)
+ax2.set_ylim(0,225)
+ax2.text(185,203,'b) Glacier ice runoff',fontsize=14,weight='bold')
+ax2.text(185,175,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+ax2.text(185,155,str(int(np.round(np.max(gl1980s)))),color='khaki',fontsize=14,weight='bold')
+ax2.text(185,135,str(int(np.round(np.max(gl1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+ax2.text(185,115,str(int(np.round(np.max(gl2000s)))),color='steelblue',fontsize=14,weight='bold')
+ax2.text(185,95,str(int(np.round(np.max(gl2010s)))),color='midnightblue',fontsize=14,weight='bold')
+#ax2.vlines(t[np.where(gl1980s==np.max(gl1980s))],0,np.max(gl1980s),color='khaki',linewidth=3,linestyle='--')
+#ax2.vlines(t[np.where(gl1990s==np.max(gl1990s))],0,np.max(gl1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+#ax2.vlines(t[np.where(gl2000s==np.max(gl2000s))],0,np.max(gl2000s),color='steelblue',linewidth=3,linestyle='--')
+#ax2.vlines(t[np.where(gl2010s==np.max(gl2010s))],0,np.max(gl2010s),color='midnightblue',linewidth=3,linestyle='--')
 
-runoff_timeseries_with_zerophaseshift(ax3,51,3,'m3','c) ',np.arange(2000,2010),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+ax3 = fig.add_subplot(gs[0:2,1])
+ax3.plot(t[182:],sn1980s[182:],label='1980-1990',color='khaki',linewidth=2)
+ax3.plot(t[182:],sn1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+ax3.plot(t[182:],sn2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+ax3.plot(t[182:],sn2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+ax3.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+ax3.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+ax3.grid()
+ax3.tick_params(axis='both',labelsize=14)
+ax3.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
 ax3.set_xlim(182,365)
-ax3.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
-axins3 = inset_axes(ax3,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax3.transAxes)
+ax3.set_ylim(0,100)
+ax3.text(185,92,'c) Snow runoff',fontsize=14,weight='bold')
+ax3.text(185,80,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+ax3.text(185,72,str(int(np.round(np.max(sn1980s)))),color='khaki',fontsize=14,weight='bold')
+ax3.text(185,64,str(int(np.round(np.max(sn1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+ax3.text(185,56,str(int(np.round(np.max(sn2000s)))),color='steelblue',fontsize=14,weight='bold')
+ax3.text(185,48,str(int(np.round(np.max(sn2010s)))),color='midnightblue',fontsize=14,weight='bold')
+#ax3.vlines(t[np.where(sn1980s==np.max(sn1980s))],0,np.max(sn1980s),color='khaki',linewidth=3,linestyle='--')
+#ax3.vlines(t[np.where(sn1990s==np.max(sn1990s))],0,np.max(sn1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+#ax3.vlines(t[np.where(sn2000s==np.max(sn2000s))],0,np.max(sn2000s),color='steelblue',linewidth=3,linestyle='--')
+#ax3.vlines(t[np.where(sn2010s==np.max(sn2010s))],0,np.max(sn2010s),color='midnightblue',linewidth=3,linestyle='--')
 
-runoff_timeseries_with_zerophaseshift(ax4,51,3,'m3','d) ',np.arange(2010,2020),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+
+ax4 = fig.add_subplot(gs[2, 1])
+ax4.plot(t[182:],ra1980s[182:],label='1980-1990',color='khaki',linewidth=2)
+ax4.plot(t[182:],ra1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+ax4.plot(t[182:],ra2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+ax4.plot(t[182:],ra2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+ax4.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+ax4.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+ax4.grid()
+ax4.tick_params(axis='both',labelsize=14)
+#ax4.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=12)
 ax4.set_xlim(182,365)
-axins4 = inset_axes(ax4,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax4.transAxes)
+ax4.set_ylim(0,20)
+ax4.set_yticks(ticks=[0,5,10,15,20])
+ax4.text(185,16,'d) Rain',fontsize=14,weight='bold')
+ax4.text(185,11,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+ax4.text(185,8,str(int(np.round(np.max(ra1980s)))),color='khaki',fontsize=14,weight='bold')
+ax4.text(185,5,str(int(np.round(np.max(ra1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+ax4.text(215,8,str(int(np.round(np.max(ra2000s)))),color='steelblue',fontsize=14,weight='bold')
+ax4.text(215,5,str(int(np.round(np.max(ra2010s)))),color='midnightblue',fontsize=14,weight='bold')
+#ax4.vlines(t[np.where(ra1980s==np.max(ra1980s))],0,np.max(ra1980s),color='khaki',linewidth=3,linestyle='--')
+#ax4.vlines(t[np.where(ra1990s==np.max(ra1990s))],0,np.max(ra1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+#ax4.vlines(t[np.where(ra2000s==np.max(ra2000s))],0,np.max(ra2000s),color='steelblue',linewidth=3,linestyle='--')
+#ax4.vlines(t[np.where(ra2010s==np.max(ra2010s))],0,np.max(ra2010s),color='midnightblue',linewidth=3,linestyle='--')
 
-handles, labels = ax4.get_legend_handles_labels()
+ax5 = fig.add_subplot(gs[3, 1])
+ax5.plot(t[182:],si1980s[182:],label='1980-1990',color='khaki',linewidth=2)
+ax5.plot(t[182:],si1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+ax5.plot(t[182:],si2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+ax5.plot(t[182:],si2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+ax5.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+ax5.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+ax5.grid()
+ax5.tick_params(axis='both',labelsize=14)
+#ax5.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=12)
+ax5.set_xlim(182,365)
+ax5.set_ylim(0,14)
+ax5.set_yticks(ticks=np.arange(0,15,4))
+ax5.text(185,11,'e) Refrozen ice runoff',fontsize=14,weight='bold')
+ax5.text(185,8,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+ax5.text(185,5,str(int(np.round(np.max(si1980s)))),color='khaki',fontsize=14,weight='bold')
+ax5.text(185,2,str(int(np.round(np.max(si1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+ax5.text(205,5,str(int(np.round(np.max(si2000s)))),color='steelblue',fontsize=14,weight='bold')
+ax5.text(205,2,str(int(np.round(np.max(si2010s)))),color='midnightblue',fontsize=14,weight='bold')
+#ax5.vlines(t[np.where(si1980s==np.max(si1980s))],0,np.max(si1980s),color='khaki',linewidth=3,linestyle='--')
+#ax5.vlines(t[np.where(si1990s==np.max(si1990s))],0,np.max(si1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+#ax5.vlines(t[np.where(si2000s==np.max(si2000s))],0,np.max(si2000s),color='steelblue',linewidth=3,linestyle='--')
+#ax5.vlines(t[np.where(si2010s==np.max(si2010s))],0,np.max(si2010s),color='midnightblue',linewidth=3,linestyle='--')
+
+fig.text(0.51,0.26,'Discharge (m$^3$ s$^{-1}$)',fontsize=14,rotation=90,verticalalignment='center')
+
+handles, labels = ax1.get_legend_handles_labels()
 by_label = dict(zip(labels, handles))
-fig.legend(by_label.values(), by_label.keys(),bbox_to_anchor=(0.98,1.1),fontsize=14, ncol=3, borderaxespad=0.19)
- 
-plot_pie_chart(axins1, sizes=[59.3,33.0,5.5,2.3], labels=['A', 'B', 'C', 'D'])
-plot_pie_chart(axins2, sizes=[60.5,31.7,5.5,2.3], labels=['A', 'B', 'C', 'D'])
-plot_pie_chart(axins3, sizes=[62.0,30.2,5.8,2.0], labels=['A', 'B', 'C', 'D'])
-plot_pie_chart(axins4, sizes=[62.7,28.5,6.8,2.0], labels=['A', 'B', 'C', 'D'])
-
-fig.tight_layout()
-#fig.savefig('D:/Model Runs/REF_MODEL/Plots/Refmodel_decadal_hydrographs_smoothed.pdf',bbox_inches='tight')
+fig.legend(by_label.values(), by_label.keys(),bbox_to_anchor=(0.999,1.07),fontsize=14, ncol=4, borderaxespad=0.19)
+#fig.savefig('D:/Model Runs/REF_MODEL/Plots/Refmodel_smoothed_runoff_components.pdf',bbox_inches='tight')
 
 
-
-
-t, r1980s, r1980s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(1980,1990),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
-t, r1990s, r1990s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(1990,2000),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
-t, r2000s, r2000s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(2000,2010),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
-t, r2010s, r2010s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(2010,2020),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
-
-plt.figure(figsize=(8,4))
-plt.plot(t[182:],r1980s[182:],label='1980-1990',color='crimson',linewidth=2)
-plt.plot(t[182:],r1990s[182:],label='1990-2000',color='gold',linewidth=2)
-plt.plot(t[182:],r2000s[182:],label='2000-2010',color='mediumaquamarine',linewidth=2)
-plt.plot(t[182:],r2010s[182:],label='2010-2020',color='slateblue',linewidth=2)
-plt.legend(fontsize=14)
-plt.xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335],labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
-plt.grid()
-plt.yticks(fontsize=14)
-#plt.ylim(0,20)
-plt.ylabel('Refrozen ice melt (m$^3$ s$^{-1}$)',fontsize=14)
-plt.xlim(182,365)
-
-t, r2000s, r2000s_real = runoff_timeseries_with_zerophaseshift(ax1,71,3,'m3','Catchment-wide average runoff: ',np.arange(1980,2000),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
-t, r2010s, r2010s_real = runoff_timeseries_with_zerophaseshift(ax1,71,3,'m3','Catchment-wide average runoff: ',np.arange(1980,2020),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
-
-plt.figure(figsize=(8,5))
-#plt.plot(t[182:],r1980s_real[182:],label='1980-1990',color='crimson',linewidth=2)
-#plt.plot(t[182:],r1990s_real[182:],label='1990-2000',color='gold',linewidth=2)
-plt.plot(t[182:],r2000s_real[182:],label='2000-2010',color='mediumaquamarine',linewidth=2)
-plt.plot(t[182:],r2010s_real[182:],label='2010-2020',color='slateblue',linewidth=2)
-plt.legend(fontsize=14)
-plt.xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335],labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
-plt.grid()
-plt.yticks(fontsize=14)
-plt.ylim(0,350)
-plt.ylabel('Total runoff (m$^3$ s$^{-1}$)',fontsize=14)
-plt.xlim(182,365)
 
 
 # 12 year runoff (eventually put individual pie charts on these plots)
@@ -428,7 +494,10 @@ distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_
 distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_SImelt(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,0.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-distributed_runoff_allcomponents(years,Sfc,Xgrid,Ygrid,gl_icemelt_dist_ref,netsnowmelt_dist_ref,rain_runoff_dist_ref,superimp_icemelt_dist_ref)
+distributed_runoff_allcomponents(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,gl_icemelt_dist_ref,netsnowmelt_dist_ref,rain_runoff_dist_ref,superimp_icemelt_dist_ref)
+
+distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,snowdepth_dist_ref)
+
 
 AAR_over_time(years,years,massbal_dist_ref,massbal_dist_uncorracc)
 Bmod_vs_Bcal(np.arange(2007,2018),KRH_tributaries,KW_fluxgates,massbal_dist_ref)
