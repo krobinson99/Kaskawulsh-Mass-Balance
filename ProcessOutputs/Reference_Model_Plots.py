@@ -10,6 +10,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import sys
 import os
+import cmocean
+from scipy.optimize import curve_fit
+from scipy.signal import savgol_filter
+
 
 
 # Import functions for model:
@@ -26,10 +30,14 @@ runoff_timeseries_average_SLRformat, distributed_runoff, distributed_glaciericem
 distributed_SImelt, compare_hydrographs_differences, annual_massbalance_barchart, massbalance_timeseries_comparison, \
 massbalance_timeseries_difference, compare_hydrographs, compare_date_of_zero_balance, distributed_mass_balance_difference, \
 distributed_runoff_difference, distributed_glaciermelt_difference, distributed_rainrunoff_difference, \
-distributed_snowrunoff_difference, distributed_SImelt_difference
+distributed_snowrunoff_difference, distributed_SImelt_difference, surface_elevation_profiles, \
+cumulative_and_annual_massbal, Bmod_vs_Bcal, distributed_runoff_components, \
+runoff_contribution_timeseries, runoff_timeseries_with_zerophaseshift
 
 REF_MODEL_PATH = 'D:/Model Runs/REF_MODEL/Sim_99999_v2'
 ROUNCE_DEBRIS_PATH = 'D:/Model Runs/ROUNCE_DEBRIS'
+UNCORRECTED_ACC_PATH = 'D:/Model Runs/UNCORRECTED_ACC'
+NO_DEBRIS_PATH = 'D:/Model Runs/NO_DEBRIS'
 NARR_INPUTS = 'D:/BiasCorrected_files/KRH' 
 sim = 99999
 
@@ -46,6 +54,7 @@ Sfc_grid = 'F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KRH_SfcType.t
 
 Xgrid = np.loadtxt(Easting_grid)
 Ygrid = np.loadtxt(Northing_grid)
+Zgrid = np.loadtxt('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/SurfaceZ/Zgrids/DEM_KRH_2022.txt')
 Sfc = np.loadtxt(Sfc_grid)
 
 Catchmentoutline = np.array(Sfc)
@@ -54,8 +63,14 @@ Catchmentoutline[np.where(np.isnan(Sfc))] = 1
 
 KRH_tributaries = np.loadtxt('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KRH_Tributaries.txt')
 
+KW_fluxgates = np.loadtxt('F:/Mass Balance Model/Kaskawulsh-Mass-Balance/RunModel/KRH_Fluxgates.txt')
+
 All_glacierized_area = np.array(Sfc)
 All_glacierized_area[np.where(Sfc==1)] = np.nan
+
+Otherice = np.array((Sfc))
+Otherice[np.isfinite(KRH_tributaries)] = np.nan
+Otherice[Otherice==1] = np.nan
 
 varnames = ['massbal','totalsnowmelt','refreezing','netsnowmelt','gl_icemelt','superimp_icemelt','rain','refrozen_rain','rain_runoff','accumulation','snowdepth','Ptau','SI']
 
@@ -103,6 +118,15 @@ massbal_allgl_ref_std, totalsnowmelt_allgl_ref_std, refreezing_allgl_ref_std, ne
 snowdepth_allgl_ref_std, Ptau_allgl_ref_std, SI_allgl_ref_std = load_daily_timeseries(REF_MODEL_PATH,'REF_MODEL',varnames,'allgl_std',years)
 
 # =============================================================================
+#  REF_MODEL: Non KW Ice
+# =============================================================================
+massbal_nonKWice_ref, totalsnowmelt_nonKWice_ref, refreezing_nonKWice_ref, netsnowmelt_nonKWice_ref, gl_icemelt_nonKWice_ref, superimp_icemelt_nonKWice_ref, rain_nonKWice_ref, refrozen_rain_nonKWice_ref, rain_runoff_nonKWice_ref, accumulation_nonKWice_ref, \
+snowdepth_nonKWice_ref, Ptau_nonKWice_ref, SI_nonKWice_ref = load_daily_timeseries(REF_MODEL_PATH,'REF_MODEL',varnames,'nonKWice',years)
+
+massbal_nonKWice_ref_std, totalsnowmelt_nonKWice_ref_std, refreezing_nonKWice_ref_std, netsnowmelt_nonKWice_ref_std, gl_icemelt_nonKWice_ref_std, superimp_icemelt_nonKWice_ref_std, rain_nonKWice_ref_std, refrozen_rain_nonKWice_ref_std, rain_runoff_nonKWice_ref_std, accumulation_nonKWice_ref_std, \
+snowdepth_nonKWice_ref_std, Ptau_nonKWice_ref_std, SI_nonKWice_ref_std = load_daily_timeseries(REF_MODEL_PATH,'REF_MODEL',varnames,'nonKWice_std',years)
+
+# =============================================================================
 #  REF MODEL: Kaskawulsh
 # =============================================================================
 massbal_kw_ref, totalsnowmelt_kw_ref, refreezing_kw_ref, netsnowmelt_kw_ref, gl_icemelt_kw_ref, superimp_icemelt_kw_ref, rain_kw_ref, refrozen_rain_kw_ref, rain_runoff_kw_ref, accumulation_kw_ref, \
@@ -125,10 +149,6 @@ snowdepth_deb_ref_std, Ptau_deb_ref_std, SI_deb_ref_std = load_daily_timeseries(
 # =============================================================================
 massbal_dist_ref, totalsnowmelt_dist_ref, refreezing_dist_ref, netsnowmelt_dist_ref, gl_icemelt_dist_ref, superimp_icemelt_dist_ref, rain_dist_ref, refrozen_rain_dist_ref, rain_runoff_dist_ref, accumulation_dist_ref, \
 snowdepth_dist_ref, Ptau_dist_ref, SI_dist_ref = load_distributed_fields(REF_MODEL_PATH,'REF_MODEL',varnames,years)
-
-
-
-
 
 
 
@@ -178,6 +198,94 @@ snowdepth_dist_rounce, Ptau_dist_rounce, SI_dist_rounce = load_distributed_field
 
 
 
+# =============================================================================
+#  NO_DEBRIS: Catchment-wide average
+# =============================================================================
+massbal_krh_nodeb, totalsnowmelt_krh_nodeb, refreezing_krh_nodeb, netsnowmelt_krh_nodeb, gl_icemelt_krh_nodeb, superimp_icemelt_krh_nodeb, rain_krh_nodeb, refrozen_rain_krh_nodeb, rain_runoff_krh_nodeb, accumulation_krh_nodeb, \
+snowdepth_krh_nodeb, Ptau_krh_nodeb, SI_krh_nodeb = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'krh',years)
+
+massbal_krh_nodeb_std, totalsnowmelt_krh_nodeb_std, refreezing_krh_nodeb_std, netsnowmelt_krh_nodeb_std, gl_icemelt_krh_nodeb_std, superimp_icemelt_krh_nodeb_std, rain_krh_nodeb_std, refrozen_rain_krh_nodeb_std, rain_runoff_krh_nodeb_std, accumulation_krh_nodeb_std, \
+snowdepth_krh_nodeb_std, Ptau_krh_nodeb_std, SI_krh_nodeb_std = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'krh_std',years)
+
+# =============================================================================
+#  NO_DEBRIS: All glacierized area
+# =============================================================================
+massbal_allgl_nodeb, totalsnowmelt_allgl_nodeb, refreezing_allgl_nodeb, netsnowmelt_allgl_nodeb, gl_icemelt_allgl_nodeb, superimp_icemelt_allgl_nodeb, rain_allgl_nodeb, refrozen_rain_allgl_nodeb, rain_runoff_allgl_nodeb, accumulation_allgl_nodeb, \
+snowdepth_allgl_nodeb, Ptau_allgl_nodeb, SI_allgl_nodeb = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'allgl',years)
+
+massbal_allgl_nodeb_std, totalsnowmelt_allgl_nodeb_std, refreezing_allgl_nodeb_std, netsnowmelt_allgl_nodeb_std, gl_icemelt_allgl_nodeb_std, superimp_icemelt_allgl_nodeb_std, rain_allgl_nodeb_std, refrozen_rain_allgl_nodeb_std, rain_runoff_allgl_nodeb_std, accumulation_allgl_nodeb_std, \
+snowdepth_allgl_nodeb_std, Ptau_allgl_nodeb_std, SI_allgl_nodeb_std = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'allgl_std',years)
+
+# =============================================================================
+#  NO_DEBRIS: Kaskawulsh
+# =============================================================================
+massbal_kw_nodeb, totalsnowmelt_kw_nodeb, refreezing_kw_nodeb, netsnowmelt_kw_nodeb, gl_icemelt_kw_nodeb, superimp_icemelt_kw_nodeb, rain_kw_nodeb, refrozen_rain_kw_nodeb, rain_runoff_kw_nodeb, accumulation_kw_nodeb, \
+snowdepth_kw_nodeb, Ptau_kw_nodeb, SI_kw_nodeb = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'kw',years)
+
+massbal_kw_nodeb_std, totalsnowmelt_kw_nodeb_std, refreezing_kw_nodeb_std, netsnowmelt_kw_nodeb_std, gl_icemelt_kw_nodeb_std, superimp_icemelt_kw_nodeb_std, rain_kw_nodeb_std, refrozen_rain_kw_nodeb_std, rain_runoff_kw_nodeb_std, accumulation_kw_nodeb_std, \
+snowdepth_kw_nodeb_std, Ptau_kw_nodeb_std, SI_kw_nodeb_std = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'kw_std',years)
+
+# =============================================================================
+#  NO_DEBRIS: Debris-covered cell at the terminus: NOT GENERATED YET
+# =============================================================================
+massbal_deb_nodeb, totalsnowmelt_deb_nodeb, refreezing_deb_nodeb, netsnowmelt_deb_nodeb, gl_icemelt_deb_nodeb, superimp_icemelt_deb_nodeb, rain_deb_nodeb, refrozen_rain_deb_nodeb, rain_runoff_deb_nodeb, accumulation_deb_nodeb, \
+snowdepth_deb_nodeb, Ptau_deb_nodeb, SI_deb_nodeb = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'deb',years)
+
+massbal_deb_nodeb_std, totalsnowmelt_deb_nodeb_std, refreezing_deb_nodeb_std, netsnowmelt_deb_nodeb_std, gl_icemelt_deb_nodeb_std, superimp_icemelt_deb_nodeb_std, rain_deb_nodeb_std, refrozen_rain_deb_nodeb_std, rain_runoff_deb_nodeb_std, accumulation_deb_nodeb_std, \
+snowdepth_deb_nodeb_std, Ptau_deb_nodeb_std, SI_deb_nodeb_std = load_daily_timeseries(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,'deb_std',years)
+
+# =============================================================================
+#  NO_DEBRIS: Distributed totals
+# =============================================================================
+massbal_dist_nodeb, totalsnowmelt_dist_nodeb, refreezing_dist_nodeb, netsnowmelt_dist_nodeb, gl_icemelt_dist_nodeb, superimp_icemelt_dist_nodeb, rain_dist_nodeb, refrozen_rain_dist_nodeb, rain_runoff_dist_nodeb, accumulation_dist_nodeb, \
+snowdepth_dist_nodeb, Ptau_dist_nodeb, SI_dist_nodeb = load_distributed_fields(NO_DEBRIS_PATH,'NO_DEBRIS',varnames,years)
+
+
+
+
+
+
+
+
+
+
+
+
+# =============================================================================
+#  UNCORRECTED_ACC: Catchment-wide average
+# =============================================================================
+massbal_krh_uncorracc, totalsnowmelt_krh_uncorracc, refreezing_krh_uncorracc, netsnowmelt_krh_uncorracc, gl_icemelt_krh_uncorracc, superimp_icemelt_krh_uncorracc, rain_krh_uncorracc, refrozen_rain_krh_uncorracc, rain_runoff_krh_uncorracc, accumulation_krh_uncorracc, \
+snowdepth_krh_uncorracc, Ptau_krh_uncorracc, SI_krh_uncorracc = load_daily_timeseries(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,'krh',years)
+
+massbal_krh_uncorracc_std, totalsnowmelt_krh_uncorracc_std, refreezing_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, gl_icemelt_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std, rain_krh_uncorracc_std, refrozen_rain_krh_uncorracc_std, rain_runoff_krh_uncorracc_std, accumulation_krh_uncorracc_std, \
+snowdepth_krh_uncorracc_std, Ptau_krh_uncorracc_std, SI_krh_uncorracc_std = load_daily_timeseries(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,'krh_std',years)
+
+# =============================================================================
+#  UNCORRECTED_ACC: All glacierized area
+# =============================================================================
+massbal_allgl_uncorracc, totalsnowmelt_allgl_uncorracc, refreezing_allgl_uncorracc, netsnowmelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, rain_allgl_uncorracc, refrozen_rain_allgl_uncorracc, rain_runoff_allgl_uncorracc, accumulation_allgl_uncorracc, \
+snowdepth_allgl_uncorracc, Ptau_allgl_uncorracc, SI_allgl_uncorracc = load_daily_timeseries(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,'allgl',years)
+
+massbal_allgl_uncorracc_std, totalsnowmelt_allgl_uncorracc_std, refreezing_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, gl_icemelt_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std, rain_allgl_uncorracc_std, refrozen_rain_allgl_uncorracc_std, rain_runoff_allgl_uncorracc_std, accumulation_allgl_uncorracc_std, \
+snowdepth_allgl_uncorracc_std, Ptau_allgl_uncorracc_std, SI_allgl_uncorracc_std = load_daily_timeseries(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,'allgl_std',years)
+
+# =============================================================================
+#  UNCORRECTED_ACC: Kaskawulsh
+# =============================================================================
+massbal_kw_uncorracc, totalsnowmelt_kw_uncorracc, refreezing_kw_uncorracc, netsnowmelt_kw_uncorracc, gl_icemelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, rain_kw_uncorracc, refrozen_rain_kw_uncorracc, rain_runoff_kw_uncorracc, accumulation_kw_uncorracc, \
+snowdepth_kw_uncorracc, Ptau_kw_uncorracc, SI_kw_uncorracc = load_daily_timeseries(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,'kw',years)
+
+massbal_kw_uncorracc_std, totalsnowmelt_kw_uncorracc_std, refreezing_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, gl_icemelt_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std, rain_kw_uncorracc_std, refrozen_rain_kw_uncorracc_std, rain_runoff_kw_uncorracc_std, accumulation_kw_uncorracc_std, \
+snowdepth_kw_uncorracc_std, Ptau_kw_uncorracc_std, SI_kw_uncorracc_std = load_daily_timeseries(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,'kw_std',years)
+
+# =============================================================================
+#  UNCORRECTED_ACC: Distributed totals
+# =============================================================================
+massbal_dist_uncorracc, totalsnowmelt_dist_uncorracc, refreezing_dist_uncorracc, netsnowmelt_dist_uncorracc, gl_icemelt_dist_uncorracc, superimp_icemelt_dist_uncorracc, rain_dist_uncorracc, refrozen_rain_dist_uncorracc, rain_runoff_dist_uncorracc, accumulation_dist_uncorracc, \
+snowdepth_dist_uncorracc, Ptau_dist_uncorracc, SI_dist_uncorracc = load_distributed_fields(UNCORRECTED_ACC_PATH,'UNCORRECTED_ACC',varnames,years)
+
+
+
 
 
 
@@ -187,54 +295,175 @@ snowdepth_dist_rounce, Ptau_dist_rounce, SI_dist_rounce = load_distributed_field
 # =============================================================================
 # Average mass balance
 massbalance_timeseries_average('Catchment-wide average mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_krh_ref, refrozen_rain_krh_ref, netsnowmelt_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref, accumulation_krh_ref_std, refrozen_rain_krh_ref_std, netsnowmelt_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_ref_std)
-massbalance_timeseries_average('Glacierized area mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_allgl_ref, refrozen_rain_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref, accumulation_allgl_ref_std, refrozen_rain_allgl_ref_std, netsnowmelt_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_ref_std)
-massbalance_timeseries_average('Kaskawulsh mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std)
+massbalance_timeseries_average('Glacierized area mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_allgl_ref, refrozen_rain_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref, accumulation_allgl_ref_std, refrozen_rain_allgl_ref_std, netsnowmelt_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_ref_std,All_glacierized_area)
+massbalance_timeseries_average('Kaskawulsh mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std,KRH_tributaries)
 massbalance_timeseries_average('Terminus mass balance: ',np.arange(2007,2017+1),years,0.15,10, accumulation_deb_ref, refrozen_rain_deb_ref, netsnowmelt_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref, accumulation_deb_ref_std, refrozen_rain_deb_ref_std, netsnowmelt_deb_ref_std, superimp_icemelt_deb_ref_std, gl_icemelt_deb_ref_std)
 # 12 year mass balance
 massbalance_timeseries_12years('Catchment-wide average mass balance',2007, years, 0.055, 1.5, accumulation_krh_ref, refrozen_rain_krh_ref ,netsnowmelt_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref)
 massbalance_timeseries_12years('Glacierized area mass balance',1980, years, 0.055, 1.5, accumulation_allgl_ref, refrozen_rain_allgl_ref ,netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref)
 massbalance_timeseries_12years('Kaskawulsh mass balance',1980, years, 0.055, 1.5, accumulation_kw_ref, refrozen_rain_kw_ref ,netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref)
 massbalance_timeseries_12years('Terminus mass balance',2007, years, 0.15, 10, accumulation_deb_ref, refrozen_rain_deb_ref ,netsnowmelt_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref)
+
 # Average runoff
-runoff_timeseries_average_SLRformat('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+runoff_timeseries_average_SLRformat('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc) #plt.savefig('D:/Model Runs/REF_MODEL/Plots/Hydrograph_Catchmentwide_1980-2022_REFMODEL.pdf',bbox_inches='tight')
 runoff_timeseries_average_SLRformat('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref,gl_icemelt_allgl_ref_std, netsnowmelt_allgl_ref_std, rain_runoff_allgl_ref_std, superimp_icemelt_allgl_ref_std,All_glacierized_area)
 runoff_timeseries_average_SLRformat('m3','Kaskawulsh runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_kw_ref, netsnowmelt_kw_ref, rain_runoff_kw_ref, superimp_icemelt_kw_ref,gl_icemelt_kw_ref_std, netsnowmelt_kw_ref_std, rain_runoff_kw_ref_std, superimp_icemelt_kw_ref_std,KRH_tributaries)
 runoff_timeseries_average_SLRformat('m3','Runoff at the terminus: ',np.arange(1980,2021+1),years,0.1,0.0008,gl_icemelt_deb_ref, netsnowmelt_deb_ref, rain_runoff_deb_ref, superimp_icemelt_deb_ref,gl_icemelt_deb_ref_std, netsnowmelt_deb_ref_std, rain_runoff_deb_ref_std, superimp_icemelt_deb_ref_std,np.ones((1,1)))
+
+runoff_percentile_curves('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+
+# Plot fitted gaussian curves
+piechart_colours = ['turquoise','royalblue','deeppink','darkorange']
+def plot_pie_chart(ax, sizes, labels):
+    ax.pie(sizes, colors=piechart_colours)
+
+
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2,figsize=(10,6))
+runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','a) ',np.arange(1980,1990),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+ax1.set_xlim(182,365)
+ax1.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
+axins1 = inset_axes(ax1,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax1.transAxes)
+
+runoff_timeseries_with_zerophaseshift(ax2,51,3,'m3','b) ',np.arange(1990,2000),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+ax2.set_xlim(182,365)
+axins2 = inset_axes(ax2,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax2.transAxes)
+
+runoff_timeseries_with_zerophaseshift(ax3,51,3,'m3','c) ',np.arange(2000,2010),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+ax3.set_xlim(182,365)
+ax3.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
+axins3 = inset_axes(ax3,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax3.transAxes)
+
+runoff_timeseries_with_zerophaseshift(ax4,51,3,'m3','d) ',np.arange(2010,2020),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+ax4.set_xlim(182,365)
+axins4 = inset_axes(ax4,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax4.transAxes)
+
+handles, labels = ax4.get_legend_handles_labels()
+by_label = dict(zip(labels, handles))
+fig.legend(by_label.values(), by_label.keys(),bbox_to_anchor=(0.98,1.1),fontsize=14, ncol=3, borderaxespad=0.19)
+ 
+plot_pie_chart(axins1, sizes=[59.3,33.0,5.5,2.3], labels=['A', 'B', 'C', 'D'])
+plot_pie_chart(axins2, sizes=[60.5,31.7,5.5,2.3], labels=['A', 'B', 'C', 'D'])
+plot_pie_chart(axins3, sizes=[62.0,30.2,5.8,2.0], labels=['A', 'B', 'C', 'D'])
+plot_pie_chart(axins4, sizes=[62.7,28.5,6.8,2.0], labels=['A', 'B', 'C', 'D'])
+
+fig.tight_layout()
+#fig.savefig('D:/Model Runs/REF_MODEL/Plots/Refmodel_decadal_hydrographs_smoothed.pdf',bbox_inches='tight')
+
+
+
+
+t, r1980s, r1980s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(1980,1990),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, r1990s, r1990s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(1990,2000),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, r2000s, r2000s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(2000,2010),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, r2010s, r2010s_real = runoff_timeseries_with_zerophaseshift(ax1,55,3,'m3','Catchment-wide average runoff: ',np.arange(2010,2020),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+
+plt.figure(figsize=(8,4))
+plt.plot(t[182:],r1980s[182:],label='1980-1990',color='crimson',linewidth=2)
+plt.plot(t[182:],r1990s[182:],label='1990-2000',color='gold',linewidth=2)
+plt.plot(t[182:],r2000s[182:],label='2000-2010',color='mediumaquamarine',linewidth=2)
+plt.plot(t[182:],r2010s[182:],label='2010-2020',color='slateblue',linewidth=2)
+plt.legend(fontsize=14)
+plt.xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335],labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+plt.grid()
+plt.yticks(fontsize=14)
+#plt.ylim(0,20)
+plt.ylabel('Refrozen ice melt (m$^3$ s$^{-1}$)',fontsize=14)
+plt.xlim(182,365)
+
+t, r2000s, r2000s_real = runoff_timeseries_with_zerophaseshift(ax1,71,3,'m3','Catchment-wide average runoff: ',np.arange(1980,2000),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+t, r2010s, r2010s_real = runoff_timeseries_with_zerophaseshift(ax1,71,3,'m3','Catchment-wide average runoff: ',np.arange(1980,2020),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+
+plt.figure(figsize=(8,5))
+#plt.plot(t[182:],r1980s_real[182:],label='1980-1990',color='crimson',linewidth=2)
+#plt.plot(t[182:],r1990s_real[182:],label='1990-2000',color='gold',linewidth=2)
+plt.plot(t[182:],r2000s_real[182:],label='2000-2010',color='mediumaquamarine',linewidth=2)
+plt.plot(t[182:],r2010s_real[182:],label='2010-2020',color='slateblue',linewidth=2)
+plt.legend(fontsize=14)
+plt.xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335],labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+plt.grid()
+plt.yticks(fontsize=14)
+plt.ylim(0,350)
+plt.ylabel('Total runoff (m$^3$ s$^{-1}$)',fontsize=14)
+plt.xlim(182,365)
+
+
 # 12 year runoff (eventually put individual pie charts on these plots)
 runoff_timeseries_12years('m3','Catchment-wide average runoff',2007,years,450,3,gl_icemelt_krh_ref,netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,Sfc)
 runoff_timeseries_12years('m3','Average runoff from the glacierized area',2007,years,450,3,gl_icemelt_allgl_ref,netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref,Sfc)
 runoff_timeseries_12years('m3','Kaskawulsh runoff',2007,years,450,3,gl_icemelt_kw_ref,netsnowmelt_kw_ref, rain_runoff_kw_ref, superimp_icemelt_kw_ref,Sfc)
+
 # 12 year pie charts
 runoff_piecharts_12years('Catchment-wide average runoff',2007,years,gl_icemelt_krh_ref,netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref)
 runoff_piecharts_12years('Average runoff from the glacierized area',2007,years,gl_icemelt_allgl_ref,netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref)
 runoff_piecharts_12years('Kaskawulsh runoff',2007,years,gl_icemelt_kw_ref,netsnowmelt_kw_ref, rain_runoff_kw_ref, superimp_icemelt_kw_ref)
+
+# runoff contribution timeseries
+runoff_contribution_timeseries(years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,11,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 # annual runoff stacked bar
-annualrunoff_stackedbar('Kaskawulsh River Headwaters: total annual runoff',years,netsnowmelt_krh_ref,gl_icemelt_krh_ref,superimp_icemelt_krh_ref,rain_runoff_krh_ref,KRH_tributaries)
-annualrunoff_stackedbar('Glacierized area: total annual runoff',years,netsnowmelt_allgl_ref,gl_icemelt_allgl_ref,superimp_icemelt_allgl_ref,rain_runoff_allgl_ref,KRH_tributaries)
-annualrunoff_stackedbar('Kaskawulsh: total annual runoff',years,netsnowmelt_kw_ref,gl_icemelt_kw_ref,superimp_icemelt_kw_ref,rain_runoff_kw_ref,KRH_tributaries)
+annualrunoff_stackedbar('Kaskawulsh River Headwaters: total annual runoff',np.arange(1980,2022),years,netsnowmelt_krh_ref,gl_icemelt_krh_ref,superimp_icemelt_krh_ref,rain_runoff_krh_ref,Sfc) #plt.savefig('D:\Model Runs\REF_MODEL\Plots\KRH_annualrunoff_stacked.pdf',bbox_inches='tight')
+annualrunoff_stackedbar('Glacierized area: total annual runoff',np.arange(1980,2022),years,netsnowmelt_allgl_ref,gl_icemelt_allgl_ref,superimp_icemelt_allgl_ref,rain_runoff_allgl_ref,All_glacierized_area)
+annualrunoff_stackedbar('Kaskawulsh: total annual runoff',np.arange(1980,2022),years,netsnowmelt_kw_ref,gl_icemelt_kw_ref,superimp_icemelt_kw_ref,rain_runoff_kw_ref,KRH_tributaries)
+
 # date of zero balance
 date_of_zero_balance('Catchment',years,massbal_krh_ref)
-date_of_zero_balance('All glacierized area',years,massbal_allgl_ref)
+date_of_zero_balance(years,massbal_allgl_ref) #plt.savefig('D:\Model Runs\REF_MODEL\Plots\Refmodel_B0_date.pdf',bbox_inches='tight')
 date_of_zero_balance('Kaskawulsh',years,massbal_kw_ref)
-# annual glacier contribution to catchment runoff
 
-# cumulative mass balance
-cumulative_massbalance('Kaskawulsh Glacier Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_kw_ref, refrozen_rain_kw_ref, gl_icemelt_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref)
-cumulative_massbalance('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_allgl_ref, refrozen_rain_allgl_ref, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref)
-# annual mass balance bar chart
-annual_massbalance_barchart('Kaskawulsh Glacier Mass Balance\n',years,np.arange(1980,2022),2.5,accumulation_kw_ref, refrozen_rain_kw_ref, gl_icemelt_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref)
-annual_massbalance_barchart('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),2.5,accumulation_allgl_ref, refrozen_rain_allgl_ref, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref)
+date_of_zero_balance_with_mbcurve(years,massbal_allgl_ref,np.linspace(-10,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries,years,np.arange(1980,2022),0.027,1, accumulation_allgl_ref, refrozen_rain_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref, accumulation_allgl_ref_std, refrozen_rain_allgl_ref_std, netsnowmelt_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_ref_std,All_glacierized_area) #fig.savefig('D:/Model Runs/REF_MODEL/Plots/Refmodel_B0date_MBcurve.pdf',bbox_inches='tight')
+
+# Cumulative mass balance
+cumulative_massbalance('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_allgl_ref, refrozen_rain_allgl_ref, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref,All_glacierized_area)
+Calculate_mass_loss_rates() # Calculate the cumulative mass loss from each decade
+Calculate_KRH_contribution_to_Alaska_massloss()
+cumulative_and_annual_massbal('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),0.07,22,2.5,accumulation_allgl_ref, refrozen_rain_allgl_ref, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref,All_glacierized_area) #plt.savefig('D:\Model Runs\REF_MODEL\Plots\Refmodel_MB_timeseries_1979-2022.pdf',bbox_inches='tight')
+
+mb_vs_runoff(years,netsnowmelt_allgl_ref,gl_icemelt_allgl_ref,superimp_icemelt_allgl_ref,rain_runoff_allgl_ref,All_glacierized_area,accumulation_allgl_ref,refrozen_rain_allgl_ref)
 
 # distributed plots
-shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.888283378746594,stop=1,name='massbal')
-distributed_average_mass_balance('REF_MODEL',np.arange(2007,2017+1),years,massbal_dist_ref,np.linspace(-16.3,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
-distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.8298755186721992,stop=1,name='massbal')
+distributed_average_mass_balance('REF_MODEL',np.arange(1980,2022),years,massbal_dist_ref,np.linspace(-10,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries) #plt.savefig('D:\Model Runs\REF_MODEL\Plots\Refmodel_MB_1979-2022.pdf',bbox_inches='tight')
+
+distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,11,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,10,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_SImelt(np.arange(1980,2021+1),years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,0.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_runoff_allcomponents(years,Sfc,Xgrid,Ygrid,gl_icemelt_dist_ref,netsnowmelt_dist_ref,rain_runoff_dist_ref,superimp_icemelt_dist_ref)
 
+AAR_over_time(years,years,massbal_dist_ref,massbal_dist_uncorracc)
+Bmod_vs_Bcal(np.arange(2007,2018),KRH_tributaries,KW_fluxgates,massbal_dist_ref)
 
+glacier_contribution_to_annualrunoff(years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,11,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+t, g, s, r, si = runoff_contribution_timeseries2(years,netsnowmelt_dist_ref,gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref,np.linspace(0,11,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+# =============================================================================
+# Plot refreezing vs Ptau over time 
+# =============================================================================
+Rmelt = []
+Rrain = []
+Ptau = []
+for i in range(0,43):
+    Ptau.append(np.mean(Ptau_dist_ref[i][np.isfinite(KRH_tributaries)]))
+    Rmelt.append(np.mean(refreezing_dist_ref[i][np.isfinite(KRH_tributaries)]))
+    Rrain.append(np.mean(refrozen_rain_dist_ref[i][np.isfinite(KRH_tributaries)]))
+
+Rmelt = []
+Rrain = []
+Ptau = []
+for i in range(0,43):
+    Ptau.append(np.mean(Ptau_dist_ref[i][KRH_tributaries == 1]))
+    Rmelt.append(np.mean(refreezing_dist_ref[i][KRH_tributaries == 1]))
+    Rrain.append(np.mean(refrozen_rain_dist_ref[i][KRH_tributaries == 1]))
+
+plt.plot(np.array(Rmelt)+np.array(Rrain));plt.plot(Ptau)
+
+Ptau_area = []
+Dry_snow_zone = []
+for i in range(0,43):
+    #Ptau_area.append(np.where(Ptau_dist_ref[i] >np.nanmax(totalsnowmelt_dist_ref) )[0].shape[0]*(0.2*0.2))
+    Ptau_area.append(np.where(Ptau_dist_ref[i] >1)[0].shape[0]*(0.2*0.2))
+    #Dry_snow_zone.append(np.where(refreezing_dist_ref[i]==0)[0].shape[0]*(0.2*0.2))
+    Dry_snow_zone.append(np.where(totalsnowmelt_dist_ref[i]==0)[0].shape[0]*(0.2*0.2))
 
 
 
@@ -283,7 +512,7 @@ annual_massbalance_barchart('Glacierized Area Mass Balance\n',years,np.arange(19
 
 # distributed plots
 shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.888283378746594,stop=1,name='massbal')
-distributed_average_mass_balance('REF_MODEL',np.arange(2007,2017+1),years,massbal_dist_rounce,np.linspace(-16.3,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_average_mass_balance('ROUNCE_DEBRIS',np.arange(2007,2017+1),years,massbal_dist_rounce,np.linspace(-16.3,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist_rounce,gl_icemelt_dist_rounce,superimp_icemelt_dist_rounce,rain_runoff_dist_rounce,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist_rounce,gl_icemelt_dist_rounce,superimp_icemelt_dist_rounce,rain_runoff_dist_rounce,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_rounce,gl_icemelt_dist_rounce,superimp_icemelt_dist_rounce,rain_runoff_dist_rounce,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
@@ -311,7 +540,7 @@ compare_hydrographs('m3','Runoff from a debris-covered cell at the terminus:\n',
 # mass balance difference:
 massbalance_timeseries_difference('Catchment-wide mass balance: ',np.arange(2007,2017+1),years,0.001,0.03, accumulation_krh_ref, refrozen_rain_krh_ref, netsnowmelt_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref, accumulation_krh_ref_std, refrozen_rain_krh_ref_std, netsnowmelt_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_ref_std, accumulation_krh_rounce, refrozen_rain_krh_rounce, netsnowmelt_krh_rounce, superimp_icemelt_krh_rounce, gl_icemelt_krh_rounce, accumulation_krh_rounce_std, refrozen_rain_krh_rounce_std, netsnowmelt_krh_rounce_std, superimp_icemelt_krh_rounce_std, gl_icemelt_krh_rounce_std)
 massbalance_timeseries_difference('Glacierized area mass balance: ',np.arange(2007,2017+1),years,0.001,0.03, accumulation_allgl_ref, refrozen_rain_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref, accumulation_allgl_ref_std, refrozen_rain_allgl_ref_std, netsnowmelt_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_ref_std, accumulation_allgl_rounce, refrozen_rain_allgl_rounce, netsnowmelt_allgl_rounce, superimp_icemelt_allgl_rounce, gl_icemelt_allgl_rounce, accumulation_allgl_rounce_std, refrozen_rain_allgl_rounce_std, netsnowmelt_allgl_rounce_std, superimp_icemelt_allgl_rounce_std, gl_icemelt_allgl_rounce_std)
-massbalance_timeseries_difference('Kaskawulsh Glacier mass balance: ',np.arange(2007,2017+1),years,0.001,0.03, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_rounce, refrozen_rain_kw_rounce, netsnowmelt_kw_rounce, superimp_icemelt_kw_rounce, gl_icemelt_kw_rounce, accumulation_kw_rounce_std, refrozen_rain_kw_rounce_std, netsnowmelt_kw_rounce_std, superimp_icemelt_kw_rounce_std, gl_icemelt_kw_rounce_std)
+massbalance_timeseries_difference('Kaskawulsh Glacier mass balance: ','ROUNCE_DEBRIS',np.arange(2007,2017+1),years,0.008,0.4, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_rounce, refrozen_rain_kw_rounce, netsnowmelt_kw_rounce, superimp_icemelt_kw_rounce, gl_icemelt_kw_rounce, accumulation_kw_rounce_std, refrozen_rain_kw_rounce_std, netsnowmelt_kw_rounce_std, superimp_icemelt_kw_rounce_std, gl_icemelt_kw_rounce_std)
 # mass balance comparison
 massbalance_timeseries_comparison('Kaskawulsh mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_rounce, refrozen_rain_kw_rounce, netsnowmelt_kw_rounce, superimp_icemelt_kw_rounce, gl_icemelt_kw_rounce, accumulation_kw_rounce_std, refrozen_rain_kw_rounce_std, netsnowmelt_kw_rounce_std, superimp_icemelt_kw_rounce_std, gl_icemelt_kw_rounce_std)
 # date of zero balance 
@@ -334,15 +563,199 @@ distributed_rainrunoff_difference('ROUNCE_DEBRIS',np.arange(1980,2021+1),years,n
 shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.5,stop=1,name='SImelt_diff')
 distributed_SImelt_difference('ROUNCE_DEBRIS',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_rounce,gl_icemelt_dist_rounce,superimp_icemelt_dist_rounce,rain_runoff_dist_rounce, np.linspace(-0.02,0.02,21),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
+surface_elevation_profiles()
+
+
+# =============================================================================
+# NO_DEBRIS model plots
+# =============================================================================
+# Average mass balance
+massbalance_timeseries_average('Catchment-wide average mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_krh_nodeb, refrozen_rain_krh_nodeb, netsnowmelt_krh_nodeb, superimp_icemelt_krh_nodeb, gl_icemelt_krh_nodeb, accumulation_krh_nodeb_std, refrozen_rain_krh_nodeb_std, netsnowmelt_krh_nodeb_std, superimp_icemelt_krh_nodeb_std, gl_icemelt_krh_nodeb_std,Sfc)
+massbalance_timeseries_average('Glacierized area mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_allgl_nodeb, refrozen_rain_allgl_nodeb, netsnowmelt_allgl_nodeb, superimp_icemelt_allgl_nodeb, gl_icemelt_allgl_nodeb, accumulation_allgl_nodeb_std, refrozen_rain_allgl_nodeb_std, netsnowmelt_allgl_nodeb_std, superimp_icemelt_allgl_nodeb_std, gl_icemelt_allgl_nodeb_std,All_glacierized_area)
+massbalance_timeseries_average('Kaskawulsh mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_kw_nodeb, refrozen_rain_kw_nodeb, netsnowmelt_kw_nodeb, superimp_icemelt_kw_nodeb, gl_icemelt_kw_nodeb, accumulation_kw_nodeb_std, refrozen_rain_kw_nodeb_std, netsnowmelt_kw_nodeb_std, superimp_icemelt_kw_nodeb_std, gl_icemelt_kw_nodeb_std,KRH_tributaries)
+massbalance_timeseries_average('Terminus mass balance: ',np.arange(2007,2017+1),years,0.3,20, accumulation_deb_nodeb, refrozen_rain_deb_nodeb, netsnowmelt_deb_nodeb, superimp_icemelt_deb_nodeb, gl_icemelt_deb_nodeb, accumulation_deb_nodeb_std, refrozen_rain_deb_nodeb_std, netsnowmelt_deb_nodeb_std, superimp_icemelt_deb_nodeb_std, gl_icemelt_deb_nodeb_std,np.ones((1,1)))
+# 12 year mass balance
+massbalance_timeseries_12years('Catchment-wide average mass balance',2007, years, 0.055, 1.5, accumulation_krh_nodeb, refrozen_rain_krh_nodeb ,netsnowmelt_krh_nodeb, superimp_icemelt_krh_nodeb, gl_icemelt_krh_nodeb)
+massbalance_timeseries_12years('Glacierized area mass balance',2007, years, 0.055, 1.5, accumulation_allgl_nodeb, refrozen_rain_allgl_nodeb ,netsnowmelt_allgl_nodeb, superimp_icemelt_allgl_nodeb, gl_icemelt_allgl_nodeb)
+massbalance_timeseries_12years('Kaskawulsh mass balance',2007, years, 0.055, 1.5, accumulation_kw_nodeb, refrozen_rain_kw_nodeb ,netsnowmelt_kw_nodeb, superimp_icemelt_kw_nodeb, gl_icemelt_kw_nodeb)
+massbalance_timeseries_12years('Terminus mass balance',2007, years, 0.15, 10, accumulation_deb_nodeb, refrozen_rain_deb_nodeb ,netsnowmelt_deb_nodeb, superimp_icemelt_deb_nodeb, gl_icemelt_deb_nodeb)
+# Average runoff
+runoff_timeseries_average_SLRformat('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_nodeb, netsnowmelt_krh_nodeb, rain_runoff_krh_nodeb, superimp_icemelt_krh_nodeb,gl_icemelt_krh_nodeb_std, netsnowmelt_krh_nodeb_std, rain_runoff_krh_nodeb_std, superimp_icemelt_krh_nodeb_std,Sfc)
+runoff_timeseries_average_SLRformat('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_allgl_nodeb, netsnowmelt_allgl_nodeb, rain_runoff_allgl_nodeb, superimp_icemelt_allgl_nodeb,gl_icemelt_allgl_nodeb_std, netsnowmelt_allgl_nodeb_std, rain_runoff_allgl_nodeb_std, superimp_icemelt_allgl_nodeb_std,All_glacierized_area)
+runoff_timeseries_average_SLRformat('m3','Kaskawulsh runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_kw_nodeb, netsnowmelt_kw_nodeb, rain_runoff_kw_nodeb, superimp_icemelt_kw_nodeb,gl_icemelt_kw_nodeb_std, netsnowmelt_kw_nodeb_std, rain_runoff_kw_nodeb_std, superimp_icemelt_kw_nodeb_std,KRH_tributaries)
+runoff_timeseries_average_SLRformat('m3','Runoff at the terminus: ',np.arange(1980,2021+1),years,0.1,0.0008,gl_icemelt_deb_nodeb, netsnowmelt_deb_nodeb, rain_runoff_deb_nodeb, superimp_icemelt_deb_nodeb,gl_icemelt_deb_nodeb_std, netsnowmelt_deb_nodeb_std, rain_runoff_deb_nodeb_std, superimp_icemelt_deb_nodeb_std,np.ones((1,1)))
+# 12 year runoff (eventually put individual pie charts on these plots)
+runoff_timeseries_12years('m3','Catchment-wide average runoff',2007,years,450,3,gl_icemelt_krh_nodeb,netsnowmelt_krh_nodeb, rain_runoff_krh_nodeb, superimp_icemelt_krh_nodeb,Sfc)
+runoff_timeseries_12years('m3','Average runoff from the glacierized area',2007,years,450,3,gl_icemelt_allgl_nodeb,netsnowmelt_allgl_nodeb, rain_runoff_allgl_nodeb, superimp_icemelt_allgl_nodeb,Sfc)
+runoff_timeseries_12years('m3','Kaskawulsh runoff',2007,years,450,3,gl_icemelt_kw_nodeb,netsnowmelt_kw_nodeb, rain_runoff_kw_nodeb, superimp_icemelt_kw_nodeb,Sfc)
+# 12 year pie charts
+runoff_piecharts_12years('Catchment-wide average runoff',2007,years,gl_icemelt_krh_nodeb,netsnowmelt_krh_nodeb, rain_runoff_krh_nodeb, superimp_icemelt_krh_nodeb)
+runoff_piecharts_12years('Average runoff from the glacierized area',2007,years,gl_icemelt_allgl_nodeb,netsnowmelt_allgl_nodeb, rain_runoff_allgl_nodeb, superimp_icemelt_allgl_nodeb)
+runoff_piecharts_12years('Kaskawulsh runoff',2007,years,gl_icemelt_kw_nodeb,netsnowmelt_kw_nodeb, rain_runoff_kw_nodeb, superimp_icemelt_kw_nodeb)
+# annual runoff stacked bar
+annualrunoff_stackedbar('Kaskawulsh River Headwaters: total annual runoff',years,netsnowmelt_krh_nodeb,gl_icemelt_krh_nodeb,superimp_icemelt_krh_nodeb,rain_runoff_krh_nodeb,KRH_tributaries)
+annualrunoff_stackedbar('Glacierized area: total annual runoff',years,netsnowmelt_allgl_nodeb,gl_icemelt_allgl_nodeb,superimp_icemelt_allgl_nodeb,rain_runoff_allgl_nodeb,KRH_tributaries)
+annualrunoff_stackedbar('Kaskawulsh: total annual runoff',years,netsnowmelt_kw_nodeb,gl_icemelt_kw_nodeb,superimp_icemelt_kw_nodeb,rain_runoff_kw_nodeb,KRH_tributaries)
+# date of zero balance
+date_of_zero_balance('Catchment',years,massbal_krh_nodeb)
+date_of_zero_balance('All glacierized area',years,massbal_allgl_nodeb)
+date_of_zero_balance('Kaskawulsh',years,massbal_kw_nodeb)
+# annual glacier contribution to catchment runoff
+
+# cumulative mass balance
+cumulative_massbalance('Kaskawulsh Glacier Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_kw_nodeb, refrozen_rain_kw_nodeb, gl_icemelt_kw_nodeb, netsnowmelt_kw_nodeb, superimp_icemelt_kw_nodeb)
+cumulative_massbalance('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_allgl_nodeb, refrozen_rain_allgl_nodeb, gl_icemelt_allgl_nodeb, netsnowmelt_allgl_nodeb, superimp_icemelt_allgl_nodeb)
+# annual mass balance bar chart
+annual_massbalance_barchart('Kaskawulsh Glacier Mass Balance\n',years,np.arange(1980,2022),2.5,accumulation_kw_nodeb, refrozen_rain_kw_nodeb, gl_icemelt_kw_nodeb, netsnowmelt_kw_nodeb, superimp_icemelt_kw_nodeb)
+annual_massbalance_barchart('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),2.5,accumulation_allgl_nodeb, refrozen_rain_allgl_nodeb, gl_icemelt_allgl_nodeb, netsnowmelt_allgl_nodeb, superimp_icemelt_allgl_nodeb)
+
+# distributed plots
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.888283378746594,stop=1,name='massbal')
+distributed_average_mass_balance('ROUNCE_DEBRIS',np.arange(2007,2017+1),years,massbal_dist_nodeb,np.linspace(-16.3,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb,np.linspace(0,17,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_SImelt(np.arange(1980,2021+1),years,netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb,np.linspace(0,0.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+
+# =============================================================================
+# REF_MODEL vs ROUNCE DEBRIS
+# =============================================================================
+# runoff differences
+compare_hydrographs_differences('m3','Catchment-wide runoff: ',np.arange(1980,2021+1),years,-7,10, gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_nodeb, netsnowmelt_krh_nodeb, rain_runoff_krh_nodeb, superimp_icemelt_krh_nodeb, gl_icemelt_krh_nodeb_std, netsnowmelt_krh_nodeb_std, rain_runoff_krh_nodeb_std, superimp_icemelt_krh_nodeb_std,Sfc)
+compare_hydrographs_differences('m3','Runoff from the glacierized area: ',np.arange(1980,2021+1),years,-7,10, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref_std, netsnowmelt_allgl_ref_std, rain_runoff_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_nodeb, netsnowmelt_allgl_nodeb, rain_runoff_allgl_nodeb, superimp_icemelt_allgl_nodeb, gl_icemelt_allgl_nodeb_std, netsnowmelt_allgl_nodeb_std, rain_runoff_allgl_nodeb_std, superimp_icemelt_allgl_nodeb_std,All_glacierized_area)
+compare_hydrographs_differences('m3','Kaskawulsh runoff: ',np.arange(1980,2021+1),years,-7,10, gl_icemelt_kw_ref, netsnowmelt_kw_ref, rain_runoff_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref_std, netsnowmelt_kw_ref_std, rain_runoff_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_nodeb, netsnowmelt_kw_nodeb, rain_runoff_kw_nodeb, superimp_icemelt_kw_nodeb, gl_icemelt_kw_nodeb_std, netsnowmelt_kw_nodeb_std, rain_runoff_kw_nodeb_std, superimp_icemelt_kw_nodeb_std,KRH_tributaries)
+compare_hydrographs_differences('m3','Runoff from a debris-covered cell at the terminus: ',np.arange(1980,2021+1),years,-0.035,0.03, gl_icemelt_deb_ref, netsnowmelt_deb_ref, rain_runoff_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref_std, netsnowmelt_deb_ref_std, rain_runoff_deb_ref_std, superimp_icemelt_deb_ref_std, gl_icemelt_deb_nodeb, netsnowmelt_deb_nodeb, rain_runoff_deb_nodeb, superimp_icemelt_deb_nodeb, gl_icemelt_deb_nodeb_std, netsnowmelt_deb_nodeb_std, rain_runoff_deb_nodeb_std, superimp_icemelt_deb_nodeb_std,np.ones((1,1)))
+# hydrograph comparison
+compare_hydrographs('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref_std, netsnowmelt_allgl_ref_std, rain_runoff_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_nodeb, netsnowmelt_allgl_nodeb, rain_runoff_allgl_nodeb, superimp_icemelt_allgl_nodeb, gl_icemelt_allgl_nodeb_std, netsnowmelt_allgl_nodeb_std, rain_runoff_allgl_nodeb_std, superimp_icemelt_allgl_nodeb_std,All_glacierized_area)
+compare_hydrographs('m3','Runoff from a debris-covered cell at the terminus:\n',np.arange(1980,2021+1),years,0.1,0.0008,gl_icemelt_deb_ref, netsnowmelt_deb_ref, rain_runoff_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref_std, netsnowmelt_deb_ref_std, rain_runoff_deb_ref_std, superimp_icemelt_deb_ref_std, gl_icemelt_deb_nodeb, netsnowmelt_deb_nodeb, rain_runoff_deb_nodeb, superimp_icemelt_deb_nodeb, gl_icemelt_deb_nodeb_std, netsnowmelt_deb_nodeb_std, rain_runoff_deb_nodeb_std, superimp_icemelt_deb_nodeb_std,np.ones((1,1)))
+# mass balance difference:
+massbalance_timeseries_difference('Catchment-wide mass balance: ',np.arange(2007,2017+1),years,0.001,0.03, accumulation_krh_ref, refrozen_rain_krh_ref, netsnowmelt_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref, accumulation_krh_ref_std, refrozen_rain_krh_ref_std, netsnowmelt_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_ref_std, accumulation_krh_nodeb, refrozen_rain_krh_nodeb, netsnowmelt_krh_nodeb, superimp_icemelt_krh_nodeb, gl_icemelt_krh_nodeb, accumulation_krh_nodeb_std, refrozen_rain_krh_nodeb_std, netsnowmelt_krh_nodeb_std, superimp_icemelt_krh_nodeb_std, gl_icemelt_krh_nodeb_std)
+massbalance_timeseries_difference('Glacierized area mass balance: ',np.arange(2007,2017+1),years,0.001,0.03, accumulation_allgl_ref, refrozen_rain_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref, accumulation_allgl_ref_std, refrozen_rain_allgl_ref_std, netsnowmelt_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_ref_std, accumulation_allgl_nodeb, refrozen_rain_allgl_nodeb, netsnowmelt_allgl_nodeb, superimp_icemelt_allgl_nodeb, gl_icemelt_allgl_nodeb, accumulation_allgl_nodeb_std, refrozen_rain_allgl_nodeb_std, netsnowmelt_allgl_nodeb_std, superimp_icemelt_allgl_nodeb_std, gl_icemelt_allgl_nodeb_std)
+massbalance_timeseries_difference('Kaskawulsh Glacier mass balance: ','ROUNCE_DEBRIS',np.arange(2007,2017+1),years,0.008,0.4, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_nodeb, refrozen_rain_kw_nodeb, netsnowmelt_kw_nodeb, superimp_icemelt_kw_nodeb, gl_icemelt_kw_nodeb, accumulation_kw_nodeb_std, refrozen_rain_kw_nodeb_std, netsnowmelt_kw_nodeb_std, superimp_icemelt_kw_nodeb_std, gl_icemelt_kw_nodeb_std)
+# mass balance comparison
+massbalance_timeseries_comparison('Kaskawulsh mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_nodeb, refrozen_rain_kw_nodeb, netsnowmelt_kw_nodeb, superimp_icemelt_kw_nodeb, gl_icemelt_kw_nodeb, accumulation_kw_nodeb_std, refrozen_rain_kw_nodeb_std, netsnowmelt_kw_nodeb_std, superimp_icemelt_kw_nodeb_std, gl_icemelt_kw_nodeb_std)
+# date of zero balance 
+compare_date_of_zero_balance(years,massbal_allgl_ref,massbal_allgl_nodeb)
+# Distributed differences
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.21052631578947367,stop=1,name='massbal_diff')
+distributed_mass_balance_difference('DEBRIS_FREE',np.arange(1980,2021+1),years,massbal_dist_ref,massbal_dist_nodeb,np.linspace(-2,7.5,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.79,stop=1,name='runoff_diff')
+distributed_runoff_difference('DEBRIS_FREE',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb,np.linspace(-7.5,2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_glaciermelt_difference('DEBRIS_FREE',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb, np.linspace(-7.5,2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.9649122807017544,stop=1,name='snowmelt_diff')
+distributed_snowrunoff_difference('DEBRIS_FREE',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb, np.linspace(-0.055,0.001,40),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=1,stop=0.7,name='rainrunoff_diff')
+distributed_rainrunoff_difference('DEBRIS_FREE',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb, np.linspace(-0.003,0,10),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.5,stop=1,name='SImelt_diff')
+distributed_SImelt_difference('DEBRIS_FREE',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_nodeb,gl_icemelt_dist_nodeb,superimp_icemelt_dist_nodeb,rain_runoff_dist_nodeb, np.linspace(-0.02,0.02,21),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+surface_elevation_profiles()
 
 
 
 
 
+# =============================================================================
+# Uncorrected accumulation model plots
+# =============================================================================
+# Average mass balance
+massbalance_timeseries_average('Catchment-wide average mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_krh_uncorracc, refrozen_rain_krh_uncorracc, netsnowmelt_krh_uncorracc, superimp_icemelt_krh_uncorracc, gl_icemelt_krh_uncorracc, accumulation_krh_uncorracc_std, refrozen_rain_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std, gl_icemelt_krh_uncorracc_std,Sfc)
+massbalance_timeseries_average('Glacierized area mass balance: ',np.arange(2007,2018+1),years,0.035,0.8, accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc, netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc, accumulation_allgl_uncorracc_std, refrozen_rain_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std, gl_icemelt_allgl_uncorracc_std,All_glacierized_area)
+massbalance_timeseries_average('Kaskawulsh mass balance: ',np.arange(2013,2013+1),years,0.035,1.8, accumulation_kw_uncorracc, refrozen_rain_kw_uncorracc, netsnowmelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, gl_icemelt_kw_uncorracc, accumulation_kw_uncorracc_std, refrozen_rain_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std, gl_icemelt_kw_uncorracc_std)
+# 12 year mass balance
+massbalance_timeseries_12years('Catchment-wide average mass balance',2007, years, 0.055, 1.5, accumulation_krh_uncorracc, refrozen_rain_krh_uncorracc ,netsnowmelt_krh_uncorracc, superimp_icemelt_krh_uncorracc, gl_icemelt_krh_uncorracc)
+massbalance_timeseries_12years('Glacierized area mass balance',2010, years, 0.055, 1.5, accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc ,netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc)
+massbalance_timeseries_12years('Kaskawulsh mass balance',2007, years, 0.055, 1.5, accumulation_kw_uncorracc, refrozen_rain_kw_uncorracc ,netsnowmelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, gl_icemelt_kw_uncorracc)
+massbalance_timeseries_12years('Terminus mass balance',2007, years, 0.15, 10, accumulation_deb_uncorracc, refrozen_rain_deb_uncorracc ,netsnowmelt_deb_uncorracc, superimp_icemelt_deb_uncorracc, gl_icemelt_deb_uncorracc)
+# Average runoff
+runoff_timeseries_average_SLRformat('m3','Catchment-wide average runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_krh_uncorracc, netsnowmelt_krh_uncorracc, rain_runoff_krh_uncorracc, superimp_icemelt_krh_uncorracc,gl_icemelt_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, rain_runoff_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std,Sfc)
+runoff_timeseries_average_SLRformat('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, rain_runoff_allgl_uncorracc, superimp_icemelt_allgl_uncorracc,gl_icemelt_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, rain_runoff_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std,All_glacierized_area)
+runoff_timeseries_average_SLRformat('m3','Kaskawulsh runoff: ',np.arange(1980,2021+1),years,275,2.75,gl_icemelt_kw_uncorracc, netsnowmelt_kw_uncorracc, rain_runoff_kw_uncorracc, superimp_icemelt_kw_uncorracc,gl_icemelt_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, rain_runoff_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std,KRH_tributaries)
+runoff_timeseries_average_SLRformat('m3','Runoff at the terminus: ',np.arange(1980,2021+1),years,0.1,0.0008,gl_icemelt_deb_uncorracc, netsnowmelt_deb_uncorracc, rain_runoff_deb_uncorracc, superimp_icemelt_deb_uncorracc,gl_icemelt_deb_uncorracc_std, netsnowmelt_deb_uncorracc_std, rain_runoff_deb_uncorracc_std, superimp_icemelt_deb_uncorracc_std,np.ones((1,1)))
+# 12 year runoff (eventually put individual pie charts on these plots)
+runoff_timeseries_12years('m3','Catchment-wide average runoff',2007,years,450,3,gl_icemelt_krh_uncorracc,netsnowmelt_krh_uncorracc, rain_runoff_krh_uncorracc, superimp_icemelt_krh_uncorracc,Sfc)
+runoff_timeseries_12years('m3','Average runoff from the glacierized area',2007,years,450,3,gl_icemelt_allgl_uncorracc,netsnowmelt_allgl_uncorracc, rain_runoff_allgl_uncorracc, superimp_icemelt_allgl_uncorracc,Sfc)
+runoff_timeseries_12years('m3','Kaskawulsh runoff',2007,years,450,3,gl_icemelt_kw_uncorracc,netsnowmelt_kw_uncorracc, rain_runoff_kw_uncorracc, superimp_icemelt_kw_uncorracc,Sfc)
+# 12 year pie charts
+runoff_piecharts_12years('Catchment-wide average runoff',2007,years,gl_icemelt_krh_uncorracc,netsnowmelt_krh_uncorracc, rain_runoff_krh_uncorracc, superimp_icemelt_krh_uncorracc)
+runoff_piecharts_12years('Average runoff from the glacierized area',2007,years,gl_icemelt_allgl_uncorracc,netsnowmelt_allgl_uncorracc, rain_runoff_allgl_uncorracc, superimp_icemelt_allgl_uncorracc)
+runoff_piecharts_12years('Kaskawulsh runoff',2007,years,gl_icemelt_kw_uncorracc,netsnowmelt_kw_uncorracc, rain_runoff_kw_uncorracc, superimp_icemelt_kw_uncorracc)
+# annual runoff stacked bar
+annualrunoff_stackedbar('Kaskawulsh River Headwaters: total annual runoff',years,netsnowmelt_krh_uncorracc,gl_icemelt_krh_uncorracc,superimp_icemelt_krh_uncorracc,rain_runoff_krh_uncorracc,KRH_tributaries)
+annualrunoff_stackedbar('Glacierized area: total annual runoff',years,netsnowmelt_allgl_uncorracc,gl_icemelt_allgl_uncorracc,superimp_icemelt_allgl_uncorracc,rain_runoff_allgl_uncorracc,KRH_tributaries)
+annualrunoff_stackedbar('Kaskawulsh: total annual runoff',years,netsnowmelt_kw_uncorracc,gl_icemelt_kw_uncorracc,superimp_icemelt_kw_uncorracc,rain_runoff_kw_uncorracc,KRH_tributaries)
+# date of zero balance
+date_of_zero_balance('Catchment',years,massbal_krh_uncorracc)
+date_of_zero_balance('All glacierized area',years,massbal_allgl_uncorracc)
+date_of_zero_balance('Kaskawulsh',years,massbal_kw_uncorracc)
+# annual glacier contribution to catchment runoff
+
+# cumulative mass balance
+cumulative_massbalance('Kaskawulsh Glacier Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_kw_uncorracc, refrozen_rain_kw_uncorracc, gl_icemelt_kw_uncorracc, netsnowmelt_kw_uncorracc, superimp_icemelt_kw_uncorracc)
+cumulative_massbalance('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),0.07,17,accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc, gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc)
+# annual mass balance bar chart
+annual_massbalance_barchart('Kaskawulsh Glacier Mass Balance\n',years,np.arange(1980,2022),2.5,accumulation_kw_uncorracc, refrozen_rain_kw_uncorracc, gl_icemelt_kw_uncorracc, netsnowmelt_kw_uncorracc, superimp_icemelt_kw_uncorracc)
+annual_massbalance_barchart('Glacierized Area Mass Balance\n',years,np.arange(1980,2022),2.5,accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc, gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc)
+
+annual_massbalance_barchart_5yraverages('Glacierized Area Mass Balance\n',years,np.arange(1980,2020),1.5,accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc, gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc)
+annual_massbalance_barchart_10yraverages('Glacierized Area Mass Balance\n',years,np.arange(1980,2020),1.5,accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc, gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc)
+
+
+# distributed plots
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.8298755186721992,stop=1,name='massbal')
+distributed_average_mass_balance('UNCORRECTED_ACC',np.arange(2007,2017+1),years,massbal_dist_uncorracc,np.linspace(-10,2.05,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_runoff(np.arange(1980,2021+1),years,netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc,np.linspace(0,11,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_glaciericemelt(np.arange(1980,2021+1),years,netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc,np.linspace(0,10,18),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_snowrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc,np.linspace(0,0.7,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_rainrunoff(np.arange(1980,2021+1),years,netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc,np.linspace(0,0.3,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+distributed_SImelt(np.arange(1980,2021+1),years,netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc,np.linspace(0,0.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
 
 
+# =============================================================================
+# REF_MODEL vs UNCORRECTED_ACC
+# =============================================================================
+# runoff differences
+compare_hydrographs_differences('m3','Catchment-wide runoff: ',np.arange(1980,2021+1),years,-125,55, gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_uncorracc, netsnowmelt_krh_uncorracc, rain_runoff_krh_uncorracc, superimp_icemelt_krh_uncorracc, gl_icemelt_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, rain_runoff_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std,Sfc)
+compare_hydrographs_differences('m3','Runoff from the glacierized area: ',np.arange(1980,2021+1),years,-7,10, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref_std, netsnowmelt_allgl_ref_std, rain_runoff_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, rain_runoff_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, rain_runoff_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std,All_glacierized_area)
+compare_hydrographs_differences('m3','Kaskawulsh runoff: ',np.arange(1980,2021+1),years,-7,10, gl_icemelt_kw_ref, netsnowmelt_kw_ref, rain_runoff_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref_std, netsnowmelt_kw_ref_std, rain_runoff_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_uncorracc, netsnowmelt_kw_uncorracc, rain_runoff_kw_uncorracc, superimp_icemelt_kw_uncorracc, gl_icemelt_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, rain_runoff_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std,KRH_tributaries)
+compare_hydrographs_differences('m3','Runoff from a debris-covered cell at the terminus: ',np.arange(1980,2021+1),years,-0.035,0.03, gl_icemelt_deb_ref, netsnowmelt_deb_ref, rain_runoff_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref_std, netsnowmelt_deb_ref_std, rain_runoff_deb_ref_std, superimp_icemelt_deb_ref_std, gl_icemelt_deb_uncorracc, netsnowmelt_deb_uncorracc, rain_runoff_deb_uncorracc, superimp_icemelt_deb_uncorracc, gl_icemelt_deb_uncorracc_std, netsnowmelt_deb_uncorracc_std, rain_runoff_deb_uncorracc_std, superimp_icemelt_deb_uncorracc_std,np.ones((1,1)))
+# hydrograph comparison
+compare_hydrographs('m3','Catchment-wide average runoff: ','UNCORRECTED_ACC',np.arange(1980,2021+1),years,275,2.75, gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_uncorracc, netsnowmelt_krh_uncorracc, rain_runoff_krh_uncorracc, superimp_icemelt_krh_uncorracc, gl_icemelt_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, rain_runoff_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std,Sfc)
+compare_hydrographs('m3','Average runoff from the glacierized area: ',np.arange(1980,2021+1),years,275,2.75, gl_icemelt_allgl_ref, netsnowmelt_allgl_ref, rain_runoff_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref_std, netsnowmelt_allgl_ref_std, rain_runoff_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_uncorracc, netsnowmelt_allgl_uncorracc, rain_runoff_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, rain_runoff_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std,All_glacierized_area)
+compare_hydrographs('m3','Runoff from a debris-covered cell at the terminus:\n',np.arange(1980,2021+1),years,0.1,0.0008,gl_icemelt_deb_ref, netsnowmelt_deb_ref, rain_runoff_deb_ref, superimp_icemelt_deb_ref, gl_icemelt_deb_ref_std, netsnowmelt_deb_ref_std, rain_runoff_deb_ref_std, superimp_icemelt_deb_ref_std, gl_icemelt_deb_uncorracc, netsnowmelt_deb_uncorracc, rain_runoff_deb_uncorracc, superimp_icemelt_deb_uncorracc, gl_icemelt_deb_uncorracc_std, netsnowmelt_deb_uncorracc_std, rain_runoff_deb_uncorracc_std, superimp_icemelt_deb_uncorracc_std,np.ones((1,1)))
+# mass balance difference:
+massbalance_timeseries_difference('Catchment-wide mass balance: ',np.arange(2007,2017+1),years,0.005,0.4, accumulation_krh_ref, refrozen_rain_krh_ref, netsnowmelt_krh_ref, superimp_icemelt_krh_ref, gl_icemelt_krh_ref, accumulation_krh_ref_std, refrozen_rain_krh_ref_std, netsnowmelt_krh_ref_std, superimp_icemelt_krh_ref_std, gl_icemelt_krh_ref_std, accumulation_krh_uncorracc, refrozen_rain_krh_uncorracc, netsnowmelt_krh_uncorracc, superimp_icemelt_krh_uncorracc, gl_icemelt_krh_uncorracc, accumulation_krh_uncorracc_std, refrozen_rain_krh_uncorracc_std, netsnowmelt_krh_uncorracc_std, superimp_icemelt_krh_uncorracc_std, gl_icemelt_krh_uncorracc_std)
+massbalance_timeseries_difference('Glacierized area mass balance: ',np.arange(2007,2017+1),years,0.001,0.03, accumulation_allgl_ref, refrozen_rain_allgl_ref, netsnowmelt_allgl_ref, superimp_icemelt_allgl_ref, gl_icemelt_allgl_ref, accumulation_allgl_ref_std, refrozen_rain_allgl_ref_std, netsnowmelt_allgl_ref_std, superimp_icemelt_allgl_ref_std, gl_icemelt_allgl_ref_std, accumulation_allgl_uncorracc, refrozen_rain_allgl_uncorracc, netsnowmelt_allgl_uncorracc, superimp_icemelt_allgl_uncorracc, gl_icemelt_allgl_uncorracc, accumulation_allgl_uncorracc_std, refrozen_rain_allgl_uncorracc_std, netsnowmelt_allgl_uncorracc_std, superimp_icemelt_allgl_uncorracc_std, gl_icemelt_allgl_uncorracc_std)
+massbalance_timeseries_difference('Kaskawulsh Glacier mass balance: ','UNCORRECTED_ACC',np.arange(2007,2017+1),years,0.008,0.4, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_uncorracc, refrozen_rain_kw_uncorracc, netsnowmelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, gl_icemelt_kw_uncorracc, accumulation_kw_uncorracc_std, refrozen_rain_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std, gl_icemelt_kw_uncorracc_std)
+# mass balance comparison
+massbalance_timeseries_comparison('Kaskawulsh mass balance: ',np.arange(2007,2017+1),years,0.035,0.8, accumulation_kw_ref, refrozen_rain_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref, gl_icemelt_kw_ref, accumulation_kw_ref_std, refrozen_rain_kw_ref_std, netsnowmelt_kw_ref_std, superimp_icemelt_kw_ref_std, gl_icemelt_kw_ref_std, accumulation_kw_uncorracc, refrozen_rain_kw_uncorracc, netsnowmelt_kw_uncorracc, superimp_icemelt_kw_uncorracc, gl_icemelt_kw_uncorracc, accumulation_kw_uncorracc_std, refrozen_rain_kw_uncorracc_std, netsnowmelt_kw_uncorracc_std, superimp_icemelt_kw_uncorracc_std, gl_icemelt_kw_uncorracc_std)
+# date of zero balance 
+compare_date_of_zero_balance(years,massbal_allgl_ref,massbal_allgl_uncorracc)
+# Distributed differences
+shiftedColorMap(matplotlib.cm.RdYlBu,start=0,midpoint=0.65625,stop=1,name='massbal_diff')
+distributed_mass_balance_difference('UNCORRECTED_ACC',np.arange(1980,2021+1),years,massbal_dist_ref,massbal_dist_uncorracc,np.linspace(-2.1,1.1,30),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.2142857142857143,stop=1,name='runoff_diff')
+distributed_runoff_difference('UNCORRECTED_ACC',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc,np.linspace(-0.6,2.2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+distributed_glaciermelt_difference('UNCORRECTED_ACC',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc, np.linspace(-0.6,2.2,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.09090909090909083,stop=1,name='snowmelt_diff')
+distributed_snowrunoff_difference('UNCORRECTED_ACC',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc, np.linspace(-0.03,0.3,40),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.9375,stop=0.7,name='rainrunoff_diff')
+distributed_rainrunoff_difference('UNCORRECTED_ACC',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc, np.linspace(-0.06,0.004,20),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
+
+shiftedColorMap(matplotlib.cm.twilight_shifted_r,start=0.1,midpoint=0.8,stop=1,name='SImelt_diff')
+distributed_SImelt_difference('UNCORRECTED_ACC',np.arange(1980,2021+1),years,netsnowmelt_dist_ref, gl_icemelt_dist_ref,superimp_icemelt_dist_ref,rain_runoff_dist_ref, netsnowmelt_dist_uncorracc,gl_icemelt_dist_uncorracc,superimp_icemelt_dist_uncorracc,rain_runoff_dist_uncorracc, np.linspace(-0.08,0.02,41),Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries)
 
 
 
