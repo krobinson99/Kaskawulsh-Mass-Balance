@@ -20,6 +20,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.gridspec import GridSpec
 
 
 def load_hydrologic_year(sim,year,varname,NARR_INPUTS,MODEL_OUTPUTS,Glacier_ID,stddev=False,NARRvar=False):
@@ -402,7 +403,7 @@ def runoff_contribution_timeseries(all_years,netsnowmelt_dist,gl_icemelt_dist,su
     Rain = []
     SI_melt = []
     for year in all_years:
-        #print(year)
+        #print(year)        
         Total_runoff = netsnowmelt_dist[year-all_years[0]] + gl_icemelt_dist[year-all_years[0]] + superimp_icemelt_dist[year-all_years[0]] + rain_runoff_dist[year-all_years[0]]
         Total_runoff_annual.append(np.nansum(Total_runoff))
         
@@ -417,72 +418,52 @@ def runoff_contribution_timeseries(all_years,netsnowmelt_dist,gl_icemelt_dist,su
     SIice_percent = (np.array(SI_melt)/np.array(Total_runoff_annual))*100
     rain_percent = (np.array(Rain)/np.array(Total_runoff_annual))*100
     
-    fig = plt.figure(figsize=(9,3.5))
-    plt.plot(all_years,gl_ice_percent,color='turquoise',label = 'Glacier ice runoff')
-    plt.plot(all_years,gl_ice_percent+snow_percent,color='royalblue',label = 'Snow runoff')
-    plt.plot(all_years,gl_ice_percent+snow_percent+rain_percent,color='deeppink',label = 'Rain')
-    plt.plot(all_years,gl_ice_percent+snow_percent+rain_percent+SIice_percent,color='darkorange',label = 'Refrozen ice runoff')
-    
-    plt.fill_between(all_years,np.zeros(all_years.shape),gl_ice_percent,color='turquoise',alpha=0.35)
-    plt.fill_between(all_years,gl_ice_percent,gl_ice_percent+snow_percent,color='royalblue',alpha=0.35)
-    plt.fill_between(all_years,gl_ice_percent+snow_percent,gl_ice_percent+snow_percent+rain_percent,color='deeppink',alpha=0.35)
-    plt.fill_between(all_years,gl_ice_percent+snow_percent+rain_percent,np.ones(all_years.shape)*100,color='darkorange',alpha=0.35)
-    plt.xlim(1980,2021)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
-    plt.ylim(0,101)
-    fig.legend(ncol=4,fontsize=14,bbox_to_anchor=(1.03,1.1))
-    plt.ylabel('Contribution to\ntotal runoff (%)',fontsize=14)
-    plt.grid()  
-    plt.tight_layout()
-    
-    fig = plt.figure(figsize=(9,3.5))
-    plt.hist(gl_ice_percent,all_years, histtype='step', stacked=True, fill=False,color='turquoise',label = 'Glacier ice runoff')
-    plt.plot(all_years,gl_ice_percent+snow_percent,color='royalblue',label = 'Snow runoff')
-    plt.plot(all_years,gl_ice_percent+snow_percent+rain_percent,color='deeppink',label = 'Rain')
-    plt.plot(all_years,gl_ice_percent+snow_percent+rain_percent+SIice_percent,color='darkorange',label = 'Refrozen ice runoff')
-    
-    plt.fill_between(all_years,np.zeros(all_years.shape),gl_ice_percent,color='turquoise',alpha=0.35)
-    plt.fill_between(all_years,gl_ice_percent,gl_ice_percent+snow_percent,color='royalblue',alpha=0.35)
-    plt.fill_between(all_years,gl_ice_percent+snow_percent,gl_ice_percent+snow_percent+rain_percent,color='deeppink',alpha=0.35)
-    plt.fill_between(all_years,gl_ice_percent+snow_percent+rain_percent,np.ones(all_years.shape)*100,color='darkorange',alpha=0.35)
-    plt.xlim(1980,2021)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
-    plt.ylim(0,101)
-    fig.legend(ncol=4,fontsize=14,bbox_to_anchor=(1.03,1.1))
-    plt.ylabel('Contribution to\ntotal runoff (%)',fontsize=14)
-    plt.grid()  
-    plt.tight_layout()
-    
-    fig = plt.figure(figsize=(9.5,3.5))
+    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1,figsize=(10,6.5))
+    ax1.fill_between(all_years,SIice_percent+rain_percent+snow_percent,np.ones(all_years.shape)*100,step='mid',color='turquoise',alpha=1,label = 'Glacier ice')
+    ax1.fill_between(all_years,SIice_percent+rain_percent,SIice_percent+rain_percent+snow_percent,step='mid',color='royalblue',alpha=1,label = 'Snow')
+    ax1.fill_between(all_years,SIice_percent,SIice_percent+rain_percent,step='mid',color='deeppink',alpha=1,label = 'Rain')
+    ax1.fill_between(all_years,np.zeros(all_years.shape),SIice_percent,step='mid',color='darkorange',alpha=1,label = 'Refrozen ice')    
+    ax1.set_xlim(1980,2021)
+    ax1.tick_params(axis='both',labelsize=14)
+    ax1.set_ylim(0,100)
+    #fig.legend(ncol=4,fontsize=14,bbox_to_anchor=(1.03,1.1))
+    ax1.set_ylabel('Contribution to\ntotal runoff (%)',fontsize=14)
+    ax1.grid()  
+    ax1.text(1980.5,90,'a)',fontsize=14,weight='bold')
+
     m, b = np.polyfit(all_years[1:],gl_ice_percent[1:],deg=1)
-    plt.plot(all_years,m*all_years + b,linestyle='--',c='teal',linewidth=2)
-    plt.plot(all_years,gl_ice_percent,c='turquoise',linewidth=2,label='Glacier ice melt\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)' )
+    ax2.plot(all_years,m*all_years + b,linestyle='--',c='teal',linewidth=2)
+    ax2.scatter(all_years,gl_ice_percent,c='turquoise',linewidth=2,label='Glacier ice melt\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)' )
     print('m_ice =',m)
     m, b = np.polyfit(all_years[1:],snow_percent[1:],deg=1)
-    plt.plot(all_years,m*all_years + b,linestyle='--',c='navy',linewidth=2)
-    plt.plot(all_years,snow_percent,c='royalblue',linewidth=2,label='Snow melt\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)' )
+    ax2.plot(all_years,m*all_years + b,linestyle='--',c='navy',linewidth=2)
+    ax2.scatter(all_years,snow_percent,c='royalblue',linewidth=2,label='Snow melt\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)' )
     print('m_snow =',m)
     m, b = np.polyfit(all_years[1:],rain_percent[1:],deg=1)
-    plt.plot(all_years,m*all_years + b,linestyle='--',c='mediumvioletred',linewidth=2)
-    plt.plot(all_years,rain_percent,c='deeppink',linewidth=2,label='Rain\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)')
+    ax2.plot(all_years,m*all_years + b,linestyle='--',c='mediumvioletred',linewidth=2)
+    ax2.scatter(all_years,rain_percent,c='deeppink',linewidth=2,label='Rain\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)')
     print('m_ice =',m)
     m, b = np.polyfit(all_years[1:],SIice_percent[1:],deg=1)
-    plt.plot(all_years,m*all_years + b,linestyle='--',c='chocolate',linewidth=2)
-    plt.plot(all_years,SIice_percent,c='darkorange',linewidth=2,label='Refrozen ice melt\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)')
+    ax2.plot(all_years,m*all_years + b,linestyle='--',c='chocolate',linewidth=2)
+    ax2.scatter(all_years,SIice_percent,c='darkorange',linewidth=2,label='Refrozen ice melt\n(Trend = ' + f'{m:.2f}' + ' % a$^{-1}$)')
     print('m_SI =',m)
-    #plt.plot(years,SIice_percent,c='darkorange')
-    #plt.plot(years,rain_percent,c='deeppink')
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
-    plt.xlim(1980,2021)
-    plt.ylim(0,70)
+    ax2.tick_params(labelsize=14)
+    ax2.set_xlim(1980,2021)
+    ax2.set_ylim(0,70)
+    ax2.set_yticks(np.arange(0,71,10))
     #plt.ylim(20,70)
-    plt.ylabel('Contribution to\ntotal runoff (%)',fontsize=14)
-    fig.legend(fontsize=14,ncol=2,bbox_to_anchor=(0.8,1.25))
-    plt.grid()
+    ax2.set_ylabel('Contribution to\ntotal runoff (%)',fontsize=14)
+    #fig.legend(fontsize=14,ncol=2,bbox_to_anchor=(0.8,1.25))
+    ax2.grid()
+    ax2.text(1980.5,63,'b)',fontsize=14,weight='bold')
+    
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    #plt.legend(by_label.values(), by_label.keys())
+    fig.legend(by_label.values(), by_label.keys(),ncol=4,fontsize=14,bbox_to_anchor=(0.97,1.04),borderaxespad=0.19)
+    fig.tight_layout()
     #plt.savefig('D:\Model Runs\REF_MODEL\Plots\RefModel_Runoff_Contribution_Timeseries.pdf',bbox_inches='tight')
+    return Total_runoff_annual, gl_ice_percent, snow_percent, rain_percent, SIice_percent
     
 def glacier_contribution_to_annualrunoff(all_years,netsnowmelt_dist,gl_icemelt_dist,superimp_icemelt_dist,rain_runoff_dist,contour_levels,Xgrid,Ygrid,Sfc,Catchmentoutline,KRH_tributaries):
     
@@ -493,10 +474,10 @@ def glacier_contribution_to_annualrunoff(all_years,netsnowmelt_dist,gl_icemelt_d
         Total_runoff = netsnowmelt_dist[year-all_years[0]] + gl_icemelt_dist[year-all_years[0]] + superimp_icemelt_dist[year-all_years[0]] + rain_runoff_dist[year-all_years[0]]
         Total_runoff_annual.append(np.nansum(Total_runoff))
         
-        #Glacierized_area_runoff = np.nansum(Total_runoff[Sfc==0])
-        #Glacierized_area_runoff_annual.append(Glacierized_area_runoff)
+        Glacierized_area_runoff = np.nansum(Total_runoff[Sfc==0])
+        Glacierized_area_runoff_annual.append(Glacierized_area_runoff)
         
-        Glacierized_area_runoff_annual.append(np.nansum(gl_icemelt_dist[year-all_years[0]]))
+        #Glacierized_area_runoff_annual.append(np.nansum(gl_icemelt_dist[year-all_years[0]]))
         
     return Total_runoff_annual, Glacierized_area_runoff_annual
 
@@ -532,27 +513,25 @@ def distributed_average_mass_balance(model_name,avg_years,all_years,dist_massbal
     
     return np.nanmean(MB_ARRAY,axis=0)
     
-def AAR_over_time(years,dist_massbal_ref,dist_massbal_uncorrectedacc,massbal_dist_rounce):
+def AAR_over_time(years,dist_massbal_ref,dist_massbal_uncorrectedacc,massbal_dist_rounce,Sfc):
 
     AARs_ref = []
     for year in years:
-        dist_massbal_ref[year-years[0]][Sfc==1]=np.nan
+        dist_massbal_ref[year-years[0]][np.where(Sfc==1)]=np.nan
         AAR = (np.where(dist_massbal_ref[year-years[0]] > 0)[0].shape[0])/(np.where(np.isfinite(dist_massbal_ref[year-years[0]]))[0].shape[0])
         AARs_ref.append(AAR)
         
     AARs_uncorracc = []
     for year in years:
-        dist_massbal_uncorrectedacc[year-years[0]][Sfc==1]=np.nan
+        dist_massbal_uncorrectedacc[year-years[0]][np.where(Sfc==1)]=np.nan
         AAR = (np.where(dist_massbal_uncorrectedacc[year-years[0]] > 0)[0].shape[0])/(np.where(np.isfinite(dist_massbal_uncorrectedacc[year-years[0]]))[0].shape[0])
         AARs_uncorracc.append(AAR)
 
     AARs_rouncedebris = []
     for year in years:
-        massbal_dist_rounce[year-years[0]][Sfc==1]=np.nan
+        massbal_dist_rounce[year-years[0]][np.where(Sfc==1)]=np.nan
         AAR = (np.where(massbal_dist_rounce[year-years[0]] > 0)[0].shape[0])/(np.where(np.isfinite(massbal_dist_rounce[year-years[0]]))[0].shape[0])
         AARs_rouncedebris.append(AAR)
-        
-    AARs_uncorracc[34] = AARs_ref[34]
         
     fig = plt.figure(figsize=(7,2.5))
     plt.plot(years,AARs_ref,c='k',linewidth=2,label='Site-specific\naccumulation\ncorrection')
@@ -563,7 +542,7 @@ def AAR_over_time(years,dist_massbal_ref,dist_massbal_uncorrectedacc,massbal_dis
     #m, b = np.polyfit(years,np.array(snow_percent)[:,0],deg=1)
     #plt.plot(years,m*years + b,linestyle='--',c='navy',linewidth=2,label='Trend = ' + str(np.round(m,2)) + ' days a$^{-1}$')
     #print('m_snow =',m)
-    #plt.plot(years,AARs_rouncedebris,c='saddlebrown',linewidth=2,label='Standard debris treatment (global dataset)')
+    plt.plot(years,AARs_rouncedebris,c='saddlebrown',linewidth=2,label='Standard debris treatment (global dataset)')
     #plt.plot(years,SIice_percent,c='darkorange')
     #plt.plot(years,rain_percent,c='deeppink')
     plt.xticks(fontsize=14)
@@ -813,14 +792,21 @@ def distributed_runoff_allcomponents(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutlin
     
     #plt.savefig('D:\Model Runs\REF_MODEL\Plots\Distributed_runoff_components.pdf',bbox_inches='tight')
 
-def distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,snowpack):
+def distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,snowpack,gl_icemelt_dist):
+    
+    icemelt = distributed_runoff_components(np.arange(1980,2021+1),years,Sfc,gl_icemelt_dist)
+    icemelt[np.isnan(icemelt)] = 0
+    icemelt[np.isnan(Sfc)] = np.nan
+    icemelt[Sfc==1] = np.nan
+    
     fig, axs = plt.subplots(2, 2, figsize=(9,8))
     
     # Plot 1 with inset
     year = 1979
     snow = snowpack[year-years[0]]
     snow[np.where(snow==0)] = np.nan
-    contour1 = axs[0, 0].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.ice_r,levels=np.linspace(0,3.02,18))
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour1 = axs[0, 0].contourf(Xgrid,Ygrid,snow,cmap='BuPu_new',levels=np.linspace(0,85.1,36))
     axs[0, 0].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
     axs[0, 0].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
     axs[0, 0].axis('off')
@@ -831,14 +817,15 @@ def distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,sn
     cax1 = divider1.append_axes("bottom", size="5%", pad=0.1)
     cb1 = plt.colorbar(contour1, cax=cax1, orientation='horizontal')
     #cb1.set_label('Value')  # Add label to colorbar
-    cb1.set_label('Runoff from glacier ice (m w.e. a$^{-1}$)', rotation=0,fontsize=14,labelpad=1)
-    cb1.set_ticks(np.arange(0,3,0.4))
+    cb1.set_label('Accumulation (m w.e.)', rotation=0,fontsize=14,labelpad=1)
+    cb1.set_ticks(np.arange(0,85,10))
     cb1.ax.tick_params(labelsize=14)
     
     year = 1994
     snow = snowpack[year-years[0]]
     snow[np.where(snow==0)] = np.nan
-    contour2 = axs[0, 1].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.ice_r,levels=np.linspace(0,31.2,18))
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour2 = axs[0, 1].contourf(Xgrid,Ygrid,snow,cmap='BuPu_new',levels=np.linspace(0,85.1,18))
     axs[0, 1].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
     axs[0, 1].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
     axs[0, 1].axis('off')
@@ -850,13 +837,14 @@ def distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,sn
     cb2 = plt.colorbar(contour2, cax=cax2, orientation='horizontal')
     #cb1.set_label('Value')  # Add label to colorbar
     cb2.set_label('Accumulation (m w.e.)', rotation=0,fontsize=14,labelpad=1)
-    cb2.set_ticks(np.arange(0,32,4))
+    cb2.set_ticks(np.arange(0,85,10))
     cb2.ax.tick_params(labelsize=14)
     
     year = 2009
     snow = snowpack[year-years[0]]
     snow[np.where(snow==0)] = np.nan
-    contour3 = axs[1, 0].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.ice_r,levels=np.linspace(0,61.2,18))
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour3 = axs[1, 0].contourf(Xgrid,Ygrid,snow,cmap='BuPu_new',levels=np.linspace(0,85.1,18))
     axs[1, 0].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
     axs[1, 0].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
     axs[1, 0].axis('off')
@@ -868,13 +856,14 @@ def distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,sn
     cb3 = plt.colorbar(contour3, cax=cax3, orientation='horizontal')
     #cb1.set_label('Value')  # Add label to colorbar
     cb3.set_label('Accumulation (m w.e.)', rotation=0,fontsize=14,labelpad=1)
-    cb3.set_ticks(np.arange(0,62,8))
+    cb3.set_ticks(np.arange(0,85,10))
     cb3.ax.tick_params(labelsize=14)
     
     year = 2021
     snow = snowpack[year-years[0]]
     snow[np.where(snow==0)] = np.nan
-    contour4 = axs[1, 1].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.ice_r,levels=np.linspace(0,85.1,18))
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour4 = axs[1, 1].contourf(Xgrid,Ygrid,snow,cmap='BuPu_new',levels=np.linspace(0,85.1,18))
     axs[1, 1].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
     axs[1, 1].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
     axs[1, 1].axis('off')
@@ -888,6 +877,95 @@ def distributed_snowpack_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,sn
     cb4.set_label('Accumulation (m w.e.)', rotation=0,fontsize=14,labelpad=1)
     cb4.set_ticks(np.arange(0,85,10))
     cb4.ax.tick_params(labelsize=14)
+    #plt.savefig('D:\Model Runs\REF_MODEL\Plots\Distributed_snowpack_spinup.pdf',bbox_inches='tight')
+
+def distributed_Ptau_decadal(years,Sfc,Xgrid,Ygrid,Zgrid,Catchmentoutline,Ptau,gl_icemelt_dist):
+    
+    icemelt = distributed_runoff_components(np.arange(1980,2021+1),years,Sfc,gl_icemelt_dist)
+    icemelt[np.isnan(icemelt)] = 0
+    icemelt[np.isnan(Sfc)] = np.nan
+    icemelt[Sfc==1] = np.nan
+    
+    fig, axs = plt.subplots(2, 2, figsize=(9,8))
+    
+    # Plot 1 with inset
+    year = 1979
+    snow = Ptau[year-years[0]]
+    snow[np.where(snow==0)] = np.nan
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour1 = axs[0, 0].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.matter,levels=np.linspace(0,8.2,36))
+    axs[0, 0].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    axs[0, 0].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    axs[0, 0].axis('off')
+    axs[0, 0].axis('equal')
+    axs[0, 0].set_title('a) 1980',fontsize=14,weight='bold')
+    #cb1 = plt.colorbar(axs[0, 0].contourf(Xgrid,Ygrid,icemelt,cmap=cmocean.cm.ice_r,levels=np.linspace(0,10,18)), ax=axs[0, 0])
+    divider1 = make_axes_locatable(axs[0, 0])
+    cax1 = divider1.append_axes("bottom", size="5%", pad=0.1)
+    cb1 = plt.colorbar(contour1, cax=cax1, orientation='horizontal')
+    #cb1.set_label('Value')  # Add label to colorbar
+    cb1.set_label(r'$P_{\tau}$ (m w.e.)', rotation=0,fontsize=14,labelpad=1)
+    cb1.set_ticks(np.arange(0,8.5,1))
+    cb1.ax.tick_params(labelsize=14)
+    
+    year = 1994
+    snow = Ptau[year-years[0]]
+    snow[np.where(snow==0)] = np.nan
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour2 = axs[0, 1].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.matter,levels=np.linspace(0,8.2,18))
+    axs[0, 1].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    axs[0, 1].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    axs[0, 1].axis('off')
+    axs[0, 1].axis('equal')
+    axs[0, 1].set_title('b) 1995',fontsize=14,weight='bold')
+    #cb1 = plt.colorbar(axs[0, 0].contourf(Xgrid,Ygrid,icemelt,cmap=cmocean.cm.ice_r,levels=np.linspace(0,10,18)), ax=axs[0, 0])
+    divider2 = make_axes_locatable(axs[0, 1])
+    cax2 = divider2.append_axes("bottom", size="5%", pad=0.1)
+    cb2 = plt.colorbar(contour2, cax=cax2, orientation='horizontal')
+    #cb1.set_label('Value')  # Add label to colorbar
+    cb2.set_label(r'$P_{\tau}$ (m w.e.)', rotation=0,fontsize=14,labelpad=1)
+    cb2.set_ticks(np.arange(0,8.5,1))
+    cb2.ax.tick_params(labelsize=14)
+    
+    year = 2009
+    snow = Ptau[year-years[0]]
+    snow[np.where(snow==0)] = np.nan
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour3 = axs[1, 0].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.matter,levels=np.linspace(0,8.2,18))
+    axs[1, 0].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    axs[1, 0].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    axs[1, 0].axis('off')
+    axs[1, 0].axis('equal')
+    axs[1, 0].set_title('c) 2010',fontsize=14,weight='bold')
+    #cb1 = plt.colorbar(axs[0, 0].contourf(Xgrid,Ygrid,icemelt,cmap=cmocean.cm.ice_r,levels=np.linspace(0,10,18)), ax=axs[0, 0])
+    divider3 = make_axes_locatable(axs[1, 0])
+    cax3 = divider3.append_axes("bottom", size="5%", pad=0.1)
+    cb3 = plt.colorbar(contour3, cax=cax3, orientation='horizontal')
+    #cb1.set_label('Value')  # Add label to colorbar
+    cb3.set_label(r'$P_{\tau}$ (m w.e.)', rotation=0,fontsize=14,labelpad=1)
+    cb3.set_ticks(np.arange(0,8.5,1))
+    cb3.ax.tick_params(labelsize=14)
+    
+    year = 2021
+    snow = Ptau[year-years[0]]
+    snow[np.where(snow==0)] = np.nan
+    print(year,np.mean(snow[np.where(icemelt==0)]))
+    contour4 = axs[1, 1].contourf(Xgrid,Ygrid,snow,cmap=cmocean.cm.matter,levels=np.linspace(0,8.2,18))
+    axs[1, 1].contour(Xgrid,Ygrid,Sfc,levels=0,colors='k',linewidths=0.5,alpha=0.8)
+    axs[1, 1].contour(Xgrid,Ygrid,Catchmentoutline,levels=1,colors='k',linewidths=0.9,alpha=1,linestyles = 'dashed')
+    axs[1, 1].axis('off')
+    axs[1, 1].axis('equal')
+    axs[1, 1].set_title('d) 2022',fontsize=14,weight='bold')
+    #cb1 = plt.colorbar(axs[0, 0].contourf(Xgrid,Ygrid,icemelt,cmap=cmocean.cm.ice_r,levels=np.linspace(0,10,18)), ax=axs[0, 0])
+    divider4 = make_axes_locatable(axs[1, 1])
+    cax4 = divider4.append_axes("bottom", size="5%", pad=0.1)
+    cb4 = plt.colorbar(contour4, cax=cax4, orientation='horizontal')
+    #cb1.set_label('Value')  # Add label to colorbar
+    cb4.set_label(r'$P_{\tau}$ (m w.e.)', rotation=0,fontsize=14,labelpad=1)
+    cb4.set_ticks(np.arange(0,8.5,1))
+    cb4.ax.tick_params(labelsize=14)
+    plt.savefig('D:\Model Runs\REF_MODEL\Plots\Distributed_Ptau_spinup.pdf',bbox_inches='tight')
+    
     
 
 def massbalance_timeseries_12years(title,year1, years, daily_mb_abs_lim, cumu_mb_abs_lim, accumulation, refrozen_rain, netsnowmelt, superimp_icemelt, gl_icemelt):
@@ -1412,13 +1490,13 @@ def annualrunoff_stackedbar(title,plotting_years,years,netsnowmelt,gl_icemelt,su
     
     width = 0.75       # the width of the bars: can also be len(x) sequence
     
-    fig, ax = plt.subplots(figsize=(10,4))
+    fig, ax = plt.subplots(figsize=(10,3.9))
     ax.bar(plotting_years, np.array(yrly_rain)*area, width, label='Rain',color='deeppink',zorder=5)
-    ax.bar(plotting_years, np.array(yrly_SImelt)*area, width, bottom=np.array(yrly_rain)*area,label='Refrozen ice melt',color='darkorange',zorder=5)
-    ax.bar(plotting_years, np.array(yrly_snowmelt)*area, width, bottom=(np.array(yrly_rain) + np.array(yrly_SImelt))*area,label='Snow melt',color='royalblue',zorder=5)
-    ax.bar(plotting_years, np.array(yrly_icemelt)*area, width, bottom=(np.array(yrly_rain) + np.array(yrly_SImelt) + np.array(yrly_snowmelt))*area,label='Glacier ice melt',color='turquoise',zorder=5)
+    ax.bar(plotting_years, np.array(yrly_SImelt)*area, width, bottom=np.array(yrly_rain)*area,label='Refrozen ice',color='darkorange',zorder=5)
+    ax.bar(plotting_years, np.array(yrly_snowmelt)*area, width, bottom=(np.array(yrly_rain) + np.array(yrly_SImelt))*area,label='Snow',color='royalblue',zorder=5)
+    ax.bar(plotting_years, np.array(yrly_icemelt)*area, width, bottom=(np.array(yrly_rain) + np.array(yrly_SImelt) + np.array(yrly_snowmelt))*area,label='Glacier ice',color='turquoise',zorder=5)
     #plt.plot(years,m*years + b,linestyle='--',c='k',linewidth=2,zorder=20,label='Trend = +' + str(np.round(m,2))+ ' km$^{3}$ a$^{-1}$')
-    plt.plot(plotting_years,m*plotting_years + b,linestyle='--',c='k',linewidth=2,zorder=20)
+    #plt.plot(plotting_years,m*plotting_years + b,linestyle='--',c='k',linewidth=2,zorder=20)
     ax.set_xlim(1979,2022)
     
     ax.set_ylabel('Runoff (Gt a$^{-1}$)',fontsize=14)
@@ -1431,7 +1509,69 @@ def annualrunoff_stackedbar(title,plotting_years,years,netsnowmelt,gl_icemelt,su
 
     plt.tight_layout() 
     
-    return total_runoff
+    return total_runoff, np.array(yrly_icemelt)*area
+
+def annualrunoff_stackedbar_dailyrunoff(title,plotting_years,years,netsnowmelt,gl_icemelt,superimp_icemelt,rain_runoff,area_map):
+    # get total runoff from each component for all years:
+    yrly_snowmelt = []
+    yrly_icemelt = []
+    yrly_SImelt = []
+    yrly_rain = []
+    for year in plotting_years:
+        i = year-years[0]
+        # get total of each component
+        yrly_snowmelt.append(np.nansum(netsnowmelt[i]))
+        yrly_icemelt.append(np.nansum(gl_icemelt[i]))
+        yrly_SImelt.append(np.nansum(superimp_icemelt[i]))
+        yrly_rain.append(np.nansum(rain_runoff[i]))
+    
+    total_runoff_daily = gl_icemelt[1:].flatten() + netsnowmelt[1:].flatten() + rain_runoff[1:].flatten() + superimp_icemelt[1:].flatten()
+
+    total_runoff_daily_final = total_runoff_daily[~np.isnan(total_runoff_daily)]
+    
+    area = np.where(np.isfinite(area_map))[0].shape[0]*(200*200)/1e9
+    dc = np.where(np.isfinite(area_map))[0].shape[0]*(200*200)/(60*60*24)
+    
+    total_runoff = (np.array(yrly_rain) + np.array(yrly_SImelt) + np.array(yrly_snowmelt) + np.array(yrly_icemelt))*area
+    m, b = np.polyfit(plotting_years,total_runoff,deg=1)
+    print('Trend in total runoff = ' + str(np.round(m,2))+ ' km$^{3}$ a$^{-1}$')
+    
+    width = 0.75       # the width of the bars: can also be len(x) sequence
+    
+    dates = pd.date_range(start= str(plotting_years[0]) + '-10-01 00:00:00',end= str(plotting_years[-1]+1) + '-09-30 21:00:00',freq='1D')   
+    filler_dates = len(dates) - (((plotting_years.repeat(365).reshape(len(plotting_years),365)) + np.linspace(0,0.995,365)).flatten()).shape[0]
+    datess = np.concatenate((((plotting_years.repeat(365).reshape(len(plotting_years),365)) + np.linspace(0,0.995,365)).flatten(),np.arange(plotting_years[-1]+1,plotting_years[-1]+1+(filler_dates*0.002733),0.002733)))
+    
+    fig, (ax2, ax1) = plt.subplots(nrows=2, ncols=1,figsize=(10,6.5))
+    
+    ax2.plot(datess-0.5,total_runoff_daily_final*dc,color='k',label='Total runoff')
+    ax2.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
+    ax2.set_xlim(1979,2022)
+    ax2.tick_params(axis='both',labelsize=14)
+    ax2.grid()
+    ax2.legend(fontsize=14,loc='upper right')
+    ax2.text(1980,770,'a)',fontsize=14,weight='bold')
+    
+    ax1.bar(plotting_years, np.array(yrly_rain)*area, width, label='Rain',color='deeppink',zorder=5)
+    ax1.bar(plotting_years, np.array(yrly_SImelt)*area, width, bottom=np.array(yrly_rain)*area,label='Refrozen ice',color='darkorange',zorder=5)
+    ax1.bar(plotting_years, np.array(yrly_snowmelt)*area, width, bottom=(np.array(yrly_rain) + np.array(yrly_SImelt))*area,label='Snow',color='royalblue',zorder=5)
+    ax1.bar(plotting_years, np.array(yrly_icemelt)*area, width, bottom=(np.array(yrly_rain) + np.array(yrly_SImelt) + np.array(yrly_snowmelt))*area,label='Glacier ice',color='turquoise',zorder=5)
+    #plt.plot(years,m*years + b,linestyle='--',c='k',linewidth=2,zorder=20,label='Trend = +' + str(np.round(m,2))+ ' km$^{3}$ a$^{-1}$')
+    #plt.plot(plotting_years,m*plotting_years + b,linestyle='--',c='k',linewidth=2,zorder=20)
+    ax1.set_xlim(1979,2022)
+    ax1.tick_params(axis='both',labelsize=14)
+    
+    ax1.set_ylabel('Runoff (Gt a$^{-1}$)',fontsize=14)
+    ax1.set_xticks(np.arange(plotting_years[0],plotting_years[-1]+1,5))
+    plt.ylim(0,3.9)
+    #ax.set_title('Monthly Runoff (2007-2018) \n Debris Case',fontsize = 15)
+    ax1.legend(fontsize=14,ncol=4)
+    ax1.grid(zorder=-30)
+    ax1.text(1980,3.6,'b)',fontsize=14,weight='bold')
+    
+    fig.tight_layout()
+
+    
 
 def mb_vs_runoff(years,netsnowmelt,gl_icemelt,superimp_icemelt,rain_runoff,area_map,accumulation,refrozen_rain,):
     year_i_index = 0
@@ -2065,7 +2205,7 @@ def runoff_timeseries_average_SLRformat(units,title,avg_years,all_years,daily_ru
     print('rain runoff: ',((np.cumsum(rain_mean+rainstd_mean)*yc)[-1] -(np.cumsum(rain_mean-rainstd_mean)*yc)[-1])/2)
     print('refrozen ice runoff: ',((np.cumsum(SI_mean+SIstd_mean)*yc)[-1] - (np.cumsum(SI_mean-SIstd_mean)*yc)[-1])/2)
 
-    return ice_mean*dc,snow_mean*dc
+    return ice_mean*dc,snow_mean*dc, rain_mean*dc, SI_mean*dc, total_runoff*dc
 
 def runoff_percentile_curves(units,title,avg_years,all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map):
     
@@ -2312,7 +2452,7 @@ def runoff_timeseries_with_zerophaseshift(ax,window_size, poly_order,units,title
     dates = pd.date_range(start= '2000-10-01 00:00:00',end= '2001-09-30 21:00:00',freq='1D')
     Mice_dominates = time[212:][np.where(icemelt_smoothed[212:]>snowmelt_smoothed[212:])][0]
     print(Mice_dominates,str(dates[Mice_dominates])[5:10])
-    ax.text(363,381,'M$_{gl. ice}$ > M$_{snow}$\non ' + str(dates[Mice_dominates])[5:10],fontsize=14,color='darkslategrey',horizontalalignment='right')
+    ax.text(363,381,'Q$_{gl. ice}$ > Q$_{snow}$\non ' + str(dates[Mice_dominates])[5:10],fontsize=14,color='darkslategrey',horizontalalignment='right')
     
     runoff_smoothed = savgol_filter(total_runoff*dc, window_size, poly_order)
     return time, runoff_smoothed, icemelt_smoothed, snowmelt_smoothed, rain_smoothed, SI_smoothed
@@ -2326,7 +2466,7 @@ def decadal_hydrographs_smoothed_curves():
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2,figsize=(10,6))
     runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','a) ',np.arange(1980,1990),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
     ax1.set_xlim(182,365)
-    ax1.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
+    ax1.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
     axins1 = inset_axes(ax1,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax1.transAxes)
     
     runoff_timeseries_with_zerophaseshift(ax2,51,3,'m3','b) ',np.arange(1990,2000),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
@@ -2335,7 +2475,7 @@ def decadal_hydrographs_smoothed_curves():
     
     runoff_timeseries_with_zerophaseshift(ax3,51,3,'m3','c) ',np.arange(2000,2010),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
     ax3.set_xlim(182,365)
-    ax3.set_ylabel('Runoff (m$^3$ s$^{-1}$)',fontsize=14)
+    ax3.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
     axins3 = inset_axes(ax3,width="60%", height="60%", bbox_to_anchor=(-0.52, 0.038, 1, 1), bbox_transform=ax3.transAxes)
     
     runoff_timeseries_with_zerophaseshift(ax4,51,3,'m3','d) ',np.arange(2010,2020),years,470,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
@@ -3565,7 +3705,10 @@ def Bmod_vs_Bcal(avg_years,KRH_tributaries,KW_fluxgates,dist_massbal):
     
     #print(Bmod_Young_MAE)
     #print(Bmod_Robinson_MAE)
-def Calculate_mass_loss_rates():  
+def Calculate_mass_loss_rates():
+    '''
+    needs some work to generalize and fix division'
+    '''
 # Kaskawulsh mass loss rates
     eighties = cumulative_massbalance('Glacierized Area Mass Balance\n',years,np.arange(1980,1990),0.07,17,accumulation_kw_ref, refrozen_rain_kw_ref, gl_icemelt_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref,KRH_tributaries)/10
     nineties = cumulative_massbalance('Glacierized Area Mass Balance\n',years,np.arange(1990,2000),0.07,17,accumulation_kw_ref, refrozen_rain_kw_ref, gl_icemelt_kw_ref, netsnowmelt_kw_ref, superimp_icemelt_kw_ref,KRH_tributaries)/10
@@ -3625,6 +3768,176 @@ def Calculate_KRH_contribution_to_Alaska_massloss():
     frac_KRH_in_StElias = KRH_ice_area/stelias_gl_area*100
     print('KRH represents ',np.round(frac_KRH_in_StElias,2),' % of ice in the St. Elias mountains')
 
+def print_days_aboveQthreshold(runoff_curves,threshold):
+    '''
+    Compute the dates where discharge is above a given threshold
+    Example:
         
+    t, tr1980s, gl1980s, sn1980s, ra1980s, si1980s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(1980,1990),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+    t, tr1990s, gl1990s, sn1990s, ra1990s, si1990s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(1990,2000),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+    t, tr2000s, gl2000s, sn2000s, ra2000s, si2000s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(2000,2010),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+    t, tr2010s, gl2010s, sn2010s, ra2010s, si2010s = runoff_timeseries_with_zerophaseshift(ax1,51,3,'m3','Catchment-wide average runoff: ',np.arange(2010,2020),years,370,2.75,gl_icemelt_krh_ref, netsnowmelt_krh_ref, rain_runoff_krh_ref, superimp_icemelt_krh_ref,gl_icemelt_krh_ref_std, netsnowmelt_krh_ref_std, rain_runoff_krh_ref_std, superimp_icemelt_krh_ref_std,Sfc)
+    
+    Qmax_totalrunoff = 303.60878263610397 
+    Qmax_ice = 197.01128996853694  
+    Qmax_snow = 101.87402570479242
+    Qmax_rain = 23.38238162948592
+    Qmax_SI = 8.456915667248824
+    
+    print_days_aboveQthreshold([gl1980s,gl1990s,gl2000s,gl2010s],0.25*Qmax_ice)
+    
+    '''
+    dates = pd.date_range(start= '2004-10-01 00:00:00',end= '2005-09-30 21:00:00',freq='1D')
+    dec = ['80s: ','90s: ','00s: ','10s: ']
+    days_above_Qmax = []
+    start_date = []
+    print('runoff above',threshold,'m3/s')
+    i = 0
+    for curve in runoff_curves:
+        if np.where(curve>threshold)[0].shape[0] == 0:
+            days_above_Qmax.append(np.nan)
+            start_date.append(np.nan)
+            print(dec[i],np.where(curve>threshold)[0].shape[0])
+        else:
+            days_above_Qmax.append(np.where(curve>threshold)[0].shape[0])
+            start_date.append(np.where(curve>threshold)[0][0])
+            print(dec[i],np.where(curve>threshold)[0].shape[0],' dates: ',str(dates[np.where(curve>threshold)[0][0]])[5:10],'-',str(dates[np.where(curve>threshold)[0][-1]])[5:10])
+ 
+        i+=1       
+    
+def plot_smoothed_decadal_discharge_curves_by_component(ax,window_size, poly_order,units,title,all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map):
+    
+    t, tr1980s, gl1980s, sn1980s, ra1980s, si1980s = runoff_timeseries_with_zerophaseshift(ax,window_size, poly_order,units,title,np.arange(1980,1990),all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map)
+    t, tr1990s, gl1990s, sn1990s, ra1990s, si1990s = runoff_timeseries_with_zerophaseshift(ax,window_size, poly_order,units,title,np.arange(1990,2000),all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map)
+    t, tr2000s, gl2000s, sn2000s, ra2000s, si2000s = runoff_timeseries_with_zerophaseshift(ax,window_size, poly_order,units,title,np.arange(2000,2010),all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map)
+    t, tr2010s, gl2010s, sn2010s, ra2010s, si2010s = runoff_timeseries_with_zerophaseshift(ax,window_size, poly_order,units,title,np.arange(2010,2020),all_years,daily_runoff_upperlim,cumu_runoff_upperlim,gl_icemelt, snowmelt_runoff, rain_runoff, superimp_icemelt,gl_icemelt_std, snowmelt_runoff_std, rain_runoff_std, superimp_icemelt_std,area_map)
+    
+    fig = plt.figure(figsize=(10,6),constrained_layout=True)
+    gs = GridSpec(4, 2, figure=fig)
+    ax1 = fig.add_subplot(gs[0:2, 0])
+    ax1.plot(t[182:],tr1980s[182:],label='1980-1990',color='gold',linewidth=2)
+    ax1.plot(t[182:],tr1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+    ax1.plot(t[182:],tr2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+    ax1.plot(t[182:],tr2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+    ax1.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+    ax1.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+    ax1.grid()
+    ax1.tick_params(axis='both',labelsize=14)
+    ax1.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
+    ax1.set_xlim(182,365)
+    ax1.set_ylim(0,325)
+    ax1.set_yticks(np.arange(0,301,75))
+    ax1.text(185,304,'a) Total runoff',fontsize=14,weight='bold')
+    ax1.text(185,251,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+    ax1.text(185,225,str(int(np.round(np.max(tr1980s)))),color='gold',fontsize=14,weight='bold')
+    ax1.text(185,200,str(int(np.round(np.max(tr1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+    ax1.text(185,175,str(int(np.round(np.max(tr2000s)))),color='steelblue',fontsize=14,weight='bold')
+    ax1.text(185,150,str(int(np.round(np.max(tr2010s)))),color='midnightblue',fontsize=14,weight='bold')
+    #ax1.vlines(t[np.where(tr1980s==np.max(tr1980s))],0,np.max(tr1980s),color='gold',linewidth=3,linestyle='--')
+    #ax1.vlines(t[np.where(tr1990s==np.max(tr1990s))],0,np.max(tr1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+    #ax1.vlines(t[np.where(tr2000s==np.max(tr2000s))],0,np.max(tr2000s),color='steelblue',linewidth=3,linestyle='--')
+    #ax1.vlines(t[np.where(tr2010s==np.max(tr2010s))],0,np.max(tr2010s),color='midnightblue',linewidth=3,linestyle='--')
+    
+    # Print max discharge rate and date on 
+    
+    ax2 = fig.add_subplot(gs[2:, 0])
+    ax2.plot(t[182:],gl1980s[182:],label='1980-1990',color='gold',linewidth=2)
+    ax2.plot(t[182:],gl1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+    ax2.plot(t[182:],gl2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+    ax2.plot(t[182:],gl2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+    ax2.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+    ax2.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+    ax2.grid()
+    ax2.tick_params(axis='both',labelsize=14)
+    ax2.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
+    ax2.set_xlim(182,365)
+    ax2.set_ylim(0,225)
+    ax2.text(185,203,'b) Glacier ice runoff',fontsize=14,weight='bold')
+    ax2.text(185,175,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+    ax2.text(185,155,str(int(np.round(np.max(gl1980s)))),color='gold',fontsize=14,weight='bold')
+    ax2.text(185,135,str(int(np.round(np.max(gl1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+    ax2.text(185,115,str(int(np.round(np.max(gl2000s)))),color='steelblue',fontsize=14,weight='bold')
+    ax2.text(185,95,str(int(np.round(np.max(gl2010s)))),color='midnightblue',fontsize=14,weight='bold')
+    #ax2.vlines(t[np.where(gl1980s==np.max(gl1980s))],0,np.max(gl1980s),color='gold',linewidth=3,linestyle='--')
+    #ax2.vlines(t[np.where(gl1990s==np.max(gl1990s))],0,np.max(gl1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+    #ax2.vlines(t[np.where(gl2000s==np.max(gl2000s))],0,np.max(gl2000s),color='steelblue',linewidth=3,linestyle='--')
+    #ax2.vlines(t[np.where(gl2010s==np.max(gl2010s))],0,np.max(gl2010s),color='midnightblue',linewidth=3,linestyle='--')
+    
+    ax3 = fig.add_subplot(gs[0:2,1])
+    ax3.plot(t[182:],sn1980s[182:],label='1980-1990',color='gold',linewidth=2)
+    ax3.plot(t[182:],sn1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+    ax3.plot(t[182:],sn2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+    ax3.plot(t[182:],sn2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+    ax3.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+    ax3.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+    ax3.grid()
+    ax3.tick_params(axis='both',labelsize=14)
+    ax3.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=14)
+    ax3.set_xlim(182,365)
+    ax3.set_ylim(0,100)
+    ax3.text(185,92,'c) Snow runoff',fontsize=14,weight='bold')
+    ax3.text(185,80,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+    ax3.text(185,72,str(int(np.round(np.max(sn1980s)))),color='gold',fontsize=14,weight='bold')
+    ax3.text(185,64,str(int(np.round(np.max(sn1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+    ax3.text(185,56,str(int(np.round(np.max(sn2000s)))),color='steelblue',fontsize=14,weight='bold')
+    ax3.text(185,48,str(int(np.round(np.max(sn2010s)))),color='midnightblue',fontsize=14,weight='bold')
+    #ax3.vlines(t[np.where(sn1980s==np.max(sn1980s))],0,np.max(sn1980s),color='gold',linewidth=3,linestyle='--')
+    #ax3.vlines(t[np.where(sn1990s==np.max(sn1990s))],0,np.max(sn1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+    #ax3.vlines(t[np.where(sn2000s==np.max(sn2000s))],0,np.max(sn2000s),color='steelblue',linewidth=3,linestyle='--')
+    #ax3.vlines(t[np.where(sn2010s==np.max(sn2010s))],0,np.max(sn2010s),color='midnightblue',linewidth=3,linestyle='--')
     
     
+    ax4 = fig.add_subplot(gs[2, 1])
+    ax4.plot(t[182:],ra1980s[182:],label='1980-1990',color='gold',linewidth=2)
+    ax4.plot(t[182:],ra1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+    ax4.plot(t[182:],ra2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+    ax4.plot(t[182:],ra2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+    ax4.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+    ax4.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+    ax4.grid()
+    ax4.tick_params(axis='both',labelsize=14)
+    #ax4.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=12)
+    ax4.set_xlim(182,365)
+    ax4.set_ylim(0,20)
+    ax4.set_yticks(ticks=[0,5,10,15,20])
+    ax4.text(185,16,'d) Rain',fontsize=14,weight='bold')
+    ax4.text(185,11,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+    ax4.text(185,8,str(int(np.round(np.max(ra1980s)))),color='gold',fontsize=14,weight='bold')
+    ax4.text(185,5,str(int(np.round(np.max(ra1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+    ax4.text(215,8,str(int(np.round(np.max(ra2000s)))),color='steelblue',fontsize=14,weight='bold')
+    ax4.text(215,5,str(int(np.round(np.max(ra2010s)))),color='midnightblue',fontsize=14,weight='bold')
+    #ax4.vlines(t[np.where(ra1980s==np.max(ra1980s))],0,np.max(ra1980s),color='gold',linewidth=3,linestyle='--')
+    #ax4.vlines(t[np.where(ra1990s==np.max(ra1990s))],0,np.max(ra1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+    #ax4.vlines(t[np.where(ra2000s==np.max(ra2000s))],0,np.max(ra2000s),color='steelblue',linewidth=3,linestyle='--')
+    #ax4.vlines(t[np.where(ra2010s==np.max(ra2010s))],0,np.max(ra2010s),color='midnightblue',linewidth=3,linestyle='--')
+    
+    ax5 = fig.add_subplot(gs[3, 1])
+    ax5.plot(t[182:],si1980s[182:],label='1980-1990',color='gold',linewidth=2)
+    ax5.plot(t[182:],si1990s[182:],label='1990-2000',color='mediumaquamarine',linewidth=2)
+    ax5.plot(t[182:],si2000s[182:],label='2000-2010',color='steelblue',linewidth=2)
+    ax5.plot(t[182:],si2010s[182:],label='2010-2020',color='midnightblue',linewidth=2)
+    ax5.set_xticks(ticks=[0,31,61,92,123,151,182,212,243,273,304,335])
+    ax5.set_xticklabels(labels=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],fontsize=14)
+    ax5.grid()
+    ax5.tick_params(axis='both',labelsize=14)
+    #ax5.set_ylabel('Discharge (m$^3$ s$^{-1}$)',fontsize=12)
+    ax5.set_xlim(182,365)
+    ax5.set_ylim(0,14)
+    ax5.set_yticks(ticks=np.arange(0,15,4))
+    ax5.text(185,11,'e) Refrozen ice runoff',fontsize=14,weight='bold')
+    ax5.text(185,8,'Max Q (m$^3$ s$^{-1}$)',fontsize=14)
+    ax5.text(185,5,str(int(np.round(np.max(si1980s)))),color='gold',fontsize=14,weight='bold')
+    ax5.text(185,2,str(int(np.round(np.max(si1990s)))),color='mediumaquamarine',fontsize=14,weight='bold')
+    ax5.text(205,5,str(int(np.round(np.max(si2000s)))),color='steelblue',fontsize=14,weight='bold')
+    ax5.text(205,2,str(int(np.round(np.max(si2010s)))),color='midnightblue',fontsize=14,weight='bold')
+    #ax5.vlines(t[np.where(si1980s==np.max(si1980s))],0,np.max(si1980s),color='gold',linewidth=3,linestyle='--')
+    #ax5.vlines(t[np.where(si1990s==np.max(si1990s))],0,np.max(si1990s),color='mediumaquamarine',linewidth=3,linestyle='--')
+    #ax5.vlines(t[np.where(si2000s==np.max(si2000s))],0,np.max(si2000s),color='steelblue',linewidth=3,linestyle='--')
+    #ax5.vlines(t[np.where(si2010s==np.max(si2010s))],0,np.max(si2010s),color='midnightblue',linewidth=3,linestyle='--')
+    
+    fig.text(0.51,0.26,'Discharge (m$^3$ s$^{-1}$)',fontsize=14,rotation=90,verticalalignment='center')
+    
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    fig.legend(by_label.values(), by_label.keys(),bbox_to_anchor=(0.999,1.07),fontsize=14, ncol=4, borderaxespad=0.19)
+    #fig.savefig('D:/Model Runs/REF_MODEL/Plots/Refmodel_smoothed_runoff_components.pdf',bbox_inches='tight')
